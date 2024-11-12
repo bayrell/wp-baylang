@@ -1,0 +1,32 @@
+{
+	"name": "Runtime.WordPress",
+	"assets": [],
+	"modules":
+	[
+		{
+			"src": "lib",
+			"type": "folder"
+		}
+	],
+	"groups": [
+		"runtime"
+	],
+	"src": "./bay",
+	"dest":
+	{
+		"php": "./source/php",
+		"es6": "./source/es6"
+	},
+	"allow":
+	[
+		"\\.bay$",
+		"\\.php$"
+	],
+	"exclude":
+	[
+		".git",
+		"lib/",
+		"vendor/",
+		"baylang.php"
+	]
+}

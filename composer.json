@@ -1,0 +1,14 @@
+{
+    "name": "bayrell/wp-baylang",
+    "description": "BayLang Constructor for Wordpress",
+    "type": "library",
+    "license": "GNU GPL 3",
+    "authors": [
+        {
+            "name": "Ildar Bikmamatov",
+            "email": "support@bayrell.org"
+        }
+    ],
+    "require": {
+    }
+}
