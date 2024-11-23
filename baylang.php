@@ -121,7 +121,7 @@ class BayLang_Plugin
 			"DEBUG" => defined("WP_DEBUG") ? WP_DEBUG : false,
 			"LOCALE" => get_locale(),
 			"TZ" => wp_timezone_string(),
-			"TZ_OFFSET" => (double)\get_option("gmt_offset"),
+			"TZ_OFFSET" => (double)\get_option("gmt_offset") * 3600,
 		];
 	}
 	
@@ -231,7 +231,7 @@ class BayLang_Plugin
 			"runtime:web:api",
 			function($container)
 			{
-				$container->route = $container->route->addMatches(
+				$container->route->addMatches(
 					\Runtime\Collection::from([
 						$container->request->payload->get("service"),
 						$container->request->payload->get("api_name"),
@@ -243,7 +243,7 @@ class BayLang_Plugin
 		
 		/* Send response */
 		$app = $context->getApp();
-		$app->responseBackend($container);
+		$app->sendResponse($container);
 		
 		exit();
 	}
@@ -286,7 +286,9 @@ class BayLang_Plugin
 			function()
 			{
 				$action = isset($_GET["action"]) ? $_GET["action"] : "index";
-				\Runtime\WordPress\WP_Helper::wp_render_page("admin:forms:settings:" . $action);
+				\Runtime\WordPress\WP_Helper::wp_render_page(
+					"admin:forms:settings:" . $action
+				);
 			}
 		);
 		
@@ -396,7 +398,94 @@ class BayLang_Plugin
 	}
 }
 
-require_once __DIR__ . "/exception.php";
+
+/* Disable QueryMonitor handler */
+add_filter('qm/dispatchers', function($dispatchers, $qm){
+	
+	unset($dispatchers['html']);
+	//var_dump($dispatchers);
+	
+	return $dispatchers;
+}, 999999, 2);
+
+
+/* Disable WordPress default handler */
+if (!defined('WP_DISABLE_FATAL_ERROR_HANDLER'))
+{
+	define('WP_DISABLE_FATAL_ERROR_HANDLER', true);
+}
+
+/* Exception handler */
+set_exception_handler(function ($e){
+	
+	if (!$e) return;
+	
+	status_header(500);
+	http_response_code(500);
+	
+	echo "<b>Fatal Error</b><br/>";
+	echo nl2br($e->getMessage()) . "<br/>\n";
+	echo "in file " . $e->getFile() . ":" . $e->getLine() . "<br>\n";
+	echo nl2br($e->getTraceAsString()) . "<br/>\n";
+	
+	exit();
+});
+
+/* Shutdown функция */
+register_shutdown_function(function(){
+	
+	$e = error_get_last();
+	
+	if (!$e) return;
+	if (!($e['type'] & (E_ERROR | E_COMPILE_ERROR))) return;
+	
+	status_header(500);
+	http_response_code(500);
+	
+	echo "<b>Fatal Error</b><br/>";
+	echo nl2br($e['message']) . "<br/>\n";
+	if (isset($e["file"]))
+	{
+		echo "in file " . $e["file"] . ":" . (isset($e["line"]) ? $e["line"] : 0) . "\n";
+	}
+	
+});
+
+add_filter(
+	'pre_update_option_active_plugins',
+	'debug_errors_pre_update_option_active_plugins', 999999
+);
+function debug_errors_pre_update_option_active_plugins($plugins)
+{
+	
+	if ( empty( $plugins ) ) {
+		return $plugins;
+	}
+	
+	$name = plugin_basename(__FILE__);
+	if (($key = array_search($name, $plugins)) !== false)
+	{
+		unset($plugins[$key]);
+	}
+	array_unshift($plugins, $name);
+	
+	return $plugins;
+	
+}
+
+add_action
+(
+	'plugins_loaded',
+	function ()
+	{
+		if (!defined('QM_ERROR_FATALS'))
+		{
+			define( 'QM_ERROR_FATALS', E_ERROR | E_PARSE | E_COMPILE_ERROR | E_USER_ERROR | E_RECOVERABLE_ERROR );
+		}
+	}
+);
+
+
 BayLang_Plugin::init();
 
 }
