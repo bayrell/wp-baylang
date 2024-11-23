@@ -19,3 +19,9 @@
 [submodule "lib/Runtime.XML"]
 	path = lib/Runtime.XML
 	url = https://github.com/bayrell/Runtime.XML
+[submodule "lib/BayLang"]
+	path = lib/BayLang
+	url = https://github.com/bayrell/BayLang
+[submodule "lib/BayLang.Constructor"]
+	path = lib/BayLang.Constructor
+	url = https://github.com/bayrell/BayLang.Constructor
