@@ -12,6 +12,8 @@
 /* Check if Wordpress */
 if (!defined('ABSPATH')) exit;
 
+use Runtime\WordPress\WP_Helper;
+
 
 if ( !class_exists( 'BayLang_Plugin' ) )
 {
@@ -22,11 +24,15 @@ class BayLang_Plugin
 	static protected $context;
 	static protected $loader = null;
 	
+	
 	/**
 	 * Init Plugin
 	 */
 	public static function init()
 	{
+		/* Loader */
+		static::initLoader();
+		
 		/* Admin init */
 		add_action('admin_init', 'BayLang_Plugin::create_admin_context', 0);
 		
@@ -46,6 +52,10 @@ class BayLang_Plugin
 		
 		/* Template scripts */
 		add_action('wp_enqueue_scripts', 'BayLang_Plugin::add_template_script');
+		add_action('wp_head', 'BayLang_Plugin::widget_page_scripts', 999999);
+		
+		/* Robots tsxt */
+		add_filter('robots_txt', 'BayLang_Plugin::robots');
 		
 		/* Load languages */
 		load_theme_textdomain('baylang', __DIR__ . '/languages');
@@ -90,6 +100,15 @@ class BayLang_Plugin
 	
 	
 	/**
+	 * Returns version
+	 */
+	public static function getVersion()
+	{
+		return "0.12";
+	}
+	
+	
+	/**
 	 * Init loader
 	 */
 	public static function initLoader()
@@ -101,13 +120,15 @@ class BayLang_Plugin
 		static::$loader->addPsr4("Runtime\\",  __DIR__ . "/lib/Runtime/php");
 		static::$loader->addPsr4("Runtime\\Crypt\\",  __DIR__ . "/lib/Runtime.Crypt/php");
 		static::$loader->addPsr4("Runtime\\ORM\\",  __DIR__ . "/lib/Runtime.ORM/php");
+		static::$loader->addPsr4("Runtime\\Unit\\",  __DIR__ . "/lib/Runtime.Unit/php");
 		static::$loader->addPsr4("Runtime\\Web\\",  __DIR__ . "/lib/Runtime.Web/php");
 		static::$loader->addPsr4("Runtime\\Widget\\",  __DIR__ . "/lib/Runtime.Widget/php");
 		static::$loader->addPsr4("Runtime\\WordPress\\",  __DIR__ . "/lib/Runtime.WordPress/php");
 		static::$loader->addPsr4("Runtime\\XML\\",  __DIR__ . "/lib/Runtime.XML/php");
 		
-		/* Init loaders */
-		do_action('init_loader', static::$loader);
+		/* Add BayLang */
+		static::$loader->addPsr4("BayLang\\",  __DIR__ . "/lib/BayLang/php");
+		static::$loader->addPsr4("BayLang\\Constructor\\",  __DIR__ . "/lib/BayLang.Constructor/php");
 	}
 	
 	
@@ -140,17 +161,28 @@ class BayLang_Plugin
 	 */
 	public static function create_admin_context()
 	{
-		/* Loader */
-		static::initLoader();
+		/* Init loaders */
+		do_action('init_loader', static::$loader);
 		
+		/* Init context */
 		$init = [
 			"entry_point" => "Runtime.WordPress.WP_App",
 			"modules" => \Runtime\Vector::from([
 				'Runtime.WordPress',
 				'Runtime.WordPress.Admin',
+				'BayLang.Constructor.Frontend',
 			]),
 			"environments" => \Runtime\Map::from(static::getEnv()),
 		];
+		
+		/* Add unit test */
+		if (WP_DEBUG)
+		{
+			$init["modules"]->push('BayLang.Test');
+			$init["modules"]->push('Runtime.Unit');
+		}
+		
+		/* Run action */
 		do_action('init_admin_context', $init);
 		
 		/* Create context */
@@ -179,17 +211,27 @@ class BayLang_Plugin
 	 */
 	public static function create_template_context()
 	{
-		/* Loader */
-		static::initLoader();
+		/* Init loaders */
+		do_action('init_loader', static::$loader);
 		
 		/* Init context */
 		$init = [
 			"entry_point" => "Runtime.WordPress.WP_App",
 			"modules" => \Runtime\Vector::from([
-				"Runtime.WordPress",
+				"Runtime.WordPress.Theme",
 			]),
 			"environments" => \Runtime\Map::from(static::getEnv()),
 		];
+		
+		/* Add widget page */
+		if (current_user_can("edit_pages"))
+		{
+			$init["modules"]->push("BayLang.Constructor.WidgetPage");
+			$init["modules"]->push("Runtime.Widget.WidgetSettings");
+			$init["modules"]->push("Runtime.WordPress.Settings");
+		}
+		
+		/* Call action */
 		do_action('init_template_context', $init);
 		
 		/* Create context */
@@ -226,7 +268,7 @@ class BayLang_Plugin
 		$context = \Runtime\rtl::getContext();
 		
 		/* Call api */
-		$container = \Runtime\WordPress\WP_Helper::wp_admin_route
+		$container = WP_Helper::wp_admin_route
 		(
 			"runtime:web:api",
 			function($container)
@@ -246,6 +288,51 @@ class BayLang_Plugin
 		$app->sendResponse($container);
 		
 		exit();
+	}
+	
+	
+	/**
+	 * Robots content
+	 */
+	public static function robots($output)
+	{
+		$content = WP_Helper::get_option("robots.txt");
+		return $content ? $content : $output;
+	}
+	
+	
+	/**
+	 * Disable adminbar
+	 */
+	static function disable_adminbar()
+	{
+		echo '<style id="disable-adminbar">
+		html{
+			margin-top: 0px !important;
+		}
+		html.wp-toolbar{
+			padding-top: 0px;
+		}
+		#adminmenuwrap, #adminmenuback, #wpadminbar, #wpfooter{
+			display: none;
+		}
+		#wpbody-content{
+			padding-bottom: 0px;
+		}
+		#wpcontent{
+			padding-left: 0px;
+			margin-left: 0px;
+		}
+		.core_ui_root{
+			background-color: white;
+		}
+		.core_ui_root > .wrap{
+			margin: 0px;
+		}
+		.core_ui_root .wp-heading-inline{
+			display: none !important;
+		}
+		</style>';
 	}
 	
 	
@@ -274,7 +361,7 @@ class BayLang_Plugin
 			function ()
 			{
 				$action = isset($_GET["action"]) ? $_GET["action"] : "index";
-				\Runtime\WordPress\WP_Helper::wp_render_page("admin:forms:data:" . $action);
+				WP_Helper::wp_render_page("admin:forms:data:" . $action);
 			}
 		);
 		
@@ -286,7 +373,7 @@ class BayLang_Plugin
 			function()
 			{
 				$action = isset($_GET["action"]) ? $_GET["action"] : "index";
-				\Runtime\WordPress\WP_Helper::wp_render_page(
+				WP_Helper::wp_render_page(
 					"admin:forms:settings:" . $action
 				);
 			}
@@ -298,7 +385,7 @@ class BayLang_Plugin
 			'manage_options', 'baylang-mail-log',
 			function()
 			{
-				\Runtime\WordPress\WP_Helper::wp_render_page("admin:mail:log:index");
+				WP_Helper::wp_render_page("admin:mail:log:index");
 			}
 		);
 		
@@ -308,7 +395,76 @@ class BayLang_Plugin
 			'manage_options', 'baylang-mail-settings',
 			function()
 			{
-				\Runtime\WordPress\WP_Helper::wp_render_page("admin:mail:settings:index");
+				WP_Helper::wp_render_page("admin:mail:settings:index");
+			}
+		);
+		
+		add_submenu_page
+		(
+			'baylang',
+			'Settings', 'Settings',
+			'manage_options', 'baylang-settings',
+			function ()
+			{
+				WP_Helper::wp_render_page(
+					"baylang:project:settings",
+					function ($container)
+					{
+						$container->route->matches->set("project_id", "default");
+					}
+				);
+			}
+		);
+		
+		add_submenu_page
+		(
+			'baylang',
+			'Widgets', 'Widgets',
+			'manage_options', 'baylang-widgets',
+			function ()
+			{
+				$action = isset($_GET["action"]) ? $_GET["action"] : "index";
+				if ($action == "open")
+				{
+					static::disable_adminbar();
+					WP_Helper::wp_render_page(
+						"baylang:project:widget:edit",
+						function ($container)
+						{
+							$container->route->matches->set("project_id", "default");
+							$container->route->matches->set("widget_name",
+								$_GET["widget_name"]
+							);
+						}
+					);
+				}
+				else
+				{
+					WP_Helper::wp_render_page(
+						"baylang:project:widgets",
+						function ($container)
+						{
+							$container->route->matches->set("project_id", "default");
+						}
+					);
+				}
+			}
+		);
+		
+		add_submenu_page(
+			'baylang',
+			'Code editor', 'Code editor',
+			'manage_options', 'baylang-code-editor',
+			function()
+			{
+				static::disable_adminbar();
+				WP_Helper::wp_render_page(
+					"baylang:project:code:editor",
+					function ($container)
+					{
+						$container->route->matches->set("project_id", "default");
+					}
+				);
 			}
 		);
 		
@@ -318,7 +474,7 @@ class BayLang_Plugin
 			'manage_options', 'baylang-robots-txt',
 			function()
 			{
-				\Runtime\WordPress\WP_Helper::wp_render_page("admin:robots:txt");
+				WP_Helper::wp_render_page("admin:robots:txt");
 			}
 		);
 	}
@@ -329,24 +485,32 @@ class BayLang_Plugin
 	 */
 	public static function add_admin_script()
 	{
-		$inc = "0.12";
+		$version = "0.12";
 		wp_enqueue_script(
 			'vue',
 			WP_DEBUG
 			? '/wp-content/plugins/wp-baylang/assets/vue.runtime.global.js'
 			: '/wp-content/plugins/wp-baylang/assets/vue.runtime.global.prod.js',
-			[], $inc, true
+			[], $version, true
 		);
 		wp_enqueue_script(
 			'baylang-runtime',
 			'/wp-content/plugins/wp-baylang/assets/runtime.js',
-			[], $inc, true
+			[], $version, true
 		);
 		wp_enqueue_script(
 			'baylang-runtime-admin',
 			'/wp-content/plugins/wp-baylang/assets/admin.js',
-			['baylang-runtime'], $inc, true
+			['baylang-runtime'], $version, true
 		);
+		if (WP_DEBUG)
+		{
+			wp_enqueue_script(
+				'baylang-runtime-test',
+				'/wp-content/plugins/wp-baylang/assets/test.js',
+				['baylang-runtime-admin'], $version, true
+			);
+		}
 	}
 	
 	
@@ -355,7 +519,7 @@ class BayLang_Plugin
 	 */
 	static function add_template_script()
 	{
-		$version = apply_filters("get_app_version", "0");
+		$version = static::getVersion();
 		wp_enqueue_script(
 			'vue',
 			WP_DEBUG
@@ -368,6 +532,31 @@ class BayLang_Plugin
 			'/wp-content/plugins/wp-baylang/assets/runtime.js',
 			[], $version, true
 		);
+	}
+	
+	
+	/**
+	 * Widget page
+	 */
+	public static function widget_page_scripts()
+	{
+		if (current_user_can("edit_pages"))
+		{
+			$version = static::getVersion();
+			wp_enqueue_script(
+				'baylang-constructor',
+				'/wp-content/plugins/wp-baylang/assets/constructor.js',
+				['baylang-runtime'], $version, true
+			);
+			
+			/* Disable admin bar */
+			if (
+				static::$container->route &&
+				static::$container->route->name == "baylang:widget:debug")
+			{
+				static::disable_adminbar();
+			}
+		}
 	}
 	
 	
@@ -396,6 +585,15 @@ class BayLang_Plugin
 		</script>
 		<?
 	}
+}
+
+
+/**
+ * Returns loader
+ */
+function getLoader()
+{
+	return BayLang_Plugin::getLoader();
 }
 
 
