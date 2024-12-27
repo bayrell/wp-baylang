@@ -1,0 +1,26 @@
+{
+	"name": "Runtime.Widget.Tree",
+	"assets":
+	[
+		"TreeItem.bay",
+		"TreeMessage.bay",
+		"TreeModel.bay",
+		"TreeWidget.bay"
+	],
+	"require": [
+		"Runtime.Widget"
+	],
+	"groups": [
+		"widget"
+	],
+	"src": "./",
+	"dest":
+	{
+		"php": "./../../php/Tree",
+		"es6": "./../../es6/Tree"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

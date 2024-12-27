@@ -1,0 +1,124 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Providers;
+
+use Runtime.lib;
+use Runtime.BaseHook;
+use Runtime.BaseProvider;
+use Runtime.Callback;
+use Runtime.Context;
+use Runtime.Entity.Hook;
+
+
+class HookProvider extends BaseProvider
+{
+	protected Vector<BaseHook> base_hooks = [];
+	protected Map<Map<Vector>> hooks = new Map();
+	
+	
+	/**
+	 * Init provider
+	 */
+	async void init()
+	{
+		Vector<Hook> hooks = @.getEntities(classof Hook);
+		
+		this.base_hooks = new Vector();
+		for (int i=0; i<hooks.count(); i++)
+		{
+			Hook hook = hooks[i];
+			BaseHook base_hook = hook.createHook();
+			base_hook.hook = hook;
+			base_hook.provider = this;
+			base_hook.register_hooks();
+			this.base_hooks.push(base_hook);
+		}
+	}
+	
+	
+	/**
+	 * Start provider
+	 */
+	async void start()
+	{
+		await parent::start();
+	}
+	
+	
+	/**
+	 * Register hook
+	 */
+	void register(string hook_name, var obj, string method_name, int priority = 100)
+	{
+		if (not this.hooks.has(hook_name)) this.hooks.set(hook_name, new Map());
+		
+		Map priorities = this.hooks[hook_name];
+		if (not priorities.has(priority)) priorities.set(priority, new Vector());
+		
+		Vector methods_list = priorities.get(priority);
+		methods_list.push(new Callback(obj, method_name));
+	}
+	
+	
+	/**
+	 * Remove hook
+	 */
+	void remove(string hook_name, var obj, string method_name, int priority = 100)
+	{
+		if (not this.hooks.has(hook_name)) this.hooks.setValue(hook_name, new Map());
+		
+		Map priorities = this.hooks[hook_name];
+		if (not priorities.has(priority)) priorities.setValue(priority, new Vector());
+		
+		Vector methods_list = priorities.get(priority);
+		int index = methods_list.find(
+			bool (Callback info) use (obj, method_name)
+			{
+				return info.obj == obj and info.name == method_name;
+			}
+		);
+		if (index > -1)
+		{
+			methods_list.removePosition(index);
+		}
+	}
+	
+	
+	/**
+	 * Returns method list
+	 */
+	Collection<fn> getMethods(string hook_name)
+	{
+		if (not this.hooks.has(hook_name)) return [];
+		
+		Vector res = new Vector();
+		
+		Map priorities = this.hooks[hook_name];
+		Collection priorities_keys = priorities.keys().sort();
+		for (int i=0; i<priorities_keys.count(); i++)
+		{
+			int priority = priorities_keys[i];
+			Vector methods_list = priorities.get(priority);
+			
+			res.appendItems(methods_list);
+		}
+		
+		return res.toCollection();
+	}
+}

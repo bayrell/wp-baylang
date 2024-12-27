@@ -1,0 +1,292 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="BayLang.Constructor.Frontend.Code.CodeEditor">
+
+<use name="BayLang.Constructor.Frontend.Code.TextEditable" component="true" />
+<use name="BayLang.Constructor.Frontend.Code.TreeItem" />
+
+
+<style>
+.code_editor{
+	display: flex;
+	position: relative;
+	flex-direction: column;
+	overflow-y: hidden;
+	height: 100vh;
+}
+.code_editor__menu{
+	display: flex;
+	border-bottom: 1px var(--widget-color-border) solid;
+}
+.code_editor__menu_item{
+    cursor: pointer;
+    user-select: none;
+    padding: 10px;
+}
+.code_editor_menu_item_file_name{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	/*padding-right: 100px;*/
+	flex: 1;
+}
+.code_editor__main{
+	display: flex;
+	height: calc(100% - 37px);
+}
+.code_editor__file_manager{
+	position: relative;
+	border-right: 1px var(--widget-color-border) solid;
+	overflow-x: auto;
+	padding-left: 5px;
+	width: 300px;
+	overflow-x: auto;
+	padding-left: 5px;
+}
+.code_editor__content{
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: calc(100% - 300px);
+}
+.code_editor__tabs{
+	display: flex;
+	height: 32px;
+	border-bottom: 1px var(--widget-color-border) solid;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+.code_editor__tab{
+	display: flex;
+	border-right: 1px var(--widget-color-border) solid;
+	padding: 5px;
+	cursor: pointer;
+	user-select: none;
+}
+.code_editor__tab.selected{
+	background-color: var(--widget-color-primary);
+    color: var(--widget-color-primary-text)
+}
+.code_editor__label{
+	display: flex;
+	align-items: center;
+	padding-left: 5px;
+	flex: 1;
+}
+.code_editor__icon{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding-top: 3px;
+	width: 24px;
+}
+.code_editor__icon span{
+	padding: 1px;
+}
+.code_editor__icon:hover span{
+	background-color: #f0f0f0;
+}
+.code_editor__tab.selected .code_editor__icon:hover span{
+	background-color: var(--widget-color-primary);
+}
+.code_editor__file_edit{
+	position: relative;
+	height: calc(100% - 56px);
+}
+.code_editor__file{
+	overflow-y: auto;
+	height: 100%;
+	%(TextEditable)widget_text_editable{
+		border-width: 0px;
+		padding: 5px;
+	}
+}
+.code_editor__file.hide{
+	display: none;
+}
+.code_editor__status_bar{
+	display: flex;
+	align-items: center;
+	padding: 2px;
+	padding-left: 5px;
+	border-top: 1px var(--widget-color-border) solid;
+	height: 24px;
+}
+</style>
+
+<style global="true">
+.code_editor__tabs.h-fd5f::-webkit-scrollbar{
+	width: 0;
+}
+</style>
+
+<template name="renderMenu">
+	<div class="code_editor__menu">
+		<a class="code_editor__menu_item nolink"
+			href={{ this.layout.route.data
+				? this.layout.route.data.get("back_url")
+				: this.layout.url(
+					"baylang:project:modules",
+					{
+						"project_id": this.model.project_id,
+					}
+				)
+			}}
+		>Back</a>
+		<div class="code_editor__menu_item"
+			@event:click={{ void (){ this.model.save(); } }}
+		>Save</div>
+		<div class="code_editor_menu_item code_editor_menu_item_file_name">
+			%if (this.model.selected_tab)
+			{
+				{{ this.model.selected_tab.file_path }}
+			}
+		</div>
+	</div>
+</template>
+
+
+<template name="renderTabs">
+	<div class="code_editor__tabs" @ref="tabs"
+		@event:mousewheel={{
+			var (var e)
+			{
+				var tabs = this.getRef("tabs");
+				tabs.scrollLeft = tabs.scrollLeft + e.deltaY;
+				e.preventDefault();
+				e.stopPropagation();
+			}
+		}}
+	>
+		%for (int i=0; i<this.model.tabs.count(); i++)
+		{
+			%set TreeItem item = this.model.tabs.get(i);
+			<div class="code_editor__tab"
+				class={{ item == this.model.selected_tab ? "selected" : "" }}
+				@key={{ item.file_path }}
+				@event:mousedown={{
+					void (var e) use (item)
+					{
+						if (e.button == 1)
+						{
+							this.model.removeTab(item);
+						}
+					}
+				}}
+				@event:click={{
+					void (var e) use (item)
+					{
+						this.model.selectTab(item);
+					}
+				}}
+			>
+				<div class="code_editor__label">{{ item.label }}</div>
+				<div class="code_editor__icon"
+					@event:click={{
+						void (var e) use (item)
+						{
+							this.model.removeTab(item);
+							e.preventDefault();
+							e.stopPropagation();
+						}
+					}}
+				><span>@raw{{ "&#10005;" }}</span></div>
+			</div>
+		}
+	</div>
+</template>
+
+
+<template name="renderStatusBar">
+	<div class="code_editor__status_bar">
+		{{ this.model.save_result.message }}
+	</div>
+</template>
+
+
+<template name="renderFileEditor">
+	<div class="code_editor__file_edit">
+		%for (int i=0; i<this.model.tabs.count(); i++)
+		{
+			%set TreeItem item = this.model.tabs.get(i);
+			<div class="code_editor__file" @key={{ item.file_path }}
+				class={{ item == this.model.selected_tab ? "" : "hide" }}
+			>
+				<TextEditable
+					class="wrap"
+					value={{ item.content }}
+					reference={{ item.code_editor }}
+					@event:valueChange={{
+						void (var e) use (item)
+						{
+							item.content = e.value;
+						}
+					}}
+				/>
+			</div>
+		}
+	</div>
+</template>
+
+
+<template>
+	<div class="code_editor">
+		%render this.renderMenu();
+		<div class="code_editor__main">
+			<div class="code_editor__file_manager">
+				%render this.renderWidget(this.model.tree);
+			</div>
+			<div class="code_editor__content">
+				%render this.renderTabs();
+				%render this.renderFileEditor();
+				%render this.renderStatusBar();
+			</div>
+		</div>
+		%render this.renderWidget(this.model.confirm_dialog);
+		%render this.renderWidget(this.model.prompt_dialog);
+	</div>
+</template>
+
+
+<script>
+
+/**
+ * Mounted
+ */
+void onMounted()
+{
+	document.addEventListener("keydown", this.onKeyDown);
+}
+
+
+/**
+ * Key down
+ */
+void onKeyDown(var e)
+{
+	if (e.key == "s" and e.ctrlKey)
+	{
+		this.model.save();
+		e.preventDefault();
+	}
+}
+
+</script>
+
+</class>

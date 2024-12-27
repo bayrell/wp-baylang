@@ -1,0 +1,281 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Constructor.Frontend.Editor.Processor;
+
+use Runtime.BaseObject;
+use BayLang.Constructor.Frontend.Editor.WidgetEditPageModel;
+use BayLang.LangBay.ParserBay;
+use BayLang.LangBay.TranslatorBay;
+use BayLang.LangES6.TranslatorES6;
+use BayLang.OpCodes.BaseOpCode;
+use BayLang.OpCodes.OpCollection;
+use BayLang.OpCodes.OpDeclareClass;
+use BayLang.OpCodes.OpDeclareFunction;
+use BayLang.OpCodes.OpDeclareFunctionArg;
+use BayLang.OpCodes.OpDict;
+use BayLang.OpCodes.OpDictPair;
+use BayLang.OpCodes.OpModule;
+use BayLang.OpCodes.OpNamespace;
+use BayLang.OpCodes.OpString;
+
+
+class CodeProcessor extends BaseObject
+{
+	WidgetEditPageModel page_model = null;
+	OpModule code = null;
+	
+	
+	/**
+	 * Constructor
+	 */
+	public void constructor(WidgetEditPageModel page_model)
+	{
+		parent();
+		this.page_model = page_model;
+	}
+	
+	
+	/**
+	 * Is component
+	 */
+	pure bool isComponent(string tag_name)
+	{
+		string ch1 = rs::substr(tag_name, 0, 1);
+		string ch2 = rs::upper(ch1);
+		return ch1 == ch2;
+	}
+	
+	
+	/**
+	 * Setup op code
+	 */
+	void setupOpCode(OpModule code)
+	{
+		this.code = code;
+		this.class_name = "";
+		this.class_namespace = "";
+		if (not this.code) return;
+		
+		/* Setup component class name */
+		for (int i=0; i<this.code.items.count(); i++)
+		{
+			BaseOpCode item = this.code.items.get(i);
+			if (item instanceof OpNamespace) this.class_namespace = item.name;
+			if (item instanceof OpDeclareClass) this.class_name = item.name;
+		}
+	}
+	
+	
+	/**
+	 * Returns full class name
+	 */
+	string getComponentFullClassName() => this.class_namespace != ""
+		? this.class_namespace ~ "." ~ this.class_name
+		: this.class_name
+	;
+	
+	
+	/**
+	 * Returns module class name
+	 */
+	string getModuleClassName(string widget_name)
+	{
+		if (not static::isComponent(widget_name)) return null;
+		if (not this.code) return null;
+		if (not this.code.uses.has(widget_name))
+		{
+			return widget_name;
+		}
+		return this.code.uses.get(widget_name);
+	}
+	
+	
+	/**
+	 * Returns components
+	 */
+	Collection<string> getComponents() => this.code.uses.values();
+	
+	
+	/**
+	 * Add module
+	 */
+	string addModule(string widget_name, string alias_name = "", bool is_component = false)
+	{
+		if (alias_name == "")
+		{
+			string widget_name_arr = rs::split(".", widget_name);
+			alias_name = widget_name_arr.last();
+		}
+		if (not this.code.hasModule(alias_name) or alias_name == "")
+		{
+			this.code.addModule(widget_name, alias_name, is_component);
+		}
+		return alias_name;
+	}
+	
+	
+	/**
+	 * Returns function
+	 */
+	OpDeclareFunction findFunction(string function_name)
+	{
+		if (not this.code) return null;
+		
+		OpDeclareClass op_code_class = this.code.findClass();
+		if (not op_code_class) return null;
+		
+		OpDeclareFunction op_code = op_code_class.findFunction(function_name);
+		return op_code;
+	}
+	
+	
+	/**
+	 * Create parser
+	 */
+	ParserBay createParser()
+	{
+		/* Setup parser params */
+		Dict params =
+		{
+			"current_namespace_name": this.class_namespace,
+			"current_class_name": this.class_name,
+			"uses": this.code.uses
+		};
+		
+		/* Create new instance */
+		ParserBay parser = new ParserBay();
+		parser = parser::reset(parser);
+		if (params.has("current_namespace_name"))
+			parser <= current_namespace_name <= params.get("current_namespace_name");
+		if (params.has("current_class_name"))
+			parser <= current_class_name <= params.get("current_class_name");
+		if (params.has("uses"))
+			parser <= uses <= params.get("uses");
+		
+		return parser;
+	}
+	
+	
+	/**
+	 * Create translator
+	 */
+	TranslatorES6 createTranslator()
+	{
+		/* New instance */
+		TranslatorES6 t = new TranslatorES6();
+		
+		/* Reset translator */
+		TranslatorES6 t = TranslatorES6::reset(t);
+		if (this.code.uses != null)
+		{
+			t <= modules <= this.code.uses;
+		}
+		
+		/* Enable debug */
+		t = t.setFlag("DEBUG_COMPONENT", true);
+		
+		/* Return */
+		return t;
+	}
+	
+	
+	/**
+	 * Build code
+	 */
+	string buildContent()
+	{
+		TranslatorBay t = new TranslatorBay();
+		list res = t::translate(t, this.code, false);
+		return res.get(1);
+	}
+	
+	
+	/**
+	 * Returns op code value
+	 */
+	pure BaseOpCode getOpCodeByValue(var value)
+	{
+		if (rtl::isString(value))
+		{
+			return new OpString
+			{
+				"value": value
+			};
+		}
+		else if (value instanceof Dict)
+		{
+			Collection values = [];
+			Collection keys = value.keys();
+			for (int i=0; i<keys.count(); i++)
+			{
+				string key = keys.get(i);
+				values.push
+				(
+					new OpDictPair
+					{
+						"key": key,
+						"value": static::getOpCodeByValue(value.get(key))
+					}
+				);
+			}
+			return new OpDict
+			{
+				"values": values,
+			};
+		}
+		else if (rtl::is_instanceof(value, classof Collection))
+		{
+			return new OpCollection
+			{
+				"values": value.map(BaseOpCode (var value) => static::getOpCodeByValue(value))
+			};
+		}
+		
+		return null;
+	}
+	
+	
+	/**
+	 * Returns op code value
+	 */
+	pure var getValueFromOpCode(BaseOpCode op_attr)
+	{
+		if (op_attr instanceof OpString)
+		{
+			return op_attr.value;
+		}
+		else if (op_attr instanceof OpDict)
+		{
+			Dict result = {};
+			for (int i=0; i<op_attr.values.count(); i++)
+			{
+				OpDictPair op_dict_item = op_attr.values.get(i);
+				string key = op_dict_item.key;
+				BaseOpCode item = op_dict_item.value;
+				result.set(key, static::getValueFromOpCode(item));
+			}
+			return result;
+		}
+		else if (op_attr instanceof OpCollection)
+		{
+			return op_attr.values.map(var (BaseOpCode value) => static::getValueFromOpCode(value));
+		}
+		return null;
+	}
+}

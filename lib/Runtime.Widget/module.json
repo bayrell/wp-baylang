@@ -1,0 +1,106 @@
+{
+	"name": "Runtime.Widget",
+	"assets":
+	[
+		"AppHook.bay",
+		"Button.bay",
+		"ButtonModel.bay",
+		"ButtonWrap.bay",
+		"CSS.bay",
+		"Image.bay",
+		"Input.bay",
+		"Label.bay",
+		"Link.bay",
+		"Menu.bay",
+		"Pagination.bay",
+		"Container.bay",
+		"RenderList.bay",
+		"RenderListModel.bay",
+		"RowButtons.bay",
+		"RowButtonsModel.bay",
+		"Section.bay",
+		"Select.bay",
+		"SelectLabel.bay",
+		"SelectModel.bay",
+		"SelectWrap.bay",
+		"SortableList.bay",
+		"Tag.bay",
+		"Text.bay",
+		"TextArea.bay",
+		"TextEditable.bay",
+		"TextImage.bay",
+		"WidgetResult.bay",
+		"WidgetResultModel.bay",
+		"ModuleDescription.bay"
+	],
+	"require": [
+		"Runtime",
+		"Runtime.Web"
+	],
+	"groups": [
+		"widget"
+	],
+	"modules":
+	[
+		{
+			"src": "bay/ContextMenu",
+			"type": "module"
+		},
+		{
+			"src": "bay/Crud",
+			"type": "module"
+		},
+		{
+			"src": "bay/Dialog",
+			"type": "module"
+		},
+		{
+			"src": "bay/Form",
+			"type": "module"
+		},
+		{
+			"src": "bay/Seo",
+			"type": "module"
+		},
+		{
+			"src": "bay/Tab",
+			"type": "module"
+		},
+		{
+			"src": "bay/Table",
+			"type": "module"
+		},
+		{
+			"src": "bay/Tree",
+			"type": "module"
+		},
+		{
+			"src": "bay/WidgetSettings",
+			"type": "module"
+		}
+	],
+	"src": "./bay",
+	"dest":
+	{
+		"php": "./php",
+		"es6": "./es6"
+	},
+	"allow":
+	[
+		"\\.bay$",
+		"\\.php$",
+		"\\.js$"
+	],
+	"exclude":
+	[
+		"Blocks/",
+		"ContextMenu/",
+		"Crud/",
+		"Dialog/",
+		"Form/",
+		"Seo/",
+		"Tab/",
+		"Table/",
+		"Tree/"
+	]
+}

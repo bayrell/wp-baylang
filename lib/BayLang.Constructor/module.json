@@ -1,0 +1,89 @@
+{
+	"name": "BayLang.Constructor",
+	"assets":
+	[
+		"Frontend/Code/CodeEditor.bay",
+		"Frontend/Code/CodeEditorModel.bay",
+		"Frontend/Code/TextEditable.bay",
+		"Frontend/Code/TreeItem.bay",
+		"Frontend/Code/TreeWidget.bay",
+		"Frontend/Components/SelectImageButton.bay",
+		"Frontend/Components/SortableParams.bay",
+		"Frontend/Editor/Dialog/AddItemDialog.bay",
+		"Frontend/Editor/Dialog/AddItemDialogModel.bay",
+		"Frontend/Editor/Dialog/RemoveItemDialog.bay",
+		"Frontend/Editor/Dialog/RemoveItemDialogModel.bay",
+		"Frontend/Editor/Dialog/SelectImageDialog.bay",
+		"Frontend/Editor/Dialog/SelectImageDialogModel.bay",
+		"Frontend/Editor/Parameters/Parameter.bay",
+		"Frontend/Editor/Parameters/ParameterComponent.bay",
+		"Frontend/Editor/Parameters/ParameterClassName.bay",
+		"Frontend/Editor/Parameters/ParameterContent.bay",
+		"Frontend/Editor/Parameters/ParameterModel.bay",
+		"Frontend/Editor/Parameters/ParameterDictModel.bay",
+		"Frontend/Editor/Parameters/ParameterFactoryModel.bay",
+		"Frontend/Editor/Parameters/ParameterRawHtml.bay",
+		"Frontend/Editor/Parameters/ParameterTagName.bay",
+		"Frontend/Editor/Parameters/ParameterWidgetName.bay",
+		"Frontend/Editor/Processor/AttributeProcessor.bay",
+		"Frontend/Editor/Processor/CodeProcessor.bay",
+		"Frontend/Editor/Processor/ComponentProcessor.bay",
+		"Frontend/Editor/Processor/ModelProcessor.bay",
+		"Frontend/Editor/Styles/Selector.bay",
+		"Frontend/Editor/Styles/StyleItem.bay",
+		"Frontend/Editor/Styles/Styles.bay",
+		"Frontend/Editor/Styles/StylesModel.bay",
+		"Frontend/Editor/Styles/BackgroundImage.bay",
+		"Frontend/Editor/Widget/Widget.bay",
+		"Frontend/Editor/Widget/WidgetTag.bay",
+		"Frontend/Editor/Widget/WidgetComponent.bay",
+		"Frontend/Editor/Widget/WidgetMain.bay",
+		"Frontend/Editor/Widget/WidgetManager.bay",
+		"Frontend/Editor/Widget/WidgetRender.bay",
+		"Frontend/Editor/Breadcrumbs.bay",
+		"Frontend/Editor/SelectedItem.bay",
+		"Frontend/Editor/SelectedItemModel.bay",
+		"Frontend/Editor/WidgetEditPage.bay",
+		"Frontend/Editor/WidgetEditPageModel.bay",
+		"Frontend/Editor/WidgetMenu.bay",
+		"Frontend/Editor/WidgetTreeItem.bay",
+		"Frontend/Layout/ProjectLayout.bay",
+		"Frontend/Layout/ProjectLayoutModel.bay",
+		"Frontend/Module/ModuleList.bay",
+		"Frontend/Module/ModuleListModel.bay",
+		"Frontend/Project/ProjectList.bay",
+		"Frontend/Project/ProjectListModel.bay",
+		"Frontend/Settings/ReloadCache.bay",
+		"Frontend/Settings/Settings.bay",
+		"Frontend/Settings/SettingsModel.bay",
+		"Frontend/Widget/WidgetList.bay",
+		"Frontend/Widget/WidgetListModel.bay",
+		"Frontend/ConstructorHook.bay",
+		"Frontend/ModuleDescription.bay"
+	],
+	"groups": [
+		"baylang"
+	],
+	"modules":
+	[
+		{
+			"src": "bay/WidgetPage",
+			"type": "module"
+		}
+	],
+	"src": "./bay",
+	"dest":
+	{
+		"php": "./php",
+		"es6": "./es6",
+		"nodejs": "./nodejs"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	],
+	"exclude":
+	[
+		"^widget"
+	]
+}

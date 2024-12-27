@@ -1,0 +1,123 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.Dialog;
+
+use Runtime.Callback;
+use Runtime.Web.Messages.ClickMessage;
+use Runtime.Widget.ButtonModel;
+use Runtime.Widget.Dialog.DialogMessage;
+use Runtime.Widget.Dialog.DialogModel;
+use Runtime.Widget.Dialog.DialogModelException;
+
+
+class ConfirmDialogModel extends DialogModel
+{
+	string content = "";
+	
+	
+	/**
+	 * Init widget params
+	 */
+	void initParams(Dict params)
+	{
+		parent(params);
+		
+		if (params == null) return;
+		if (params.has("content")) this.content = params.get("content");
+	}
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Setup close buttons */
+		this.buttons.addButton({
+			"content": "Cancel",
+			"widget_name": "cancel_button",
+			"styles": [
+				"gray"
+			],
+			"events": {
+				"click": new Callback(this, "onCloseButtonClick"),
+			},
+		});
+		
+		/* Setup confirm button */
+		this.buttons.addButton({
+			"content": "Ok",
+			"widget_name": "confirm_button",
+			"styles": [
+				"primary"
+			],
+			"events": {
+				"click": new Callback(this, "onConfirmButtonClick"),
+			},
+		});
+	}
+	
+	
+	/**
+	 * Add close button click
+	 */
+	void onCloseButtonClick(ClickMessage message)
+	{
+		this.hide();
+	}
+	
+	
+	/**
+	 * Confirm
+	 */
+	async bool confirm()
+	{
+		return true;
+	}
+	
+	
+	/**
+	 * Confirm button click
+	 */
+	async void onConfirmButtonClick(ClickMessage message)
+	{
+		try
+		{
+			/* Confirm */
+			bool confirm = await this.confirm();
+			if (not confirm) return;
+			
+			/* Send message */
+			DialogMessage message = new DialogMessage{
+				"name": "confirm",
+			};
+			await this.emitAsync(message);
+			
+			/* Hide dialog */
+			if (message.hide) this.hide();
+		}
+		catch (DialogModelException e)
+		{
+			this.result.setException(e);
+			return;
+		}
+	}
+}

@@ -1,0 +1,25 @@
+{
+	"name": "Runtime.Widget.Seo",
+	"assets":
+	[
+		"Seo.bay",
+		"SeoModel.bay",
+		"SeoWidget.bay"
+	],
+	"require": [
+		"Runtime.Web"
+	],
+	"groups": [
+		"widget"
+	],
+	"src": "./",
+	"dest":
+	{
+		"php": "./../../php/Seo",
+		"es6": "./../../es6/Seo"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

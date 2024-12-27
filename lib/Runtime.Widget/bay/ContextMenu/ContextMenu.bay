@@ -1,0 +1,100 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.ContextMenu.ContextMenu">
+
+
+<style>
+.widget_context_menu{
+	display: none;
+	position: absolute;
+	z-index: 99;
+	background-color: var(--widget-color-default);
+	border: var(--widget-border-width) var(--widget-color-border) solid;
+	border-bottom-width: 0;
+}
+.widget_context_menu--open{
+	display: block;
+}
+.widget_context_menu__item{
+	padding: var(--widget-button-padding-y) var(--widget-button-padding-y);
+	border-bottom: var(--widget-border-width) var(--widget-color-border) solid;
+	cursor: pointer;
+	user-select: none;
+}
+.widget_context_menu__item.hidden{
+	display: none;
+}
+</style>
+
+
+<template name="renderItem" args="Dict item">
+	<div class="widget_context_menu__item"
+		class={{ item.get("hidden") == true ? "hidden" : "" }}
+		@key={{ item.get("key") }}
+		@event:click={{
+			void () use (item) {
+				this.model.onClickItem(item);
+				this.emit("clickItem", [item]);
+			}
+		}}
+	>
+		{{ item.get("label") }}
+	</div>
+</template>
+
+
+<template name="render">
+
+	%set Map props = this.getProps();
+	<div class="widget_context_menu" @ref="widget"
+		class={{ this.model.is_open ? "widget_context_menu--open" : "widget_context_menu--hide" }}
+		...props
+	>
+		%for (int i=0; i<this.model.items.count(); i++)
+		{
+			%set Dict item = this.model.items.get(i);
+			%render this.renderItem(item);
+		}	
+	</div>
+	
+</template>
+
+
+<script>
+
+/**
+ * Returns props
+ */
+Map getProps()
+{
+	Vector styles = [];
+	if (this.model.width != "")
+	{
+		styles.push("max-width: " ~ this.model.width);
+	}
+	styles.push("left: " ~ this.model.x ~ "px;");
+	styles.push("top: " ~ this.model.y  ~ "px;");
+	return {
+		"style": styles.join(";"),
+	};
+}
+
+</script>
+
+</class>

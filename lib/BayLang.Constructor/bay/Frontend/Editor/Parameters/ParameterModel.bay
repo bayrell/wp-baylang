@@ -1,0 +1,112 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Constructor.Frontend.Editor.Parameters;
+
+use Runtime.Web.BaseModel;
+use BayLang.Constructor.Frontend.Editor.Parameters.Parameter;
+use BayLang.Constructor.Frontend.Editor.Processor.CodeProcessor;
+use BayLang.OpCodes.OpDictPair;
+
+
+class ParameterModel extends Parameter
+{
+	OpDictPair op_code = null;
+	fn onChange = null;
+	
+	
+	/**
+	 * Is op_code
+	 */
+	void isOpCode(OpDictPair op_attr)
+	{
+		return op_attr instanceof OpDictPair and this.name == op_attr.key;
+	}
+	
+	
+	/**
+	 * Set op_code
+	 */
+	void setOpCode(OpDictPair op_dict_pair)
+	{
+		this.op_code = op_dict_pair;
+		this.value = CodeProcessor::getValueFromOpCode(op_dict_pair.value);
+	}
+	
+	
+	/**
+	 * Set value
+	 */
+	void setValue(var value)
+	{
+		this.value = value;
+		this.op_code.value = CodeProcessor::getOpCodeByValue(value);
+	}
+	
+	
+	/**
+	 * Change model value
+	 */
+	void changeValue(var value)
+	{
+		parent(value);
+		
+		/* Update model value */
+		this.changeModelValue();
+	}
+	
+	
+	/**
+	 * Change model value
+	 */
+	void changeModelValue()
+	{
+		/* Get widget model */
+		BaseModel model = this.widget.getModel();
+		if (not model) return;
+		
+		/* Model settings onChange event */
+		if (rtl::exists(this.widget.model_settings.onChange))
+		{
+			bool is_updated = this.widget.model_settings.onChange(model, this);
+			if (is_updated)
+			{
+				return;
+			}
+		}
+		
+		/* Update model value */
+		this.updateModelValue(model);
+	}
+	
+	
+	/**
+	 * Update model value
+	 */
+	void updateModelValue(BaseModel model)
+	{
+		/* Get key value */
+		string key = this.name;
+		var value = this.value;
+		
+		/* Set params */
+		Dict params = {};
+		params.set(key, value);
+		model.initParams(params);
+	}
+}

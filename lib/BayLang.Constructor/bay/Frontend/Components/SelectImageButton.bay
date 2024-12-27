@@ -1,0 +1,70 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="BayLang.Constructor.Frontend.Components.SelectImageButton">
+
+<use name="Runtime.Callback" />
+<use name="Runtime.Web.Messages.ClickMessage" />
+<use name="Runtime.Web.Messages.ValueChangeMessage" />
+<use name="Runtime.Widget.Button" component="true" />
+<use name="BayLang.Constructor.Frontend.Editor.Dialog.SelectImageDialogModel" />
+
+
+<template>
+	<Button
+		@event:click={{ this.onSelectImageClick }}
+	>Select image</Button>
+</template>
+
+
+<script>
+
+
+/**
+ * Select image click
+ */
+void onSelectImageClick(ClickMessage message)
+{
+	SelectImageDialogModel select_image_dialog =
+		this.layout.getPageModel().select_image_dialog;
+	select_image_dialog.clearListener("confirm");
+	select_image_dialog.addListener("confirm", new Callback(this, "onSelectImage"));
+	select_image_dialog.show();
+}
+
+
+/**
+ * On select image
+ */
+void onSelectImage()
+{
+	SelectImageDialogModel select_image_dialog =
+		this.layout.getPageModel().select_image_dialog;
+	Dict selected_item = select_image_dialog.getSelectedItem();
+	string value = selected_item ? selected_item.get("file_path") : "";
+	
+	/* Send value change */
+	this.emit("valueChange", new ValueChangeMessage{
+		"value": value,
+		"data": this.data,
+	});
+}
+
+</script>
+
+</class>

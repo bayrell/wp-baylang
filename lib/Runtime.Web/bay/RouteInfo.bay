@@ -1,0 +1,147 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Web;
+
+use Runtime.re;
+use Runtime.BaseObject;
+use Runtime.Callback;
+use Runtime.SerializeInterface;
+use Runtime.Serializer;
+use Runtime.Entity.Factory;
+use Runtime.Exceptions.ItemNotFound;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.Web.BasePageModel;
+use Runtime.Web.BaseRoute;
+use Runtime.Web.RenderContainer;
+use Runtime.Web.RouteList;
+
+
+class RouteInfo extends BaseObject implements SerializeInterface
+{
+	string name = null;
+	string uri = null;
+	string uri_match = null;
+	string domain = null;
+	string label = null;
+	string layout = null;
+	string route_class = null;
+	Dict data = null;
+	Collection<Callback> middleware = null;
+	Collection<string> params = [];
+	Dict<string> matches = {};
+	bool is_backend = false;
+	int pos = 100;
+	
+	
+	/**
+	 * Constructor
+	 */
+	void constructor(Dict params = null)
+	{
+		parent();
+		this._assign_values(params);
+	}
+	
+	
+	/**
+	 * Process frontend data
+	 */
+	void serialize(Serializer serializer, Map data)
+	{
+		serializer.process(this, "data", data);
+		serializer.process(this, "domain", data);
+		serializer.process(this, "label", data);
+		serializer.process(this, "layout", data);
+		serializer.process(this, "matches", data);
+		serializer.process(this, "middleware", data);
+		serializer.process(this, "name", data);
+		serializer.process(this, "params", data);
+		serializer.process(this, "pos", data);
+		serializer.process(this, "route_class", data);
+		serializer.process(this, "uri", data);
+		serializer.process(this, "uri_match", data);
+	}
+	
+	
+	/**
+	 * Copy route
+	 */
+	RouteInfo copy()
+	{
+		return Serializer::copy(this);
+	}
+	
+	
+	/**
+	 * Compile route
+	 */
+	void compile()
+	{
+		if (this.uri_match == "")
+		{
+			this.uri_match = "^" ~ re::replace("\\/", "\\/", this.uri) ~ "$";
+		}
+		
+		Collection matches = re::matchAll("{(.*?)}", this.uri);
+		if (matches)
+		{
+			Vector<string> params = new Vector();
+			
+			for (int i=0; i<matches.count(); i++)
+			{
+				Collection arr = matches[i];
+				string name = arr[1];
+				this.uri_match = re::replace
+				(
+					"{" ~ name ~ "}",
+					"([^\\/]*?)",
+					this.uri_match
+				);
+				this.params.push(name);
+			}
+		}
+		else
+		{
+			this.params = [];
+		}
+	}
+	
+	
+	/**
+	 * Add matches
+	 */
+	void addMatches(Collection matches)
+	{
+		for (int i=0; i<this.params.count(); i++)
+		{
+			string param_name = this.params.get(i);
+			string match_value = matches.get(i);
+			this.matches.set(param_name, match_value);
+		}
+	}
+	
+	
+	/**
+	 * Render route
+	 */
+	async void render(RenderContainer container)
+	{
+		throw new RuntimeException("RouteInfo is abstract class");
+	}
+}

@@ -1,0 +1,176 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.Pagination">
+
+<use name="Runtime.Math" />
+
+
+<style>
+.pagination {
+	text-align: center;
+	padding: 10px 0;
+	width: 100%;
+}
+.pagination ul, .pagination li {
+	padding: 0;
+	margin: 0;
+}
+.pagination li {
+	display: inline-block;
+	vertical-align: top;
+	list-style: none;
+	margin-left: 5px;
+	margin-right: 5px;
+}
+.pagination a, .pagination a:hover, .pagination span {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: var(--widget-color-table-background);
+	border-color: var(--widget-color-border);
+	border-width: var(--widget-border-width);
+	border-style: solid;
+	border-radius: 4px;
+	color: var(--widget-color-text);
+	text-align: center;
+	width: 30px;
+	height: 30px;
+	line-height: 0;
+	font-size: 14px;
+	text-decoration: none;
+}
+.pagination li:first-child{
+	margin-left: 0px;
+}
+.pagination li.active a, .pagination li.active a:hover {
+	background-color: var(--widget-color-selected);
+	border-color: var(--widget-color-selected);
+	color: var(--widget-color-selected-text);
+}
+.pagination li a:focus{
+	outline: 0;
+	box-shadow: none;
+}
+</style>
+
+
+<template>
+	%set int page_start = Math::max(2, this.page - this.delta + 1);
+	%set int page_end = Math::min(this.page + this.delta, this.pages - 1);
+	%set Map props = {};
+	
+	<nav class="pagination">
+		%if (this.pages > 1)
+		{
+			<ul>
+				
+				%if (this.name)
+				{
+					%set var _ = props.set("href", this.getPageUrl(1));
+				}
+				
+				<li class={{ this.page == 1 ? "active" : "" }} @key={{ 1 }}>
+					<a @event:onClick={{ void () => this.onClick(1) }} ...props>
+						1
+					</a>
+				</li>
+				
+				%if (page_start > 2)
+				{
+					<li @key="before">
+						...
+					</li>
+				}
+				
+				%if (page_start <= page_end)
+				{
+					%for (int p=page_start; p<=page_end; p++)
+					{
+						%if (this.name)
+						{
+							%set var _ = props.set("href", this.getPageUrl(p));
+						}
+						<li class={{ this.page == p ? "active" : "" }} @key={{ p }}>
+							<a @event:onClick={{ void () use (p) => this.onClick(p) }}
+								...props
+							>
+								{{ p }}
+							</a>
+						</li>
+					}
+				}
+				
+				%if (page_end < this.pages - 1)
+				{
+					<li @key="after">
+						...
+					</li>
+				}
+				
+				%if (this.pages > 1)
+				{
+					%if (this.name)
+					{
+						%set var _ = props.set("href", this.getPageUrl(this.pages));
+					}
+					<li class={{ this.page == this.pages ? "active" : "" }} @key={{ this.pages }}>
+						<a @event:onClick={{ void () => this.onClick(this.pages) }}
+							...props
+						>
+							{{ this.pages }}
+						</a>
+					</li>
+				}
+			</ul>
+		}
+	</nav>
+</template>
+
+
+<script>
+
+props int page = 1;
+props int pages = 1;
+props int delta = 5;
+props string name = "";
+
+
+/**
+ * Returns page url
+ */
+string getPageUrl(int page)
+{
+	string uri = this.layout.request_full_uri;
+	return rs::url_get_add(uri, this.name, page);
+}
+
+
+/**
+ * Click event
+ */
+void onClick(int page)
+{
+	if (this.name) return;
+	this.emit("page", page);
+}
+
+</script>
+
+
+</class>

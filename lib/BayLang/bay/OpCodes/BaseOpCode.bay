@@ -1,0 +1,106 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+ 
+namespace BayLang.OpCodes;
+
+use Runtime.BaseObject;
+use Runtime.BaseStruct;
+use Runtime.SerializeInterface;
+use Runtime.Serializer;
+use BayLang.Caret;
+
+
+class BaseOpCode extends BaseObject implements SerializeInterface
+{
+	static const string op = "";
+	Caret caret_start = null;
+	Caret caret_end = null;
+	
+	
+	/**
+	 * Constructor
+	 */
+	public void constructor(Dict params = null)
+	{
+		parent();
+		this._assign_values(params);
+	}
+	
+	
+	/**
+	 * Serialize object
+	 */
+	void serialize(Serializer serializer, Map data)
+	{
+		serializer.process(this, "caret_start", data);
+		serializer.process(this, "caret_end", data);
+	}
+	
+	
+	/**
+	 * Is multiline
+	 */
+	bool isMultiLine()
+	{
+		if (not this.caret_start) return true;
+		if (not this.caret_end) return true;
+		return this.caret_start.y != this.caret_end.y;
+	}
+	
+	
+	/**
+	 * Clone this struct with new values
+	 * @param Map obj = null
+	 * @return BaseStruct
+	 */
+	public BaseOpCode clone(Dict obj = null)
+	{
+		if (obj == null) return this;
+		
+		#switch
+		#case ifcode PHP then
+		
+		$item = clone $this;
+		$item->_assign_values($ctx, $obj);
+		return $item;
+		
+		#case ifcode JAVASCRIPT then
+		
+		var proto = Object.getPrototypeOf(this);
+		var item = Object.create(proto);
+		item = Object.assign(item, this);
+		item._assign_values(ctx, obj);
+		
+		return item;
+		
+		#endswitch
+		
+		return this;
+	}
+	
+	
+	/**
+	 * Copy this struct with new values
+	 * @param Map obj = null
+	 * @return BaseStruct
+	 */
+	public BaseStruct copy(Dict obj = null)
+	{
+		return this.clone(obj);
+	}
+}

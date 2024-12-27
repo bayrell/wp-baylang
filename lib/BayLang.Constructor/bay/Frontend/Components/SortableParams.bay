@@ -1,0 +1,98 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="BayLang.Constructor.Frontend.Components.SortableParams"
+	extends="Runtime.Widget.SortableList"
+>
+
+<use name="Runtime.Widget.Input" component="true" />
+<use name="Runtime.Widget.Select" component="true" />
+<use name="BayLang.Constructor.Frontend.Components.SelectImageButton" component="true" />
+
+
+<style>
+.widget_sortable_list__item_value{
+	padding: 5px;
+}
+.widget_sortable_list__item_value_row{
+	display: flex;
+	align-items: center;
+}
+.widget_sortable_list__item_value_label{
+	width: 40px;
+}
+.widget_sortable_list__item_value_item{
+	flex: 1;
+}
+</style>
+
+
+<template name="renderValue" args="int pos, Dict item">
+	%for (int i=0; i<this.fields.count(); i++)
+	{
+		%set Dict field = this.fields.get(i);
+		%set string field_name = field.get("name");
+		%set string field_component = field.get("component");
+		%set Dict field_props = field.get("props");
+		<div class="widget_sortable_list__item_value_row">
+			<div class="widget_sortable_list__item_value_label">{{ field.get("label") }}</div>
+			<div class="widget_sortable_list__item_value_item">
+				<{field_component}
+					name={{ field_name }}
+					value={{ item.get(field_name) }}
+					@event:valueChange={{
+						void (var message) use (field_name, pos)
+						{
+							Dict item = this.value.get(pos);
+							item.set(field_name, message.value);
+							this.onValueChange();
+						}
+					}}
+					...field_props
+				/>
+			</div>
+		</div>
+	}
+</template>
+
+
+<script>
+
+props Collection<Dict> fields = [];
+
+
+/**
+ * Add item click
+ */
+void onAddItemClick()
+{
+	Dict value = {};
+	for (int i=0; i<this.fields.count(); i++)
+	{
+		Dict field = this.fields.get(i);
+		string field_name = field.get("name");
+		string field_default = field.get("default", "");
+		value.set(field_name, field_default);
+	}
+	this.value.push(value);
+	this.onValueChange();
+}
+
+</script>
+
+</class>

@@ -1,0 +1,70 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.XML.Patchers;
+
+use Runtime.XML.BasePatcher;
+use Runtime.XML.XML;
+
+
+class ModifyAttribute extends BasePatcher
+{
+	/**
+	 * Returns operation types
+	 */
+	Collection types()
+	{
+		return [
+			'edit_attr',
+			'edit_attribute',
+			'attr_edit',
+			'attribute_edit',
+			'editAttribute',
+		];
+	}
+	
+	
+	/**
+	 * Patch XML with operation
+	 */
+	void patch(XML xml, XML operation)
+	{
+		XML path = operation.get('path').get(0);
+		XML name = operation.get('name').get(0);
+		XML value = operation.get('value').get(0);
+		
+		if (not path) return;
+		if (not name) return;
+		if (not value) return;
+		
+		string path_value = path.value();
+		string name_value = name.value();
+		string value_value = value.value();
+		
+		Collection items = xml.xpath(path_value);
+		for (int i=0; i<items.count(); i++)
+		{
+			XML item = items[i];
+			if (item.attr(name_value) !== null)
+			{
+            	item.removeAttribute(name_value);
+            	item.addAttribute(name_value, value_value);
+			}
+		}
+	}
+}

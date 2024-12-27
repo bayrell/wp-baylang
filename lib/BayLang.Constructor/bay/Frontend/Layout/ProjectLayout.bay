@@ -1,0 +1,161 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="BayLang.Constructor.Frontend.Layout.ProjectLayout"
+	extends="Runtime.Web.DefaultLayout"
+>
+
+<style>
+.layout{
+	position: relative;
+	display: flex;
+	align-items: stretch;
+	min-height: 100%;
+}
+.layout__menu_wrap{
+	position: relative;
+	width: 200px;
+	padding-top: 10px;
+	padding-right: 10px;
+}
+.layout__content_wrap{
+	position: relative;
+	width: calc(100% - 200px);
+	padding-top: 10px;
+	padding-bottom: 10px;
+}
+.layout__title{
+	font-size: 16px;
+	font-weight: normal;
+	padding-bottom: 10px;
+	margin: 0;
+}
+.layout__menu_wrap .layout__title{
+	padding-left: 10px;
+}
+.menu__item a{
+	display: block;
+    padding: 10px;
+    border-bottom: 1px solid var(--widget-color-border);
+}
+.menu__item a:hover{
+	background-color: var(--widget-color-hover);
+}
+.menu__item--active a, .menu__item--active a.nolink, .menu__item--active a.nolink:visited{
+	background-color: var(--widget-color-selected);
+    border-color: var(--widget-color-selected);
+    color: var(--widget-color-selected-text);
+}
+.menu__item:last-child a{
+	border-bottom-width: 0px;
+}
+</style>
+
+
+<template name="renderMenu">
+	<div class="menu">
+		%set Collection<Dict> menu = this.getMenu();
+		%for (int i=0; i<menu.count(); i++)
+		{
+			%set Dict item = menu.get(i);
+			<div class="menu__item" class={{ this.menuActive(item.get("name")) }}>
+				<a href={{ item.get("href") }} class="nolink">{{ item.get("label") }}</a>
+			</div>
+		}
+	</div>
+</template>
+
+
+<template>
+	<div class="layout" class={{ "layout--" ~ this.layout.layout_name }}>
+		<div class="layout__menu_wrap">
+			<div class="layout__title">Menu</div>
+			%render this.renderMenu();
+		</div>
+		<div class="layout__content_wrap">
+			<h1 class="layout__title">{{ this.layout.title }}</h1>
+			%render this.renderCurrentPage();
+		</div>
+	</div>
+</template>
+
+
+<script>
+
+
+/**
+ * Returns menu
+ */
+Collection<string> getMenu()
+{
+	Collection arr =
+	[
+		{
+			"label": "Projects",
+			"name": "baylang:project:list",
+			"href": this.layout.url("baylang:project:list")
+		},
+		{
+			"label": "Settings",
+			"name": "baylang:project:settings",
+			"href": this.layout.url(
+				"baylang:project:settings",
+				{"project_id": this.layout.project_id}
+			)
+		},
+		{
+			"label": "Widgets",
+			"name": "baylang:project:widgets",
+			"href": this.layout.url(
+				"baylang:project:widgets",
+				{"project_id": this.layout.project_id}
+			)
+		},
+		{
+			"label": "Code",
+			"name": "baylang:project:code",
+			"href": this.layout.url(
+				"baylang:project:code",
+				{"project_id": this.layout.project_id}
+			)
+		},
+	];
+	
+	return arr;
+}
+
+
+/**
+ * Returns true if menu is active
+ */
+bool menuActive(string route_name)
+{
+	if (this.layout.route == null)
+	{
+		return "";
+	}
+	if (this.layout.route.name == route_name)
+	{
+		return "menu__item--active";
+	}
+	return "";
+}
+
+</script>
+
+</class>

@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: BayLang Constructor (Source Code)
+ * Plugin Name: BayLang Constructor
  * Plugin URI:  https://github.com/bayrell/wp-baylang
  * Description: BayLang Constructor for WordPress
  * Version:     0.12.0
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) exit;
 use Runtime\WordPress\WP_Helper;
 
 
-if ( !class_exists( 'BayLang_Plugin' ) )
+if ( !class_exists( 'BayLang_Plugin' )  )
 {
 
 class BayLang_Plugin
@@ -114,7 +114,11 @@ class BayLang_Plugin
 	public static function initLoader()
 	{
 		if (static::$loader != null) return;
+		
+		/* Load file */
 		require_once __DIR__ . "/lib/Runtime/php/Loader.php";
+		
+		/* Create loader */
 		static::$loader = new Loader();
 		
 		/* Register autoload */
@@ -652,28 +656,6 @@ register_shutdown_function(function(){
 	}
 	
 });
-
-add_filter(
-	'pre_update_option_active_plugins',
-	'debug_errors_pre_update_option_active_plugins', 999999
-);
-function debug_errors_pre_update_option_active_plugins($plugins)
-{
-	
-	if ( empty( $plugins ) ) {
-		return $plugins;
-	}
-	
-	$name = plugin_basename(__FILE__);
-	if (($key = array_search($name, $plugins)) !== false)
-	{
-		unset($plugins[$key]);
-	}
-	array_unshift($plugins, $name);
-	
-	return $plugins;
-	
-}
 
 add_action
 (

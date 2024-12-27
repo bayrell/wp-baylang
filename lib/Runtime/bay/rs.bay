@@ -1,0 +1,994 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime;
+
+use Runtime.re;
+use Runtime.rtl;
+use Runtime.lib;
+use Runtime.Math;
+use Runtime.Vector;
+
+
+class rs
+{
+	/**
+	 * Returns string lenght
+	 * @param string s The string
+	 * @return int
+	 */
+	static int strlen(string s)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		if (gettype($s) != "string") return 0;
+		return @mb_strlen($s);
+		
+		#case ifcode JAVASCRIPT then
+		
+		return use("Runtime.rtl").toStr(s).length;
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Returns substring
+	 * @param string s The string
+	 * @param int start
+	 * @param int length
+	 * @return string
+	 */
+	static string substr(string s, int start, int length = null)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		if ($length === null)
+		{
+			return mb_substr($s, $start);
+		}
+		return mb_substr($s, $start, $length);
+		
+		#case ifcode JAVASCRIPT then
+		
+		var _rtl = use("Runtime.rtl");
+		var _rs = use("Runtime.rs");
+		if (start < 0) start = s.length + start;
+		if (length === null){
+			return _rtl.toStr(s).substring(start);
+		}
+		var end = start + length;
+		if (length < 0){
+			var sz = _rs.strlen(ctx, s);
+			end = sz + length;
+		}
+		return _rtl.toStr(s).substring(start, end);
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Returns char from string at the position
+	 * @param string s The string
+	 * @param int pos The position
+	 * @return string
+	 */
+	static string charAt(string s, int pos)
+	{
+		return static::substr(s, pos, 1);
+	}
+	
+	
+	/**
+	 * Returns ASCII symbol by code
+	 * @param int code
+	 */
+	static int chr(int code)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		return mb_chr($code);
+		
+		#case ifcode JAVASCRIPT then
+		
+		return String.fromCharCode(code);
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Returns ASCII symbol code
+	 * @param char ch
+	 */
+	static int ord(char ch)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		return mb_ord($ch);
+		
+		#case ifcode JAVASCRIPT then
+		
+		return use("Runtime.rtl").toStr(ch).charCodeAt(0);
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Convert string to lower case
+	 * @param string s
+	 * @return string
+	 */
+	static string lower(string s)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		return mb_strtolower($s);
+		
+		#case ifcode JAVASCRIPT then
+		
+		return use("Runtime.rtl").toStr(s).toLowerCase();
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Convert string to upper case
+	 * @param string s
+	 * @return string
+	 */
+	static string upper(string s)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		return mb_strtoupper($s);
+		
+		#case ifcode JAVASCRIPT then
+		
+		return use("Runtime.rtl").toStr(s).toUpperCase();
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Compare strings
+	 */
+	static int compare(string a, string b)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		return strcmp($a, $b);
+		
+		#case ifcode JAVASCRIPT then
+		
+		if (a == b) return 0;
+		if (a < b) return -1;
+		if (a > b) return 1;
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Заменяет одну строку на другую
+	 */
+	static int replace(string search, string item, string s)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		return str_replace($search, $item, $s);
+		
+		#case ifcode JAVASCRIPT then
+		
+		return s.replaceAll(search, item);
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Возвращает повторяющуюся строку
+	 * @param {string} s - повторяемая строка
+	 * @param {integer} n - количество раз, которые нужно повторить строку s
+	 * @return {string} строка
+	 */
+	static string str_repeat(string s, int n)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		if ($n <= 0) return "";
+		return str_repeat($s, $n);
+		
+		#case ifcode JAVASCRIPT then
+		
+		if (n <= 0) return "";
+		var res = '';
+		for (var i=0; i < n; i++){
+			res += s;
+		}
+		return res;
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Разбивает строку на подстроки
+	 * @param string delimiter - regular expression
+	 * @param string s - строка, которую нужно разбить
+	 * @param integer limit - ограничение
+	 * @return Collection<string>
+	 */
+	pure string split(string delimiter, string s, int limit = -1)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		$arr = [];
+		if ($limit < 0) $arr = explode($delimiter, $s);
+		else $arr = explode($delimiter, $s, $limit);
+		return Vector::from($arr);
+		
+		#case ifcode JAVASCRIPT then
+		
+		var _rtl = use("Runtime.rtl");
+		var _Vector = use("Runtime.Vector");
+		
+		var arr = null;
+		if (!_rtl.exists(limit))
+			arr = s.split(delimiter);
+		arr = s.split(delimiter, limit);
+		return _Vector.from(arr);
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Разбивает строку на подстроки
+	 * @param string ch - разделитель
+	 * @param string s - строка, которую нужно разбить
+	 * @param integer limit - ограничение 
+	 * @return Collection<string>
+	 */
+	pure Collection<string> splitArr(Collection<string> delimiters, string s, int limit = -1)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		$pattern = "[".implode("", $delimiters->_getArr())."]";
+		$pattern = str_replace("/", "\/", $pattern);
+		$arr = preg_split("/".$pattern."/", $s, $limit);
+		return Collection::from($arr);
+		
+		#case ifcode JAVASCRIPT then
+		
+		var _rtl = use("Runtime.rtl");
+		var _Collection = use("Runtime.Collection");
+		
+		var arr = null;
+		var delimiter = new RegExp("[" + delimiters.join("") + "]", "g");
+		if (!_rtl.exists(limit))
+		{
+			arr = s.split(delimiter);
+		}
+		else
+		{
+			arr = s.split(delimiter, limit);
+		}
+		return _Collection.from(arr);
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Соединяет строки
+	 * @param string ch - разделитель
+	 * @param string s - строка, которую нужно разбить
+	 * @param integer limit - ограничение 
+	 * @return Vector<string>
+	 */
+	static string join(string ch, Collection<string> arr)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		if ($arr == null) return "";
+		return implode($ch, $arr->_getArr());
+		
+		#case ifcode JAVASCRIPT then
+		
+		if (arr == null) return "";
+		return Array.prototype.join.call(arr, ch);
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Join
+	 */
+	static string join_path(Collection arr)
+	{
+		string path = static::join("/", arr);
+		path = re::replace("\\/+", "/", path);
+		path = re::replace("\\/\\.\\/", "/", path);
+		path = re::replace("\\/+$", "", path);
+		return path;
+	}
+	
+	
+	/**
+	 * Удаляет лишние символы слева и справа
+	 * @param {string} s - входная строка
+	 * @return {integer} новая строка
+	 */
+	static string trim(string s, string ch = "")
+	{
+		#switch
+		#case ifcode PHP then
+		
+		if ($ch=="")
+			return trim($s);
+		return trim($s, $ch);
+		
+		#case ifcode JAVASCRIPT then
+		
+		if (ch == undefined) ch = "";
+		
+		s = use("Runtime.rtl").toStr(s);
+		
+		if (ch == ""){
+			return s.trim();
+		}
+		return s.replace(new RegExp("^[" + ch + "]+", "g"),"")
+			.replace(new RegExp("[" + ch + "]+$", "g"),"")
+		;
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Remove first slash
+	 */
+	static string removeFirstSlash(string path)
+	{
+		int i = 0;
+		int sz = static::strlen(path);
+		while (i < sz and static::substr(path, i, 1) == "/") i++;
+		return static::substr(path, i);
+	}
+	
+	
+	/**
+	 * Remove last slash
+	 */
+	static string removeLastSlash(string path)
+	{
+		int i = static::strlen(path) - 1;
+		while (i >= 0 and static::substr(path, i, 1) == "/") i--;
+		return static::substr(path, 0, i + 1);
+	}
+	
+	
+	/**
+	 * Add first slash
+	 */
+	static string addFirstSlash(string path)
+	{
+		if (rs::substr(path, 0, 1) == "/") return path;
+		return "/" ~ path;
+	}
+	
+	
+	/**
+	 * Add last slash
+	 */
+	static string addLastSlash(string path)
+	{
+		if (rs::substr(path, rs::strlen(path) - 1, 1) == "/") return path;
+		return path ~ "/";
+	}
+	
+	
+	/**
+	 * Разбивает путь файла на составляющие
+	 * @param {string} filepath путь к файлу
+	 * @return {json} Объект вида:
+	 *         dirname    - папка, в которой находиться файл
+	 *         basename   - полное имя файла
+	 *         extension  - расширение файла
+	 *         filename   - имя файла без расширения
+	 */
+	static Dict pathinfo(string filepath)
+	{
+		Vector<string> arr1 = static::split(".", filepath).toVector();
+		Vector<string> arr2 = static::split("/", filepath).toVector();
+		
+		string filepath = filepath;
+		string extension = arr1.pop();
+		string basename = arr2.pop();
+		string dirname = static::join("/", arr2);
+		
+		int ext_length = static::strlen(extension);
+		if (ext_length > 0) ext_length++;
+		string filename = static::substr(basename, 0, -1*ext_length);
+		
+		return
+		{
+			"filepath": filepath,
+			"extension": extension,
+			"basename": basename,
+			"dirname": dirname,
+			"filename": filename,
+		};
+	}
+	
+	
+	/**
+	 * Возвращает имя файла без расширения
+	 * @param {string} filepath - путь к файлу
+	 * @return {string} полное имя файла
+	 */
+	static string filename(string filepath)
+	{
+		Dict ret = static::pathinfo(filepath);
+		string res = ret["basename"];
+		string ext = ret["extension"];
+		if (ext != "")
+		{
+			int sz = 0 - rs::strlen(ext) - 1;
+			res = rs::substr(res, 0, sz);
+		}
+		return res;
+	}
+	
+	
+	/**
+	 * Возвращает полное имя файла
+	 * @param {string} filepath - путь к файлу
+	 * @return {string} полное имя файла
+	 */
+	static string basename(string filepath)
+	{
+		Dict ret = static::pathinfo(filepath);
+		string res = ret["basename"];
+		return res;
+	}
+	
+	
+	/**
+	 * Возвращает расширение файла
+	 * @param {string} filepath - путь к файлу
+	 * @return {string} расширение файла
+	 */
+	static string extname(string filepath)
+	{
+		Dict ret = static::pathinfo(filepath);
+		string res = ret["extension"];
+		return res;
+	}
+	
+	
+	/**
+	 * Возвращает путь к папке, содержащий файл
+	 * @param {string} filepath - путь к файлу
+	 * @return {string} путь к папке, содержащий файл
+	 */
+	static string dirname(string filepath)
+	{
+		Dict ret = static::pathinfo(filepath);
+		string res = ret["dirname"];
+		return res;
+	}
+	
+	
+	/**
+	 * New line to br
+	 */
+	static string nl2br(string s)
+	{
+		return static::replace("\n", "<br/>", s);
+	}
+	
+	
+	/**
+	 * Remove spaces
+	 */
+	static string spaceless(string s)
+	{
+		s = re::replace("\s+", " ", s);
+		s = re::replace("\t", "", s);
+		s = re::replace("\n", "", s);
+		return s;
+	}
+	
+	
+	/**
+	 * Ищет позицию первого вхождения подстроки search в строке s.
+	 * @param {string} s - строка, в которой производится поиск 
+	 * @param {string} search - строка, которую ищем 
+	 * @param {string} offset - если этот параметр указан, 
+	 *                 то поиск будет начат с указанного количества символов с начала строки.  
+	 * @return {variable} Если строка найдена, то возвращает позицию вхождения, начиная с 0.
+	 *                    Если строка не найдена, то вернет -1
+	 */
+	static int indexOf(string s, string search, string offset = 0)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		if ($search == ""){
+			return -1;
+		}
+		$res = mb_strpos($s, $search, $offset);
+		if ($res === false)
+			return -1;
+		return $res;
+		
+		#case ifcode JAVASCRIPT then
+		
+		var _rtl = use("Runtime.rtl");
+		
+		if (!_rtl.exists(offset)) offset = 0;
+		var res = _rtl.toStr(s).indexOf(search);
+		return res;
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * URL encode
+	 * @param string s
+	 * @return string
+	 */
+	static string url_encode(string s)
+	{
+		#switch
+		#case ifcode PHP then
+		return urlencode($s);
+		#case ifcode JAVASCRIPT then
+		return encodeURIComponent(s);
+		#endswitch
+	}
+	
+	
+	/**
+	 * Escape HTML special chars
+	 * @param string s
+	 * @return string
+	 */
+	pure string htmlEscape(string s)
+	{
+		if (s == null) return "";
+		
+		#switch
+		#case ifcode PHP then
+		
+		return htmlspecialchars($s, ENT_QUOTES | ENT_HTML401);
+		
+		#case ifcode JAVASCRIPT then
+		
+		var obj = {
+			"<":"&lt;",
+			">": "&gt;", 
+			"&": "&amp;",
+			'"': '&quot;',
+			"'": '&#39;',
+			'`': '&#x60;',
+			'=': '&#x3D;'
+		};
+		return (new String(s)).replace(/[<>&"'`=]/g, function(v){ return obj[v]; });
+		
+		#endswitch
+	}
+	pure string escapeHtml(string s) => static::htmlEscape(s);
+	
+	
+	/**
+	 * Base64 encode
+	 * @param string s
+	 * @return string
+	 */
+	static string base64_encode(string s)
+	{
+		#switch
+		#case ifcode PHP then
+		return base64_encode($s);
+		#case ifcode ES6 then
+		return window.btoa(window.unescape(window.encodeURIComponent(s)));
+		#case ifcode NODEJS then
+		return Buffer.from(s).toString('base64');
+		#endswitch
+	}
+	
+	
+	/**
+	 * Base64 decode
+	 * @param string s
+	 * @return string
+	 */
+	static string base64_decode(string s)
+	{
+		#switch
+		#case ifcode PHP then
+		return base64_decode($s);
+		#case ifcode ES6 then
+		return window.decodeURIComponent(window.escape(window.atob(s)));
+		#case ifcode NODEJS then
+		return Buffer.from(s, 'base64').toString('ascii');
+		#endswitch
+	}
+	
+	
+	/**
+	 * Base64 encode
+	 * @param string s
+	 * @return string
+	 */
+	static string base64_encode_url(string s)
+	{
+		#switch
+		#case ifcode PHP then
+	
+		$s = base64_encode($s);
+		$s = str_replace('+', '-', $s);
+		$s = str_replace('/', '_', $s);
+		$s = str_replace('=', '', $s);
+		return $s;
+	
+		#case ifcode ES6 then
+		s = this.base64_encode(ctx, s)
+			.replace(new RegExp('\\+', 'g'), '-')
+			.replace(new RegExp('\\/', 'g'), '_')
+			.replace(new RegExp('=', 'g'), '')
+		;
+		return s;
+		#case ifcode NODEJS then
+		return Buffer.from(s).toString('base64');
+		#endswitch
+	}
+	
+	
+	/**
+	 * Base64 decode
+	 * @param string s
+	 * @return string
+	 */
+	static string base64_decode_url(string s)
+	{
+		#switch
+		#case ifcode PHP then
+		$c = 4 - strlen($s) % 4;
+		if ($c < 4 && $c > 0) $s .= str_repeat('=', $c);
+		$s = str_replace('-', '+', $s);
+		$s = str_replace('_', '/', $s);
+		return base64_decode($s);
+		#case ifcode ES6 then
+		var c = 4 - s.length % 4;
+		if (c < 4 && c > 0) s = s + '='.repeat(c);
+		s = s.replace(new RegExp('-', 'g'), '+')
+			.replace(new RegExp('_', 'g'), '/')
+		;
+		return this.base64_decode(ctx, s);
+		#case ifcode NODEJS then
+		return Buffer.from(s, 'base64').toString('ascii');
+		#endswitch
+	}
+	
+	
+	/**
+	 * Parser url
+	 * @param string s The string
+	 * @return int
+	 */
+	static Dict parse_url(string s)
+	{
+		int pos;
+		string uri, query, hash;
+		
+		pos = static::indexOf(s, "#");
+		s = (pos >= 0) ? static::substr(s, 0, pos) : s;
+		hash = (pos >= 0) ? static::substr(s, pos + 1) : "";
+		pos = static::indexOf(s, "?");
+		uri = (pos >= 0) ? static::substr(s, 0, pos) : s;
+		query = (pos >= 0) ? static::substr(s, pos + 1) : "";
+		Collection arr = static::split("&", query);
+		
+		Dict arr2 = arr
+			.filter( bool (string s) => s != "" )
+			.transition(
+				list (string item)
+				{
+					Collection arr = static::split("=", item);
+					return [arr[1], arr[0]];
+				}
+			)
+		;
+		
+		return {
+			"uri": uri,
+			"query": query,
+			"query_arr": arr2,
+			"hash": hash,
+		};
+	}
+	
+	
+	/**
+	 * Returns string lenght
+	 * @param string s The string
+	 * @return int
+	 */
+	static string url_get_add(string s, string key, string value)
+	{
+		Dict r = static::parse_url(s);
+		
+		string s1 = r["uri"];
+		string s2 = r["query"];
+		bool find = false;
+		
+		Collection arr = static::split("&", s2);
+		arr = arr
+			.map
+			(
+				string (string s) use (key, value, find)
+				{
+					Collection arr = static::split("=", s);
+					if (arr[0] == key)
+					{
+						find = true;
+						if (value != "") return key ~ "=" ~ static::htmlEscape(value);
+						return "";
+					}
+					return s;
+				}
+			)
+			.filter( bool (string s) => s != "" )
+		;
+		
+		if (not find and value != "")
+		{
+			arr.push(key ~ "=" ~ static::htmlEscape(value));
+		}
+		
+		s = s1;
+		s2 = static::join("&", arr);
+		if (s2 != "") s = s ~ "?" ~ s2;
+		
+		return s;
+	}
+	
+	
+	/**
+	 * Strip tags
+	 */
+	pure string strip_tags(string content, Collection<string> allowed_tags = null)
+	{
+		if (allowed_tags == null)
+		{
+			content = re::replace("<[^>]+>", "", content);
+			content = rs::trim(rs::spaceless(content));
+			return content;
+		}
+		
+		Collection matches = re::matchAll("<[^>]+>", content, "i");
+		if (matches)
+		{
+			for (int i=0; i<matches.count(); i++)
+			{
+				Collection match = matches[i];
+				string tag_str = match[0];
+				
+				Collection tag_match = re::matchAll("<(\/|)([a-zA-Z]+)(|[^>]*)>", tag_str, "i");
+				if (tag_match)
+				{
+					string tag_name = static::lower(tag_match[0][2]);
+					if (allowed_tags.indexOf(tag_name) == -1)
+					{
+						content = static::replace(tag_str, "", content);
+					}
+				}
+			}
+		}
+		
+		content = rs::trim(rs::spaceless(content));
+		return content;
+	}
+	
+	
+	/**
+	 * Generate uuid
+	 */
+	static string uid()
+	{
+		#switch
+		#case ifcode PHP then
+		
+		$bytes = bin2hex(random_bytes(16));
+		return substr($bytes, 0, 8) . "-" .
+			substr($bytes, 8, 4) . "-" .
+			substr($bytes, 12, 4) . "-" .
+			substr($bytes, 16, 4) . "-" .
+			substr($bytes, 20);
+		
+		#case ifcode JAVASCRIPT then
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Generate timestamp based uuid
+	 */
+	static string time_uid()
+	{
+		#switch
+		#case ifcode PHP then
+		
+		$bytes = dechex(time()) . bin2hex(random_bytes(12));
+		return substr($bytes, 0, 8) . "-" .
+			substr($bytes, 8, 4) . "-" .
+			substr($bytes, 12, 4) . "-" .
+			substr($bytes, 16, 4) . "-" .
+			substr($bytes, 20);
+		
+		#case ifcode JAVASCRIPT then
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Hash function
+	 * @param string
+	 * @return int hash
+	 */
+	static int hash(string s, bool last=true, int x = 257, int p = 1000000007)
+	{
+		int h = 0;
+		int sz = rs::strlen(s);
+		for (int i=0; i<sz; i++)
+		{
+			int ch = rs::ord( rs::substr(s, i, 1) );
+			h = (h * x + ch) % p;
+		}
+		if (last)
+		{
+			h = (h * x) % p;
+		}
+		return h;
+	}
+	
+	
+	/**
+	 * Convert int to hex
+	 * @param int
+	 * @return string
+	 */
+	static string toHex(int h)
+	{
+		string r = "";
+		string a = "0123456789abcdef";
+		while (h >= 0)
+		{
+			int c = h & 15;
+			h = h >> 4;
+			r = rs::substr(a, c, 1) ~ r;
+			if (h == 0) break;
+		}
+		return r;
+	}
+	
+	
+	/**
+	 * Hex decode
+	 */
+	pure int hexdec(string s)
+	{
+		#switch
+		
+		#case ifcode PHP then
+		return hexdec($s);
+		
+		#case ifcode JAVASCRIPT then
+		return parseInt(s, 16);
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Generate random string
+	 * @var len - string length
+	 * @var spec
+	 *   - a - alpha
+	 *   - n - numberic
+	 * @return string
+	 */
+	static string random_string(int len = 8, string spec = "aun")
+	{
+		string s = "";
+		string res = "";
+		int sz = rs::strlen(spec);
+		
+		for (int i=0; i<sz; i++)
+		{
+			string ch = spec[i];
+			if (ch == "a")
+			{
+				s ~= "qwertyuiopasdfghjklzxcvbnm";
+			}
+			if (ch == "u")
+			{
+				s ~= "QWERTYUIOPASDFGHJKLZXCVBNM";
+			}
+			else if (ch == "n")
+			{
+				s ~= "0123456789";
+			}
+			else if (ch == "s")
+			{
+				s ~= "!@#$%^&*()-_+='\":;'.,<>?/|~";
+			}
+		}
+		
+		int sz_s = rs::strlen(s);
+		for (int i=0; i<len; i++)
+		{
+			int code = Math::random(0, sz_s - 1);
+			res ~= s[code];
+		}
+		
+		return res;
+	}
+	
+	
+	/**
+	 * Format string
+	 */
+	static string format(string s, Dict params = null)
+	{
+		if (params == null) return s;
+		
+		params.each(
+			void (string value, string key) use (s)
+			{
+				s = rs::replace("%" ~ key ~ "%", value, s);
+			}
+		);
+		
+		return s;
+	}
+}

@@ -1,0 +1,322 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Constructor.Backend.Api;
+
+use Runtime.fs;
+use Runtime.Exceptions.ApiError;
+use Runtime.Exceptions.ItemNotFound;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.Web.Annotations.ApiMethod;
+use Runtime.Widget.Crud.SaveApi;
+use Runtime.Widget.Crud.Rules.CrudRule;
+use Runtime.Widget.Crud.Rules.Required;
+use BayLang.Constructor.Backend.ApiHook;
+use BayLang.Helper.Module;
+use BayLang.Helper.Project;
+use BayLang.Helper.Widget;
+
+
+class WidgetSaveApi extends SaveApi
+{
+	Project project;
+	Module module;
+	
+	
+	/**
+	 * Returns api name
+	 */
+	static string getApiName() => "baylang.constructor.widget::save";
+	
+	
+	/**
+	 * Returns rules
+	 */
+	Vector<CrudRule> getRules() =>
+	[
+		new Required{"name": "id"},
+		new Required{"name": "module_id"},
+	];
+	
+	
+	/**
+	 * Returns item fields
+	 */
+	Collection getItemFields() =>
+	[
+		"id",
+		"module_id",
+	];
+	
+	
+	/**
+	 * Returns save fields
+	 */
+	Collection getSaveFields() =>
+	[
+		"id",
+		"module_id",
+	];
+	
+	
+	/**
+	 * New item
+	 */
+	async void newItem() => new Widget(this.module);
+	
+	
+	/**
+	 * Find item
+	 */
+	async void findItem(Dict pk)
+	{
+		string widget_name = pk.get("id")
+		return this.module.getWidget(widget_name);
+	}
+	
+	
+	/**
+	 * Action before
+	 */
+	async void onActionBefore()
+	{
+		/* Get project */
+		string project_id = this.post_data["foreign_key", "project_id"];
+		this.project = await ApiHook::getProject(project_id);
+		if (not this.project)
+		{
+			throw new ApiError(new ItemNotFound(project_id, "Project"));
+		}
+		
+		/* Load project */
+		await this.project.load();
+		
+		/* Get module */
+		string module_id = this.post_data["foreign_key", "module_id"];
+		this.module = this.project.getModule(module_id);
+		if (not this.module)
+		{
+			throw new ApiError(new ItemNotFound(module_id, "Module"));
+		}
+	}
+	
+	
+	/**
+	 * Create widget
+	 */
+	async void createWidget()
+	{
+		string widget_name = this.data.get("id")
+		
+		/* Check widget is exists */
+		Widget widget = this.findItem({ "id": widget_name });
+		if (widget)
+		{
+			throw new ApiError(new RuntimeException("Widget already exists"));
+		}
+		
+		/* Check widget prefix */
+		string module_name = this.module.getName();
+		string widget_prefix = rs::substr(widget_name, 0, rs::strlen(module_name));
+		if (widget_prefix != module_name)
+		{
+			throw new ApiError(new RuntimeException("Widget prefix error. Must be " ~ module_name));
+		}
+		
+		/* Check widget is model */
+		bool is_model_based = rs::substr(widget_name, -5) == "Model";
+		if (not is_model_based)
+		{
+			throw new ApiError(new RuntimeException("Widget must be model"));
+		}
+		
+		/* Set widget name */
+		this.item.kind = "widget";
+		this.item.name = widget_name;
+		this.item.component_name = rs::substr(widget_name, 0, -5);
+		
+		/* Set model path */
+		string model_path = this.item.getModelPath();
+		string component_path = this.item.getComponentPath();
+		string widget_dir = rs::dirname(model_path);
+		
+		/* Create directory if not exists */
+		if (not await fs::exists(widget_dir))
+		{
+			await fs::mkDir(widget_dir);
+		}
+		
+		/* Create file */
+		await this.createModel(model_path, this.item.name, this.item.component_name);
+		await this.createComponent(component_path, this.item.component_name);
+		
+		/* Add widget */
+		await this.module.addWidget(this.item);
+		
+		/* Compile model */
+		this.module.compile(this.module.getRelativeSourcePath(model_path));
+		
+		/* Compile component */
+		this.module.compile(this.module.getRelativeSourcePath(component_path));
+		
+		/* Update assets */
+		this.module.updateAssets();
+		
+		/* Save cache */
+		await this.project.saveCache();
+		
+		/* Result */
+		this.success();
+	}
+	
+	
+	/**
+	 * Create model
+	 */
+	async void createModel(string file_path, string model_name, string component_name)
+	{
+		Collection<string> arr = rs::split(".", model_name);
+		string namespace_name = rs::join(".", arr.slice(0, -1));
+		string model_short_name = arr.last();
+		
+		/* Get content */
+		Collection<string> content = [];
+		content.push('namespace ' ~ namespace_name ~ ';');
+		content.push('');
+		content.push('use Runtime.Web.BasePageModel;');
+		content.push('use Runtime.Web.RenderContainer;');
+		content.push('');
+		content.push('');
+		content.push('class ' ~ model_short_name ~ ' extends BasePageModel');
+		content.push('{');
+		content.push('\tstring component = "' ~ component_name ~ '";');
+		content.push('\t');
+		content.push('\t');
+		content.push('\t/**');
+		content.push('\t * Init widget settings');
+		content.push('\t */');
+		content.push('\tvoid initWidget(Dict params)');
+		content.push('\t{');
+		content.push('\t\tparent(params);');
+		content.push('\t}');
+		content.push('\t');
+		content.push('\t');
+		content.push('\t/**');
+		content.push('\t * Build title');
+		content.push('\t */');
+		content.push('\tvoid buildTitle(RenderContainer container)');
+		content.push('\t{');
+		content.push('\t\tthis.layout.setPageTitle("Widget page");');
+		content.push('\t}');
+		content.push('}');
+		
+		/* Save file */
+		string file_content = rs::join("\n", content);
+		await fs::saveFile(file_path, file_content);
+	}
+	
+	
+	/**
+	 * Create component
+	 */
+	async void createComponent(string file_path, string component_name)
+	{
+		/* Get content */
+		Collection<string> content = [];
+		content.push('<class name="' ~ component_name ~ '">');
+		content.push('');
+		content.push('<use name="Runtime.Widget.Section" component="true" />');
+		content.push('');
+		content.push('<style>');
+		content.push('.main_section{');
+		content.push('\tpadding-top: 20px;');
+		content.push('\tpadding-bottom: 20px;');
+		content.push('\tbackground-position: center top;');
+		content.push('\tbackground-repeat: no-repeat;');
+		content.push('\tbackground-size: cover;');
+		content.push('}');
+		content.push('</style>');
+		content.push('');
+		content.push('<template>');
+		content.push('\t<div class="page">');
+		content.push('\t\t<Section class="main_section">');
+		content.push('\t\t\t<div class="page_text" >Content</div>');
+		content.push('\t\t</Section>');
+		content.push('\t</div>');
+		content.push('</template>');
+		content.push('');
+		content.push('</class>');
+		
+		/* Save file */
+		string file_content = rs::join("\n", content);
+		await fs::saveFile(file_path, file_content);
+	}
+	
+	
+	/**
+	 * Action save
+	 */
+	@ApiMethod
+	async void actionSave()
+	{
+		/* Load data */
+		await this.loadItem();
+		await this.loadData();
+		
+		/* Create widget */
+		if (this.pk == null)
+		{
+			await this.createWidget();
+			return;
+		}
+		
+		throw new ApiError(new RuntimeException("Method are not allowed"));
+	}
+	
+	
+	/**
+	 * Action delete
+	 */
+	@ApiMethod
+	async void actionDelete()
+	{
+		/* Load data */
+		await this.loadItem();
+		
+		/* Load widget */
+		await this.item.load(true);
+		
+		/* Remove files */
+		string model_path = this.item.getModelPath();
+		string component_path = this.item.getComponentPath();
+		if (await fs::isFile(model_path)) await fs::unlink(model_path);
+		if (await fs::isFile(component_path)) await fs::unlink(component_path);
+		
+		/* Remove widget */
+		await this.module.removeWidget(this.item);
+		
+		/* Update assets */
+		this.module.updateAssets();
+		
+		/* Save cache */
+		await this.project.saveCache();
+		
+		/* Result */
+		this.success();
+	}
+}

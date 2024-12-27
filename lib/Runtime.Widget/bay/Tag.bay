@@ -1,0 +1,223 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.Tag">
+
+<use name="Runtime.Web.Messages.ValueChangeMessage" />
+
+
+<style>
+.widget_tag{
+	display: flex;
+	flex-wrap: wrap;
+	font-family: var(--widget-font-family);
+	font-size: var(--widget-font-size);
+	background-color: var(--widget-color-default);
+	border-width: var(--widget-border-width);
+	border-color: var(--widget-color-border);
+	border-style: solid;
+	border-radius: 4px;
+	box-shadow: none;
+	outline: transparent;
+	line-height: normal;
+	padding: 2px;
+	min-height: 40px;
+	width: 100%;
+}
+.widget_tag__item{
+	display: flex;
+	align-items: stretch;
+    justify-content: space-between;
+	border-width: var(--widget-border-width);
+	border-color: var(--widget-color-border);
+	border-style: solid;
+	border-radius: 4px;
+	padding: 3px 5px;
+	margin: 5px;
+}
+.widget_tag__text{
+	overflow-wrap: anywhere;
+	outline: 0;
+}
+.widget_tag__close{
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin-left: 5px;
+	cursor: pointer;
+}
+.widget_tag__span{
+	overflow-wrap: anywhere;
+	min-width: 100px;
+	padding: 3px;
+	margin: 5px;
+	outline: 0;
+}
+.widget_tag__span:first-child{
+	padding-left: 0;
+}
+</style>
+
+
+<template>
+	<div class="widget_tag">
+		%if (this.value)
+		{
+			%for (int i=0; i<this.value.count(); i++)
+			{
+				<div class="widget_tag__item">
+					<div class="widget_tag__text"
+						contenteditable="true"
+						@event:blur={{ void (var e) use (i){
+							this.onTextChange(i, e.target.innerText);
+						} }}
+						@event:keydown={{ void (var e) use (i){
+							this.onTextKeyDown(i, e.target.innerText, e);
+						} }}
+					>{{ this.value.get(i) }}</div>
+					<div class="widget_tag__close"
+						@event:click={{ void () use (i){ this.onCloseClick(i); } }}
+					>x</div>
+				</div>
+			}
+		}
+		<span class="widget_tag__span"
+			contenteditable="true"
+			@event:blur={{ this.onSpanBlur }}
+			@event:keydown={{ this.onSpanKeyDown }}
+			@ref="span"
+		></span>
+	</div>
+</template>
+
+
+<script>
+
+props string name = "";
+props Collection<string> value = [];
+
+
+/**
+ * Text change
+ */
+void onTextChange(int i, string value)
+{
+	var old_value = this.value.slice();
+	this.value.set(i, value);
+	
+	/* Send value change */
+	this.emit("valueChange", new ValueChangeMessage{
+		"value": this.value,
+		"old_value": old_value,
+		"data": this.data,
+	});
+}
+
+
+/**
+ * Text keydown
+ */
+void onTextKeyDown(int i, string value, var e)
+{
+	if (e.keyCode != 13) return;
+	
+	/* Set value */
+	var old_value = this.value.slice();
+	this.value.set(i, value);
+	
+	/* Send value change */
+	this.emit("valueChange", new ValueChangeMessage{
+		"value": this.value,
+		"old_value": old_value,
+		"data": this.data,
+	});
+	
+	e.preventDefault();
+	return false;
+}
+
+
+/**
+ * Close click
+ */
+void onCloseClick(int i)
+{
+	var old_value = this.value.slice();
+	this.value.remove(i);
+	
+	/* Send value change */
+	this.emit("valueChange", new ValueChangeMessage{
+		"value": this.value,
+		"old_value": old_value,
+		"data": this.data,
+	});
+}
+
+
+/**
+ * Span blur
+ */
+void onSpanBlur(var e)
+{
+	var span = this.getRef("span");
+	if (span.innerText == "") return;
+	
+	/* Add value */
+	var old_value = this.value.slice();
+	this.value.push(span.innerText);
+	span.innerText = "";
+	
+	/* Send value change */
+	this.emit("valueChange", new ValueChangeMessage{
+		"value": this.value,
+		"old_value": old_value,
+		"data": this.data,
+	});
+}
+
+
+/**
+ * Span keydown
+ */
+void onSpanKeyDown(var e)
+{
+	if (e.keyCode != 13) return;
+	
+	var span = this.getRef("span");
+	if (span.innerText == "") return;
+	
+	/* Add value */
+	var old_value = this.value.slice();
+	this.value.push(span.innerText);
+	span.innerText = "";
+	
+	/* Send value change */
+	this.emit("valueChange", new ValueChangeMessage{
+		"value": this.value,
+		"old_value": old_value,
+		"data": this.data,
+	});
+	
+	e.preventDefault();
+	return false;
+}
+
+</script>
+
+
+</class>

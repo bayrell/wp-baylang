@@ -1,0 +1,142 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Constructor.Console.Commands;
+
+use Runtime.io;
+use Runtime.fs;
+use Runtime.Console.BaseCommand;
+use Runtime.Console.CommandsList;
+use BayLang.Helper.Module;
+use BayLang.Helper.Project;
+
+
+class NginxUpdate extends BaseCommand
+{
+	/**
+	 * Returns name
+	 */
+	static string getName() => "nginx_update";
+
+
+	/**
+	 * Returns description
+	 */
+	static string getDescription() => "Update nginx";
+
+
+	/**
+	 * Run task
+	 */
+	async static int run()
+	{
+		Collection<Project> projects = await Project::readProjects(
+			fs::join([@.env("constructor_path"), "projects"])
+		);
+
+		Vector<string> result = [];
+		for (int i=0; i<projects.count(); i++)
+		{
+			static::addProject(result, projects.get(i));
+		}
+		
+		/* Update nginx file */
+		string content = rs::join("\n", result);
+		string nginx_path = fs::join([@.env("constructor_path"), "nginx.conf"]);
+		bool is_update = static::updateLocalFile(nginx_path, content)
+		
+		/* Restart nginx */
+		if (is_update)
+		{
+			static::nginxReload();
+		}
+		
+		return static::SUCCESS;
+	}
+
+
+	/**
+	 * Add project
+	 */
+	async static void addProject(Vector<string> result, Project project)
+	{
+		string project_name = project.getID();
+		result.push("# Project " ~ project_name);
+		result.push("location /project/" ~ project_name ~ "/open/assets/ {");
+		result.push("\talias /data/constructor/projects/" ~ project_name ~ "/src/public/assets/;");
+		result.push("\tbreak;");
+		result.push("}");
+		
+		/* Entry points */
+		Collection entry_points = project.getEntryPoints();
+		if (entry_points)
+		{
+			for (int i=0; i<entry_points.count(); i++)
+			{
+				Dict entry_point = entry_points.get(i);
+				string url = entry_point.get("url");
+				string file = entry_point.get("file");
+				string location = "/project/" ~ project_name ~ "/open" ~ url;
+				location = rs::removeLastSlash(location);
+				result.push("location " ~ location ~ "/ {");
+				result.push("\tinclude fastcgi_params;");
+				result.push("\troot /data/constructor/projects/" ~ project_name ~ "/src/public;");
+				result.push("\tfastcgi_param SCRIPT_FILENAME $document_root/" ~ file ~";");
+				result.push("\tfastcgi_param HTTP_X_FORWARDED_PREFIX $http_x_forwarded_prefix" ~
+					location ~ ";");
+				result.push("\tbreak;");
+				result.push("}");
+			}
+		}
+	}
+	
+	
+	/**
+	 * Update local file
+	 */
+	async static bool updateLocalFile(string file_name, string new_content)
+	{
+		string old_content = "";
+		
+		bool file_exists = await fs::isFile(file_name);
+		if (file_exists)
+		{
+			old_content = await fs::readFile(file_name)
+		}
+		
+		if (old_content != new_content or not file_exists)
+		{
+			await fs::saveFile(file_name, new_content);
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	/**
+	 * Reload nginx
+	 */
+	async static void nginxReload()
+	{
+		io::print("Reload nginx");
+		#ifcode PHP then
+		shell_exec("sudo /usr/sbin/nginx -s reload");
+		#endif
+	}
+}

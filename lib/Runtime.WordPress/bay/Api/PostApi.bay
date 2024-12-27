@@ -1,0 +1,426 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Api;
+
+use Runtime.re;
+use Runtime.DateTime;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Cursor;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryField;
+use Runtime.ORM.QueryFilter;
+use Runtime.ORM.QueryResult;
+use Runtime.ORM.Relation;
+use Runtime.ORM.SQLBuilder;
+use Runtime.Web.BaseApi;
+use Runtime.Web.Annotations.ApiMethod;
+use Runtime.Widget.Crud.CrudApi;
+use Runtime.Widget.Crud.CrudRule;
+
+
+class PostApi extends CrudApi
+{
+	/**
+	 * Returns api name
+	 */
+	pure string getApiName() => "runtime.wordpress.post";
+	
+	
+	/**
+	 * Returns table name
+	 */
+	pure string getTableName() => "posts";
+	
+	
+	/**
+	 * Returns item fields
+	 */
+	Collection getItemFields() => [
+		"ID",
+		"post_title",
+		"post_name",
+		"post_content",
+		"primary_category",
+		"taxonomy",
+		"categories",
+		"tags",
+	];
+	
+	
+	/**
+	 * Returns query field
+	 */
+	bool getQueryField(string field_name)
+	{
+		if (
+			field_name == "tags" or
+			field_name == "taxonomy" or
+			field_name == "categories" or
+			field_name == "primary_category"
+		)
+		{
+			return null;
+		}
+		return new QueryField("posts", field_name);
+	}
+	
+	
+	/**
+	 * Returns rules
+	 */
+	Collection<CrudRule> getRules() =>
+	[
+	];
+	
+	
+	/**
+	 * Build search query
+	 */
+	async void buildSearchQuery(Query q)
+	{
+		string post_type = this.post_data.get("post_type", "post");
+		
+		/* Add filter */
+		q.where("posts.post_type", "=", post_type);
+		q.where("posts.post_status", "=", "publish");
+		q.orderBy("posts.post_modified_gmt", "desc");
+		
+		/* Set search */
+		if (this.post_data.has("search"))
+		{
+			string search = this.post_data.get("search");
+			q.addRawField(
+				void (SQLBuilder builder) =>
+					"MATCH(`posts`.`post_title`) AGAINST (" ~
+						builder.formatKey("text_search") ~
+					") * 10 + " ~
+					"MATCH(`posts`.`post_content`) AGAINST (" ~
+						builder.formatKey("text_search") ~
+					") as `full_text_search`"
+			);
+			q.value("text_search", search);
+			q.addOrFilter([
+				new QueryFilter
+				(
+					"posts.post_title",
+					"match",
+					search,
+					"full_text_search"
+				),
+				new QueryFilter
+				(
+					"posts.post_content",
+					"match",
+					search,
+					"full_text_search"
+				)
+			]);
+			q.clearOrder();
+			q.orderBy("full_text_search", "desc");
+		}
+		
+		/* Set post id */
+		if (this.post_data.has("post_id"))
+		{
+			int post_id = (int)this.post_data.get("post_id");
+			q.where("posts.ID", "=", post_id);
+			q.calcFoundRows(false);
+		}
+		
+		/* Set post name */
+		if (this.post_data.has("post_name"))
+		{
+			string post_name = this.post_data.get("post_name");
+			q.where("posts.post_name", "=", post_name);
+			q.calcFoundRows(false);
+		}
+		
+		/* Set term id */
+		if (this.post_data.has("term_id"))
+		{
+			int term_id = (int)this.post_data.get("term_id");
+			q.innerJoin(
+				"term_relationships",
+				["posts.ID = term_relationships.object_id"]
+			);
+			q.innerJoin(
+				"term_taxonomy",
+				["term_relationships.term_taxonomy_id = term_taxonomy.term_taxonomy_id"]
+			);
+			q.where("term_taxonomy.term_id", "=", term_id);
+		}
+		
+		/* Set archive */
+		if (this.post_data.has("date"))
+		{
+			string date = this.post_data.get("date");
+			string year = (int)rs::substr(date, 0, 4);
+			string month = (int)rs::substr(date, 5, 7);
+			
+			if (year > 0 and month > 0 and month <= 12)
+			{
+				DateTime date_begin = new DateTime{
+					"y": year,
+					"m": month,
+					"d": 1,
+				};
+				DateTime date_end = new DateTime{
+					"y": month < 12 ? year : year + 1,
+					"m": month < 12 ? month + 1 : 1,
+					"d": 1,
+				};
+				date_end = date_end.shift(-1);
+				q.where("post_date_gmt", ">=", date_begin.getDateTimeString());
+				q.where("post_date_gmt", "<=", date_end.getDateTimeString());
+			}
+		}
+	}
+	
+	
+	/**
+	 * After search
+	 */
+	async void onSearchAfter()
+	{
+		await parent();
+		
+		Connection conn = this.getConnection();
+		Collection fields = [
+			"ID",
+			"post_title",
+			"post_name",
+			"post_content",
+		];
+		
+		/* Transform posts */
+		Collection posts = this.items.toCollection();
+		posts = posts.map(
+			Dict (Relation item) use (fields) => item.intersect(fields)
+		);
+		
+		/* Build posts index */
+		Dict posts_index = this.items.transition(
+			list (Dict item, int index) => [index, item.get("ID")]
+		);
+		
+		/* Get post ids */
+		Collection<int> pk_ids = this.items.map(
+			int (Dict item) => item.get("ID")
+		);
+		
+		/* Get categories */
+		bool categories_allowed = this.hasAllowedField("categories") or
+			this.hasAllowedField("primary_category")
+		;
+		bool tags_allowed = this.hasAllowedField("tags");
+		if (categories_allowed or tags_allowed)
+		{
+			Query q = new Query()
+				.select("terms")
+				.addFields([
+					"term_relationships.object_id",
+					"term_taxonomy.taxonomy",
+					"terms.term_id",
+					"terms.name",
+				])
+				.innerJoin(
+					"term_taxonomy",
+					["term_taxonomy.term_id = terms.term_id"]
+				)
+				.innerJoin(
+					"term_relationships",
+					["term_taxonomy.term_taxonomy_id = term_relationships.term_taxonomy_id"]
+				)
+				.where("term_relationships.object_id", "=", pk_ids)
+			;
+			
+			/* Get result */
+			QueryResult taxonomy = conn.fetchAll(q);
+			taxonomy.each(
+				var (Dict data) use (posts, posts_index, categories_allowed, tags_allowed)
+				{
+					int post_id = (int)data.get("object_id");
+					int term_id = (int)data.get("term_id");
+					string taxonomy = data.get("taxonomy");
+					string taxonomy_name = data.get("name");
+					
+					/* Get post */
+					if (not posts_index.has(post_id)) return;
+					int pos = posts_index.get(post_id)
+					Map post = this.items.get(pos);
+					
+					/* Add taxonomy */
+					if (not post.has("taxonomy"))
+					{
+						post.set("taxonomy", {});
+					}
+					Map post_taxonomy = post.get("taxonomy");
+					
+					/* Add categories */
+					if (categories_allowed and taxonomy == "category")
+					{
+						if (not post.has("categories"))
+						{
+							post.set("categories", []);
+						}
+						Vector categories = post.get("categories");
+						categories.push(term_id);
+						post_taxonomy.set(term_id, {
+							"term_id": term_id,
+							"taxonomy": taxonomy,
+							"name": taxonomy_name,
+						});
+					}
+					
+					/* Add tags */
+					if (tags_allowed and taxonomy == "post_tag")
+					{
+						if (not post.has("tags"))
+						{
+							post.set("tags", []);
+						}
+						Vector categories = post.get("tags");
+						categories.push(term_id);
+						post_taxonomy.set(term_id, {
+							"term_id": term_id,
+							"taxonomy": taxonomy,
+							"name": taxonomy_name,
+						});
+					}
+				}
+			);
+			
+			/* Sort taxonomy */
+			this.items.each(
+				void (Map post)
+				{
+					if (post.has("categories"))
+					{
+						post.set("categories", post.get("categories").sort());
+					}
+					if (post.has("tags"))
+					{
+						post.set("tags", post.get("tags").sort());
+					}
+				}
+			);
+		}
+		
+		/* Build postmeta query */
+		if (this.hasAllowedField("primary_category"))
+		{
+			Query q = new Query()
+				.select("postmeta")
+				.addRawField("`postmeta`.*")
+				.where("post_id", "=", pk_ids)
+				.where("meta_key", "=", "rank_math_primary_category")
+			;
+			QueryResult primary_categories = await conn.fetchAll(q);
+			
+			/* Get primary category */
+			primary_categories.each(
+				var (Dict postmeta) use (posts, posts_index)
+				{
+					int post_id = (int)postmeta.get("post_id");
+					int meta_value = (int)postmeta.get("meta_value");
+					string meta_key = postmeta.get("meta_key");
+					
+					if (not posts_index.has(post_id)) return;
+					if (meta_key != "rank_math_primary_category") return;
+					
+					int pos = posts_index.get(post_id);
+					Map post = this.items.get(pos);
+					post.set("primary_category", meta_value);
+				}
+			);
+			
+			/* Set primary category from taxonomy */
+			this.items.each(
+				void (Map post)
+				{
+					int primary_category = (int)post.get("primary_category");
+					if (primary_category > 0) return;
+					if (not post.has("taxonomy")) return;
+					if (not post.has("categories")) return;
+					
+					Dict taxonomy = post.get("taxonomy");
+					Collection categories = post.get("categories");
+					if (categories.count() == 0) return;
+					
+					/* Set primary category */
+					int first_category = categories.get(0);
+					post.set("primary_category", first_category);
+				}
+			);
+		}
+	}
+	
+	
+	/**
+	 * Action search
+	 */
+	@ApiMethod
+	async void actionSearch()
+	{
+		await parent();
+	}
+	
+	
+	/**
+	 * Action search one
+	 */
+	@ApiMethod
+	async void actionSearchOne()
+	{
+		await parent();
+	}
+	
+	
+	/**
+	 * Returns archive
+	 */
+	@ApiMethod
+	async void getArchive()
+	{
+		Connection conn = Connection::get("prefix");
+		Collection items = [];
+		
+		/* Build query */
+		Query q = new Query()
+			.select("posts")
+			.distinct(true)
+			.addRawField("DATE_FORMAT(`posts`.`post_date_gmt`, '%Y-%m') as `post_date`")
+			.where("post_type", "=", "post")
+			.where("post_status", "=", "publish")
+			.orderBy("post_date", "desc")
+		;
+		
+		items = await conn.fetchAll(q);
+		
+		/* Transform items */
+		items = items.map( string (Dict item) => item.get("post_date") );
+		
+		/* Set result */
+		this.result.success({
+			"data": {
+				"items": items,
+			}
+		});
+	}
+}

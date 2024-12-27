@@ -1,0 +1,31 @@
+{
+	"name": "Runtime.WordPress.Admin",
+	"assets":
+	[
+		"FormData/FormDataPage.bay",
+		"FormData/FormDataPageModel.bay",
+		"FormSettings/FormSettingsPage.bay",
+		"FormSettings/FormSettingsPageModel.bay",
+		"MailLog/MailLogPage.bay",
+		"MailLog/MailLogPageModel.bay",
+		"MailSettings/MailSettingsPage.bay",
+		"MailSettings/MailSettingsPageModel.bay",
+		"Robots/RobotsPage.bay",
+		"Robots/RobotsPageModel.bay",
+		"AppHook.bay",
+		"CSS.bay",
+		"DefaultLayout.bay",
+		"DefaultLayoutModel.bay",
+		"ModuleDescription.bay"
+	],
+	"src": "./",
+	"dest":
+	{
+		"php": "./../../php/Admin",
+		"es6": "./../../es6/Admin"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

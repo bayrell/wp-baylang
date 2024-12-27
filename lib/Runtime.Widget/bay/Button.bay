@@ -1,0 +1,122 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.Button">
+
+
+<style>
+.widget_button{
+	color: var(--widget-color-text);
+	font-family: var(--widget-font-family);
+	font-size: var(--widget-font-size);
+	line-height: var(--widget-line-height);
+	background-color: var(--widget-color-default);
+	border: var(--widget-border-width) var(--widget-color-border) solid;
+	padding: var(--widget-button-padding-y) var(--widget-button-padding-x);
+	outline: 0;
+	cursor: pointer;
+	border-radius: 4px;
+}
+.widget_button:active{
+	box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25);
+}
+.widget_button--small{
+	padding: var(--widget-button-padding-small-y) var(--widget-button-padding-small-x);
+	line-height: 1.2em;
+}
+.widget_button--large{
+	padding: var(--widget-button-padding-large-y) var(--widget-button-padding-large-x);
+}
+.widget_button--primary{
+	color: var(--widget-color-primary-text);
+	background-color: var(--widget-color-primary);
+	border-color: var(--widget-color-primary);
+}
+.widget_button--danger{
+	color: var(--widget-color-danger-text);
+	background-color: var(--widget-color-danger);
+	border-color: var(--widget-color-danger);
+}
+.widget_button--success{
+	color: var(--widget-color-success-text);
+	background-color: var(--widget-color-success);
+	border-color: var(--widget-color-success);
+}
+.widget_button--stretch{
+	width: 100%;
+}
+</style>
+
+
+<template>
+	%if (this.href == null)
+	{
+		<button type={{ this.type }}
+			class="widget_button"
+			class={{ static::getStyles("widget_button", this.styles) }}
+			class={{ this.renderListClass() }}
+			class={{ this.class }}
+			@ref="widget"
+		>
+			%if (this.content)
+			{
+				%render this.content;
+			}
+			%else
+			{
+				%render this.renderSlot("default");
+			}
+		</button>
+	}
+	%else
+	{
+		<a class="nolink" class={{ this.class }}
+			href={{ this.href }} target={{ this.target }}
+			@ref="widget"
+		>
+			<button type={{ this.type }}
+				class="widget_button"
+				class={{ static::getStyles("widget_button", this.styles) }}
+				class={{ this.renderListClass() }}
+			>
+				%if (not this.checkSlot("default"))
+				{
+					%render this.content;
+				}
+				%else
+				{
+					%render this.renderSlot("default");
+				}
+			</button>
+		</a>
+	}
+</template>
+
+
+<script>
+
+props string class = "";
+props string type = "button";
+props string target = "_self";
+props string content = "";
+props var href = null;
+props Collection<string> styles = [];
+
+</script>
+
+</class>

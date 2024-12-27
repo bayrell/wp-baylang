@@ -1,0 +1,89 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Admin;
+
+use Runtime.Entity.Hook;
+use Runtime.Web.Annotations.Api;
+use Runtime.Web.Annotations.Route;
+use Runtime.Web.Hooks.Components;
+use Runtime.Web.Hooks.SetupLayout;
+
+
+class ModuleDescription
+{
+	/**
+	 * Returns module name
+	 */
+	pure string getModuleName() => "Runtime.WordPress.Admin";	
+	
+	
+	/**
+	 * Returns module version
+	 */
+	pure string getModuleVersion() => "0.0.1";
+	
+	
+	/**
+	 * Returns required modules
+	 * @return Map<string>
+	 */
+	pure Dict<string> requiredModules() =>
+	{
+		'BayLang': '>=0.12',
+		'BayLang.Constructor': '>=0.12',
+		'Runtime.WordPress': '>=0.1',
+	};
+	
+	
+	/**
+	 * Returns enities
+	 */
+	pure Collection<Dict> entities() => 
+	[
+		new Hook("Runtime.WordPress.Admin.AppHook"),
+		
+		/* Setup layout */
+		SetupLayout::hook({
+			"default": "Runtime.WordPress.Admin.DefaultLayoutModel",
+		}),
+		
+		/* Components */
+		Components::hook([
+			"Runtime.WordPress.Admin.CSS",
+		]),
+		
+		#ifdef BACKEND then
+		new Api("BayLang.Constructor.Backend.Api.AssetsApi"),
+		new Api("BayLang.Constructor.Backend.Api.CodeApi"),
+		new Api("BayLang.Constructor.Backend.Api.ModuleSearchApi"),
+		new Api("BayLang.Constructor.Backend.Api.ProjectSaveApi"),
+		new Api("BayLang.Constructor.Backend.Api.WidgetApi"),
+		new Api("BayLang.Constructor.Backend.Api.WidgetSaveApi"),
+		new Api("BayLang.Constructor.Backend.Api.WidgetSearchApi"),
+		new Api("Runtime.WordPress.Admin.Api.FormDataSearch"),
+		new Api("Runtime.WordPress.Admin.Api.FormSettingsSave"),
+		new Api("Runtime.WordPress.Admin.Api.FormSettingsSearch"),
+		new Api("Runtime.WordPress.Admin.Api.MailLogSearch"),
+		new Api("Runtime.WordPress.Admin.Api.MailSettingsSave"),
+		new Api("Runtime.WordPress.Admin.Api.MailSettingsSearch"),
+		new Api("Runtime.WordPress.Admin.Api.RobotsApi"),
+		new Route("Runtime.WordPress.Admin.Routes"),
+		#endif
+	];
+}

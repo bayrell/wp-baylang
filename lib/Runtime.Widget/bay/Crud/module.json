@@ -1,0 +1,22 @@
+{
+	"name": "Runtime.Widget.Crud",
+	"assets":
+	[
+	],
+	"require": [
+		"Runtime.Widget"
+	],
+	"groups": [
+		"widget"
+	],
+	"src": "./",
+	"dest":
+	{
+		"php": "./../../php/Crud",
+		"es6": "./../../es6/Crud"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

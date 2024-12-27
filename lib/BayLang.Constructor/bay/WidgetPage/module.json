@@ -1,0 +1,28 @@
+{
+	"name": "BayLang.Constructor.WidgetPage",
+	"assets":
+	[
+		"AppHook.bay",
+		"EditorProvider.bay",
+		"ParameterFactory.bay",
+		"WidgetManagerAnnotation.bay",
+		"WidgetManagerInterface.bay",
+		"WidgetPage.bay",
+		"WidgetPageModel.bay",
+		"WidgetSettingsInterface.bay",
+		"ModuleDescription.bay"
+	],
+	"groups": [
+		"constructor"
+	],
+	"src": "./",
+	"dest":
+	{
+		"php": "./../../php/WidgetPage",
+		"es6": "./../../es6/WidgetPage"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

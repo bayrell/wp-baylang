@@ -1,0 +1,138 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.WidgetSettings.Settings.Html;
+
+use Runtime.BaseObject;
+use Runtime.Web.RenderContainer;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterContent;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterRawHtml;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterTagName;
+use BayLang.Constructor.WidgetPage.ParameterFactory;
+use BayLang.Constructor.WidgetPage.WidgetSettingsInterface;
+use Runtime.Widget.WidgetSettings.Settings.ContainerSettings;
+use BayLang.OpCodes.BaseOpCode;
+
+
+class Link extends ContainerSettings
+{
+	/**
+	 * Returns widget name
+	 */
+	string getWidgetName() => "Link";
+	
+	
+	/**
+	 * Returns alias name
+	 */
+	string getAliasName() => "";
+	
+	
+	/**
+	 * Returns component name
+	 */
+	string getComponentName() => "a";
+	
+	
+	/**
+	 * Returns model name
+	 */
+	string getModelName() => "";
+	
+	
+	/**
+	 * Returns selector name
+	 */
+	string getSelectorName() => "link";
+	
+	
+	/**
+	 * Returns group name
+	 */
+	string getGroupName() => "basic";
+	
+	
+	/**
+	 * Returns true if is widget settings
+	 */
+	bool checkWidget(var widget)
+	{
+		if (widget.code::getClassName() != "BayLang.OpCodes.OpHtmlTag") return false;
+		if (rs::lower(widget.code.tag_name) != "a") return false;
+		return true;
+	}
+	
+	
+	/**
+	 * Can insert widget
+	 */
+	bool canInsert(WidgetSettingsInterface widget)
+	{
+		return true;
+	}
+	
+	
+	/**
+	 * Returns params
+	 */
+	Collection<ParameterFactory> getParams() =>
+	[
+		new ParameterFactory
+		(
+			classof ParameterComponent,
+			{
+				"name": "target",
+				"label": "Target",
+				"component": "Runtime.Widget.Select",
+				"props": {
+					"default": "",
+					"options": [
+						{"key": "", "value": "self"},
+						{"key": "_blank", "value": "blank"},
+					],
+				}
+			}
+		),
+		new ParameterFactory
+		(
+			classof ParameterComponent,
+			{
+				"name": "href",
+				"label": "Href",
+				"component": "Runtime.Widget.Input",
+			}
+		),
+		new ParameterFactory(classof ParameterRawHtml),
+		new ParameterFactory(classof ParameterContent),
+	];
+	
+	
+	/**
+	 * Returns default template
+	 */
+	Dict<fn> getDefaultTemplate() =>
+	{
+		"default": Dict () =>
+		{
+			"content": rs::join("\n", [
+				"<template>Content</template>"
+			])
+		},
+	};
+}

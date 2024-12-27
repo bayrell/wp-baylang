@@ -1,0 +1,240 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.Table.Table">
+
+<use name="Runtime.Web.RenderListModel" />
+<use name="Runtime.Widget.Pagination" component="true" />
+<use name="Runtime.Widget.RowButtons" />
+<use name="Runtime.Widget.Table.TableModel" />
+
+
+<style>
+.widget_table__table{
+	width: auto;
+	border-collapse: collapse;
+	vertical-align: top;
+	background-color: var(--widget-color-table-background);
+}
+.widget_table__th{
+	text-align: center;
+}
+.widget_table__th, .widget_table__td{
+	vertical-align: middle;
+	padding: var(--widget-space);
+}
+.widget_table__tr.selected td{
+	background-color: var(--widget-color-selected);
+	color: var(--widget-color-selected-text);
+}
+.widget_table--border .widget_table__table{
+	border-color: var(--widget-color-border);
+	border-width: var(--widget-border-width);
+	border-style: solid;
+}
+.widget_table--border .widget_table__th, .widget_table--border .widget_table__td{
+	border-bottom-color: var(--widget-color-border);
+	border-bottom-width: var(--widget-border-width);
+	border-bottom-style: solid;
+}
+</style>
+
+
+<template name="renderHeader">
+	%set TableModel model = this.model;
+	%set Collection fields = model.fields;
+	%if (fields)
+	{
+		<tr class="widget_table__row_header">
+			%for (int i=0; i<fields.count(); i++)
+			{
+				%set Dict field = fields[i];
+				%set string field_name = field.get("name");
+				<th class={{ "widget_table__th widget_table__th--" ~ field_name }}
+					@key={{ field_name }}
+				>
+					{{ field.get("label", "") }}
+				</th>
+			}
+		</tr>
+	}
+</template>
+
+
+<template name="renderField" args="Dict item, int row_number, FieldInfo field">
+	%set TableModel model = this.model;
+	%set var storage = model.storage;
+	%set string field_name = field.get("name");
+	%set string field_calculate = field.get("calculate", null);
+	%set string field_component = field.get("component", null);
+	%set string field_model = field.get("model", null);
+	%set var value = "";
+	%set Dict data = {
+		"item": item,
+		"field_name": field_name,
+		"row_number": row_number,
+		"table": this.model,
+	};
+	%if (field_calculate)
+	{
+		%set value = rtl::apply(field_calculate, [data]);
+	}
+	%else
+	{
+		%set value = this.model.getItemValue(item, field_name);
+	}
+	%set var _ = data.set("value", value);
+	<td class={{ "widget_table__td widget_table__td--" ~ field_name }} @key={{ field_name }}>
+		%if (field_name == "row_number")
+		{
+			{{ this.model.limit * this.model.page + row_number + 1 }}
+		}
+		%else if (field_component != null)
+		{
+			%set string props = field.get("props", {});
+			<{field_component} @model={{ field_model }}
+				value={{ value }}
+				data={{ data }}
+				...props />
+		}
+		%else if (field_model != null)
+		{
+			%render this.renderWidget(field_model, {
+				"value": value,
+				"data": data
+			});
+		}
+		%else
+		{
+			{{ value }}
+		}
+	</td>
+</template>
+
+
+<template name="renderRow" args="Dict item, int row_number">
+	%set TableModel model = this.model;
+	%set Collection fields = model.fields;
+	<tr class="widget_table__tr" class={{ this.isRowSelected(row_number) ? "selected" : "" }}
+		data-row={{ row_number }} @key={{ row_number }}
+		@event:onClick={{ void () use (row_number) => this.onRowClick(row_number) }}
+	>
+		%if (fields)
+		{
+			%for (int i=0; i<fields.count(); i++)
+			{
+				%set Dict field = fields[i];
+				%render this.renderField(item, row_number, field);
+			}
+		}
+	</tr>
+</template>
+
+
+<template name="renderPagination">
+	%set Collection fields = this.model.fields;
+	%if (fields and this.model.pages > 1)
+	{
+		%set Map props = this.model.pagination_props;
+		%set string pagination_class_name = this.model.pagination_class_name;
+		<tr>
+			<td colspan={{ fields.count() }}>
+				<{pagination_class_name}
+					page={{ this.model.page + 1 }}
+					pages={{ this.model.pages }}
+					@event:page={{ this.onChangePage }}
+					...props
+				/>
+			</td>
+		</tr>
+	}
+</template>
+
+
+<template name="renderBody">
+	%if (this.model)
+	{
+		%set Collection items = this.model.getItems();
+		%if (items)
+		{
+			%for (int i=0; i<items.count(); i++)
+			{
+				%set Dict item = items.get(i);
+				%render this.renderRow(item, i);
+			}
+		}
+		%render this.renderPagination();
+	}
+</template>
+
+
+<template name="renderTable">
+	<table class="widget_table__table">
+		<tbody>
+			%render this.renderHeader();
+			%render this.renderBody();
+		</tbody>
+	</table>
+</template>
+
+
+<template name="renderWidgets">
+	%render this.renderWidget(this.model.render_list);
+</template>
+
+
+<template>
+	<div class="widget_table"
+		class={{ this.class }}
+		class={{ static::getStyles("widget_table", this.model.styles) }}
+	>
+		%render this.renderTable();
+		%render this.renderWidgets();
+	</div>
+</template>
+
+
+<script>
+
+/**
+ * Returns true if row selected
+ */
+bool isRowSelected(int row_number) => this.model.row_selected == row_number;
+
+
+/**
+ * OnRowClick
+ */
+void onRowClick(int row_number)
+{
+	this.model.onRowClick(row_number);
+}
+
+
+/**
+ * On change page
+ */
+void onChangePage(string page)
+{
+	/*this.model.onChangePage(page);*/
+}
+
+</script>
+
+
+</class>

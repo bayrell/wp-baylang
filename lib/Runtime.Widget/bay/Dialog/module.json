@@ -1,0 +1,30 @@
+{
+	"name": "Runtime.Widget.Dialog",
+	"assets":
+	[
+		"BaseDialogModel.bay",
+		"Dialog.bay",
+		"DialogMessage.bay",
+		"DialogModel.bay",
+		"DialogModelException.bay",
+		"ConfirmDialogModel.bay",
+		"PromptDialog.bay",
+		"PromptDialogModel.bay"
+	],
+	"require": [
+		"Runtime.Widget"
+	],
+	"groups": [
+		"widget"
+	],
+	"src": "./",
+	"dest":
+	{
+		"php": "./../../php/Dialog",
+		"es6": "./../../es6/Dialog"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

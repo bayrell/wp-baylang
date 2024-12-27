@@ -1,0 +1,206 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.Crud;
+
+use Runtime.ORM.Connection;
+use Runtime.ORM.Provider;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryField;
+use Runtime.ORM.QueryFilter;
+use Runtime.ORM.QueryResult;
+use Runtime.ORM.Relation;
+use Runtime.ORM.Annotations.BaseType;
+use Runtime.Widget.Crud.Rules.CrudRule;
+use Runtime.Widget.Crud.SaveApi;
+
+
+class SaveRelationApi extends SaveApi
+{
+	/**
+	 * Returns table name
+	 */
+	string getTableName() => "";
+	
+	
+	/**
+	 * Returns connection
+	 */
+	Connection getConnection() => Connection::get();
+	
+	
+	/**
+	 * Returns query field
+	 */
+	QueryField getQueryField(string table_name, string field_name)
+	{
+		BaseType field = this.provider.getFieldType(table_name, field_name);
+		if (not field) return null;
+		return new QueryField(table_name, field_name);
+	}
+	
+	
+	/**
+	 * Build search query
+	 */
+	async void buildSearchQuery(Query q)
+	{
+	}
+	
+	
+	/**
+	 * New item
+	 */
+	async Relation newItem() => new Relation(this.getTableName());
+	
+	
+	/**
+	 * Find item
+	 */
+	async Relation findItem(Dict pk)
+	{
+		string table_name = this.getTableName();
+		
+		/* Get query */
+		Query q = new Query()
+			.select()
+			.from(table_name)
+			.limit(1)
+		;
+		
+		/* Get provider */
+		this.provider = @.provider(classof Provider);
+		
+		/* Add fields */
+		Collection<string> fields = Relation::getPrimaryKeys(table_name);
+		if (not this.isActionDelete()) fields = fields.concat(this.getItemFields());
+		fields = fields.removeDuplicates();
+		for (int i=0; i<fields.count(); i++)
+		{
+			string field_name = fields.get(i);
+			QueryField field = this.getQueryField(table_name, field_name);
+			if (field) q.addField(field);
+		}
+		
+		/* Get primary key */
+		Collection filter = Relation::getPrimaryFilter(table_name, pk);
+		q.setFilter(filter);
+		
+		/* Build query */
+		this.buildSearchQuery(q);
+		
+		/* Find relation */
+		Connection connection = this.getConnection();
+		Relation item = await connection.findRelation(q);
+		return item;
+	}
+	
+	
+	/**
+	 * Convert item
+	 */
+	Map convertItem(Collection fields, Relation item)
+	{
+		return item.intersect(fields);
+	}
+	
+	
+	/**
+	 * Set item
+	 */
+	void setItemValue(string key, var value)
+	{
+		this.item.set(key, value);
+	}
+	
+	
+	/**
+	 * Save
+	 */
+	async void save()
+	{
+		Connection connection = this.getConnection();
+		await this.item.save(connection);
+	}
+	
+	
+	/**
+	 * Save item
+	 */
+	async void saveItem()
+	{
+		/* Before save */
+		await this.onSaveBefore();
+		
+		/* Save item */
+		await this.save();
+		
+		/* Refresh item */
+		this.item = await this.findItem(this.item.getPrimaryKey());
+		
+		/* After save */
+		await this.onSaveAfter();
+	}
+	
+	
+	/**
+	 * Remove
+	 */
+	async void remove()
+	{
+		Connection connection = this.getConnection();
+		await this.item.delete(connection);
+	}
+	
+	
+	/**
+	 * Remove item
+	 */
+	async void removeItem()
+	{
+		/* Before delete */
+		await this.onDeleteBefore();
+		
+		/* Remove */
+		await this.remove();
+		
+		/* Before delete */
+		await this.onDeleteAfter();
+	}
+	
+	
+	/**
+	 * Build result
+	 */
+	async void buildResult()
+	{
+		if (not this.item) return;
+		
+		/* Convert item */
+		Collection fields = this.getItemFields();
+		Dict item = this.convertItem(fields, this.item);
+		Dict pk = this.item.getPrimaryKey();
+		
+		/* Setup result */
+		this.result.data.set("pk", pk);
+		this.result.data.set("item", item);
+		
+		/* Success */
+		this.success();
+	}
+}

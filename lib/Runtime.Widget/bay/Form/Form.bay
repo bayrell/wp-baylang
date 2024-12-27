@@ -1,0 +1,228 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.Form.Form">
+
+<use name="Runtime.Callback" />
+<use name="Runtime.Web.ApiResult" />
+<use name="Runtime.Web.Annotations.Param" />
+<use name="Runtime.Widget.Button" component="true" />
+<use name="Runtime.Widget.Input" component="true" />
+<use name="Runtime.Widget.RowButtons" component="true" />
+<use name="Runtime.Widget.TextArea" component="true" />
+<use name="Runtime.Widget.WidgetResult" component="true" />
+<use name="Runtime.Widget.WidgetResultModel" />
+
+
+<style>
+.widget_form{
+	.widget_form__field_row{
+		margin-bottom: 10px;
+	}
+	.widget_form__field_label{
+		display: flex;
+		align-items: center;
+		padding-bottom: 5px;
+		gap: 5px;
+	}
+	.widget_form__field_error{
+		color: var(--widget-color-danger);
+		margin-top: var(--widget-space);
+	}
+	.widget_form__field_error--hide{
+		display: none;
+	}
+	%(RowButtons)widget_form__bottom_buttons{
+		justify-content: center;
+	}
+}
+.widget_form.fixed{
+	max-width: 600px;
+	margin-left: auto;
+	margin-right: auto;
+}
+</style>
+
+
+<template name="renderTitle">
+	%render this.renderSlot("title");
+</template>
+
+
+<template name="renderField" args="Dict field">
+	%set string field_name = field.get("name");
+	%set string field_model = field.get("model", null);
+	%set string field_calculate = field.get("calculate", null);
+	%set string field_component = field.get("component");
+	%set string field_props = field.get("props", {});
+	%set var value = "";
+	%set Dict data =
+	{
+		"item": this.model.item,
+		"field_name": field_name,
+		"form": this.model,
+	};
+	%if (field_calculate)
+	{
+		%set value = rtl::apply(field_calculate, [data]);
+	}
+	%else
+	{
+		%set value = this.model.getItemValue(field_name);
+	}
+	%set var _ = data.set("value", value);
+	%if (field_component != null)
+	{
+		<{field_component}
+			value={{ value }}
+			name={{ field_name }}
+			@ref={{ "field_" ~ field_name }}
+			@model={{ field_model }}
+			@event:onValueChange={{
+				void (var message) use (field_name) =>
+					this.model.onFieldChange(field_name, message.value)
+			}}
+			data={{ data }}
+			...field_props
+		/>
+	}
+	%else
+	{
+		%render this.renderWidget(field_model, field_props.concat({
+			"name": field_name,
+			"value": value,
+			"data": data,
+			"ref": "field_" ~ field_name,
+			"onValueChange": void (var message) use (field_name)
+			{
+				this.model.onFieldChange(field_name, message.value)
+			},
+		}));
+	}
+</template>
+
+
+<template name="renderFieldResult" args="Dict field">
+	%set string field_name = field.get("name");
+	%set Collection<string> field_error = this.model.getFieldResult(field_name);
+	%if (field_error.count() == 0)
+	{
+		<div class="widget_form__field_error widget_form__field_error--hide"
+			data-name={{ field_name }} @key="result1"></div>
+	}
+	%else
+	{
+		<div class="widget_form__field_error" data-name={{ field_name }} @key="result2">
+			%for (int i=0; i<field_error.count(); i++)
+			{
+				<div>{{ field_error.get(i) }}</div>
+			}
+		</div>
+	}
+</template>
+
+
+<template name="renderFieldLabel" args="Dict field">
+	<span>{{ field.get("label") }}</span>
+</template>
+
+
+<template name="renderFieldButtons" args="Dict field">
+	%if (field.has("buttons"))
+	{
+		%set Collection<Dict> buttons = field.get("buttons");
+		<div class="widget_form__field_buttons">
+			%for (int i=0; i<buttons.count(); i++)
+			{
+				%set Dict settings = buttons.get(i);
+				%set Dict props = settings.get("props");
+				%set string content = settings.get("content");
+				<Button
+					@event:click={{
+						void (var e) use (field, settings)
+						{
+							string event_name = settings.get("event");
+							var component = this.getRef("field_" ~ field.get("name"));
+							fn callback = new Callback(component, event_name);
+							callback.apply();
+						}
+					}}
+					...props
+				/>
+			}
+		</div>
+	}
+</template>
+
+
+<template name="renderFieldRow" args="Dict field">
+	%set string field_name = field.get("name");
+	<div class="widget_form__field_row" data-name={{ field_name }} @key={{ field_name }}>
+		%if (field.has("label"))
+		{
+			<div class="widget_form__field_label">
+				%render this.renderFieldLabel(field);
+				%render this.renderFieldButtons(field);
+			</div>
+		}
+		%render this.renderField(field);
+		%render this.renderFieldResult(field);
+	</div>
+</template>
+
+
+<template name="renderFields">
+	<div class="widget_form__fields">
+		%if (this.model)
+		{
+			%for (int i=0; i<this.model.fields.count(); i++)
+			{
+				%render this.renderFieldRow(this.model.fields.get(i));
+			}
+		}
+	</div>
+</template>
+
+
+<template name="renderBottomButtons">
+	%if (this.model and this.model.bottom_buttons.count() > 0)
+	{
+		%render this.renderWidget(this.model.bottom_buttons);
+	}
+</template>
+
+
+<template name="renderResult">
+	%if (this.model and this.model.show_result)
+	{
+		%render this.renderWidget(this.model.result);
+	}
+</template>
+
+
+<template>
+	<div class="widget_form" class={{ this.class }}>
+		%render this.renderTitle();
+		%render this.renderFields();
+		%render this.renderBottomButtons();
+		%render this.renderResult();
+	</div>
+</template>
+
+
+</class>

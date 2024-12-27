@@ -1,0 +1,205 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Compiler;
+
+use Runtime.fs;
+use Runtime.re;
+use Runtime.rs;
+use Runtime.BaseStruct;
+
+
+class Module extends BaseStruct
+{
+	string name = "";
+	string path = "";
+	Dict config = {};
+	
+	
+	/**
+	 * Returns module path
+	 */
+	string getModulePath()
+	{
+		return this.path;
+	}
+	
+	
+	/**
+	 * Returns source path
+	 */
+	string getSourcePath()
+	{
+		string module_src = this.config["src"] |> default string "";
+		string module_src_path = fs::join([ this.path, module_src ]);
+		return rs::removeLastSlash(module_src_path);
+	}
+	
+	
+	/**
+	 * Has group
+	 */
+	bool hasGroup(string group_name)
+	{
+		if (rs::substr(group_name, 0, 1) != "@") return false;
+		group_name = rs::substr(group_name, 1);
+		Collection groups = this.config.get("groups");
+		if (groups == null) return false;
+		if (groups.indexOf(group_name) == -1) return false;
+		return true;
+	}
+	
+	
+	/**
+	 * Returns true if this module contains in module list include groups
+	 */
+	bool inModuleList(Collection<string> module_names)
+	{
+		for (int i=0; i<module_names.count(); i++)
+		{
+			string module_name = module_names.get(i);
+			if (this.name == module_name) return true;
+			if (this.hasGroup(module_name)) return true;
+		}
+		return false;
+	}
+	
+	
+	/**
+	 * Returns full source file.
+	 * Returns file_path
+	 */
+	var resolveSourceFile(string file_name)
+	{
+		string first_char = file_name[0];
+		if (first_char == "@")
+			return fs::join([ this.path, rs::substr(file_name, 1) ]);
+		
+		string path = this.getSourcePath();
+		return fs::join([ path, file_name ]);
+	}
+	
+	
+	/**
+	 * Resolve destination file
+	 */
+	string resolveDestFile(string project_path, string relative_file_name, string lang)
+	{
+		if (not this.config.has("dest")) return "";
+		if (not this.config.get("dest").has(lang)) return "";
+		
+		string dest = this.config["dest", lang] |> default string "";
+		string dest_path = "";
+		bool is_local = rs::substr(dest, 0, 2) == "./";
+		
+		if (is_local)
+		{
+			dest_path = fs::join([ this.path, dest, relative_file_name ]);
+		}
+		else
+		{
+			dest_path = fs::join([ project_path, dest, relative_file_name ]);
+		}
+		
+		if (lang == "php")
+		{
+			dest_path = re::replace("\\.bay$", ".php", dest_path);
+			dest_path = re::replace("\\.ui$", ".php", dest_path);
+		}
+		else if (lang == "es6")
+		{
+			dest_path = re::replace("\\.bay$", ".js", dest_path);
+			dest_path = re::replace("\\.ui$", ".js", dest_path);
+		}
+		else if (lang == "nodejs")
+		{
+			dest_path = re::replace("\\.bay$", ".js", dest_path);
+			dest_path = re::replace("\\.ui$", ".js", dest_path);
+		}
+		
+		return dest_path;
+	}
+	
+	
+	/**
+	 * Check exclude
+	 */
+	bool checkExclude(string file_name)
+	{
+		Collection<string> module_excludelist = this.config["exclude"];
+		if (module_excludelist and module_excludelist instanceof Collection)
+		{
+			for (int i=0; i<module_excludelist.count(); i++)
+			{
+				string file_match = module_excludelist[i] |> default string "";
+				if (file_match == "") continue;
+				
+				bool res = re::match(file_match, file_name);
+				
+				if (res)
+				{
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
+	
+	
+	/**
+	 * Check allow list
+	 */
+	bool checkAllow(string file_name)
+	{
+		bool success = false;
+		
+		Collection<string> module_allowlist = this.config["allow"];
+		if (module_allowlist and module_allowlist instanceof Collection)
+		{
+			for (int i=0; i<module_allowlist.count(); i++)
+			{
+				string file_match = module_allowlist[i] |> default string "";
+				if (file_match == "") continue;
+				
+				bool res = re::match(file_match, file_name);
+				
+				/* Ignore */
+				if (rs::charAt(file_match, 0) == "!")
+				{
+					if (res)
+					{
+						success = false;
+					}
+				}
+				
+				/* Allow */
+				else
+				{
+					if (res)
+					{
+						success = true;
+					}
+				}
+				
+			}
+		}
+		
+		return success;
+	}
+}

@@ -1,0 +1,186 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.TextEditable">
+
+<use name="Runtime.Reference" />
+<use name="Runtime.Web.Messages.ValueChangeMessage" />
+
+
+<style>
+.widget_text_editable{
+	width: 100%;
+	max-width: 100%;
+	font-family: monospace;
+	font-size: var(--widget-font-size);
+	padding: var(--widget-button-padding-y) var(--widget-button-padding-x); margin: 0;
+	background-color: var(--widget-color-default);
+	border-width: var(--widget-border-width);
+	border-color: var(--widget-color-border);
+	border-style: solid;
+	border-radius: 4px;
+	box-shadow: none;
+	overflow: auto;
+	outline: transparent;
+	line-height: 1.5;
+	tab-size: 4;
+	text-wrap: balance;
+	white-space: pre;
+}
+.widget_text_editable.wrap{
+	overflow-wrap: break-word;
+	text-wrap: wrap;
+}
+.widget_text_editable.overflow{
+	overflow: auto;
+	text-wrap: nowrap;
+}
+</style>
+
+
+<template>
+	%set Map props = this.getProps();
+	<div class="widget_text_editable"
+		class={{ this.class }}
+		name={{ this.name }}
+		contenteditable="plaintext-only"
+		@event:keydown={{ this.onKeyDown }}
+		@event:input={{ this.onInput }}
+		@ref="text"
+		...props
+	></div>
+</template>
+
+
+<script>
+
+props Reference reference = null;
+props bool readonly = false;
+props int timeout = 500;
+props string name = "";
+props string value = "";
+var change_timer = null;
+var old_value = null;
+
+
+/**
+ * Returns value
+ */
+string getValue() => this.getRef("text").innerText;
+
+
+/**
+ * Set value
+ */
+void setValue(string content)
+{
+	var text = this.getRef("text");
+	text.innerText = content;
+	this.old_value = content;
+}
+
+
+/**
+ * Returns textarea props
+ */
+Map getProps()
+{
+	if (this.readonly) return {
+		"readonly": true,
+	};
+	return {};
+}
+
+
+/**
+ * Mounted event
+ */
+void onMounted()
+{
+	if (this.reference) this.reference.setValue(this);
+	this.setValue(this.value);
+}
+
+
+/**
+ * Updated event
+ */
+void onUpdated()
+{
+	if (this.old_value == this.value) return;
+	if (this.change_timer) return;
+	this.setValue(this.value);
+}
+
+
+/**
+ * Key down event
+ */
+void onKeyDown(var e)
+{
+	if (e.key == "Tab")
+	{
+		e.preventDefault();
+		e.stopPropagation();
+		var selection = this.getRef("text").ownerDocument.defaultView.getSelection();
+		var range = selection.getRangeAt(0);
+		var node = document.createTextNode("\t");
+		range.insertNode(node);
+		range.setStartAfter(node);
+		range.setEndAfter(node);
+	}
+}
+
+
+/**
+ * Input event
+ */
+void onInput(var e)
+{
+	if (this.change_timer != null)
+	{
+		window.clearTimeout(this.change_timer);
+		this.change_timer = null;
+	}
+	this.change_timer = window.setTimeout(void (){ this.onChange(); }, this.timeout);
+}
+
+
+/**
+ * Change event
+ */
+void onChange(var e)
+{
+	string value = this.getValue();
+	
+	/* Send value change */
+	this.emit("valueChange", new ValueChangeMessage{
+		"value": value,
+		"old_value": this.old_value,
+		"data": this.data,
+	});
+	
+	/* Set old value */
+	this.old_value = value;
+	this.change_timer = null;
+}
+
+
+</script>
+
+</class>

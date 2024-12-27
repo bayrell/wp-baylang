@@ -1,0 +1,115 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime;
+
+use Runtime.rtl;
+use Runtime.Map;
+use Runtime.Vector;
+
+
+class BaseObject
+{
+	/** 
+	 * Constructor
+	 */
+	public void constructor()
+	{		
+		/* Init object */
+		this._init();
+	}
+	
+	
+	/**
+	 * Init function
+	 */
+	protected void _init()
+	{
+	}
+	
+	
+	/**
+	 * Init struct data
+	 */
+	protected void _changes(Map changes){}
+	
+	
+	/**
+	 * Assign new values
+	 */
+	protected void _assign_values(Dict changes = null)
+	{
+		#switch
+		#case ifcode PHP then
+		if (gettype($changes) == "array")
+		{
+			$changes = new \Runtime\Map($changes);
+		}
+		#case ifcode JAVASCRIPT then
+		if (typeof changes == 'object' && !(changes instanceof Runtime.Dict))
+		{
+			changes = new Runtime.Map(ctx, changes);
+		}
+		#endswitch
+		
+		if (changes == null) return;
+		if (changes.keys().count() == 0) return;
+		
+		if (not (changes instanceof Map))
+		{
+			changes = changes.toMap();
+		}
+		
+		this._changes(changes);
+		
+		#switch
+		#case ifcode PHP then
+		
+		if ($changes instanceof \Runtime\Dict) $changes = $changes->_map;
+		if (gettype($changes) == "array")
+		{
+			foreach ($changes as $key => $value)
+			{
+				$k = $this->__getKey($key);
+				if (property_exists($this, $k))
+				{
+					$this->$k = $value;
+				}
+			}
+		}
+		
+		#case ifcode JAVASCRIPT then
+		
+		var _Dict = use("Runtime.Dict");
+		var rtl = use("Runtime.rtl");
+		if (changes instanceof _Dict) changes = changes.toObject();
+		for (var key in changes)
+		{
+			var value = changes[key];
+			this[key] = value;
+		}
+		
+		#endswitch
+	}
+	
+	
+	#switch
+	#case ifcode PHP then
+	function __getKey($k){return $k;}
+	#endswitch
+}

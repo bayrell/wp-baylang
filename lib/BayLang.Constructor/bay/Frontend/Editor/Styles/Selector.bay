@@ -1,0 +1,302 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Constructor.Frontend.Editor.Styles;
+
+use Runtime.BaseObject;
+use Runtime.Reference;
+use BayLang.Constructor.Frontend.Editor.Styles.BackgroundImage;
+use BayLang.Constructor.Frontend.Editor.Styles.StyleItem;
+use BayLang.Constructor.Frontend.Editor.ComponentProcessor;
+use BayLang.Constructor.Frontend.Editor.WidgetEditPageModel;
+use BayLang.Exceptions.ParserUnknownError;
+use BayLang.LangBay.ParserBay;
+use BayLang.LangES6.TranslatorES6;
+use BayLang.OpCodes.BaseOpCode;
+use BayLang.OpCodes.OpHtmlStyle;
+use BayLang.Caret;
+
+
+class Selector extends BaseObject
+{
+	WidgetEditPageModel parent_widget = null;
+	OpHtmlStyle op_code = null;
+	string selector_name = "";
+	string source = "";
+	string content = "";
+	string css_ignore = "";
+	Dict<StyleItem> styles = {};
+	
+	
+	/**
+	 * Translate CSS
+	 */
+	pure string translateCSS(ParserBay parser, TranslatorES6 translator, string source)
+	{
+		/* Parse source */
+		BaseOpCode op_code = null;
+		try
+		{
+			parser = parser::setContent(parser, source ~ "}");
+			list res = parser.parser_html::readCssBody(parser);
+			op_code = res.get(1);
+		}
+		catch (ParserUnknownError e)
+		{
+		}
+		
+		/* Translate source */
+		if (not op_code) return "";
+		
+		translator <= is_static_function <= true;
+		list res = translator.expression::Expression(translator, op_code);
+		return res.get(1);
+	}
+	
+	
+	/**
+	 * Parse CSS
+	 */
+	pure list parseCSS(ParserBay parser, string content)
+	{
+		Caret caret = new Caret{ "content": new Reference(content) };
+		int start = 0;
+		Collection styles = [];
+		Collection css_ignore = [];
+		while (not caret.eof())
+		{
+			string ch = caret.nextChar();
+			string ch2 = caret.nextString(2);
+			if (ch == "{")
+			{
+				int level = 1;
+				if (start != caret.pos)
+				{
+					string s = rs::substr(content, start, caret.pos - start);
+					css_ignore.push(s);
+				}
+				start = caret.pos;
+				while (not caret.eof() and (
+					ch != "}" and level == 0 or level > 0)
+				)
+				{
+					caret.readChar();
+					ch = caret.nextChar();
+					if (ch == "{") level = level + 1;
+					if (ch == "}") level = level - 1;
+				}
+				if (start != caret.pos)
+				{
+					css_ignore.push(rs::substr(content, start, caret.pos - start + 1));
+				}
+				if (caret.pos < caret.content_sz) start = caret.pos + 1;
+			}
+			else if (ch2 == "${")
+			{
+				/* Save caret */
+				caret.matchString("${");
+				parser <= caret <= caret;
+				
+				/* Read expression */
+				try
+				{
+					list res = parser.parser_expression::readExpression(parser);
+					parser = res[0];
+				}
+				catch (ParserUnknownError e)
+				{
+				}
+				
+				/* Restore caret */
+				caret = parser.getCaret();
+				caret.skipSpace();
+				if (caret.isNextChar("}"))
+				{
+					caret.matchChar("}");
+				}
+			}
+			else if (ch == ";")
+			{
+				caret.readChar();
+				string s = rs::substr(content, start, caret.pos - start);
+				styles.push(s);
+				start = caret.pos;
+			}
+			else
+			{
+				caret.readChar();
+			}
+		}
+		if (start != caret.pos)
+		{
+			styles.push(rs::substr(content, start, caret.pos - start));
+		}
+		return
+		[
+			rs::join("", styles),
+			rs::join("", css_ignore)
+		];
+	}
+	
+	
+	/**
+	 * Build content
+	 */
+	string buildContent()
+	{
+		Collection items = [];
+		Collection keys = this.styles.keys().sort();
+		for (int i=0; i<keys.count(); i++)
+		{
+			string key = keys.get(i);
+			StyleItem value = this.styles.get(key);
+			items.push(key ~ ": " ~ value.buildValue());
+		}
+		items.push(this.css_ignore);
+		string source = rs::join(";\n", items);
+		return rs::trim(source);
+	}
+	
+	
+	/**
+	 * Create style
+	 */
+	StyleItem createStyle(string key)
+	{
+		StyleItem value;
+		if (key == "background-image") value = new BackgroundImage();
+		else value = new StyleItem();
+		value.key = key;
+		return value;
+	}
+	
+	
+	/**
+	 * Returns style
+	 */
+	StyleItem getStyle(string key)
+	{
+		if (not this.styles.has(key)) return null;
+		return this.styles.get(key);
+	}
+	
+	
+	/**
+	 * Set style value
+	 */
+	void setStyleValue(string key, string value)
+	{
+		value = rs::trim(value);
+		if (value != "")
+		{
+			/* Get CSS Value */
+			StyleItem css_value = this.getStyle(key);
+			if (not css_value)
+			{
+				css_value = this.createStyle(key);
+				this.styles.set(css_value.key, css_value);
+			}
+			
+			/* Set CSS Value */
+			css_value.setValue(value);
+		}
+		else
+		{
+			/* Remove style item */
+			if (this.styles.has(key))
+			{
+				this.styles.remove(key);
+			}
+		}
+		
+		/* Update source */
+		string source = this.buildContent();
+		this.setContent(source, false);
+	}
+	
+	
+	/**
+	 * Change style value
+	 */
+	void changeStyleValue(string key, string value)
+	{
+		/* Set CSS Value */
+		this.setStyleValue(key, value);
+		
+		/* Update CSS */
+		this.parent_widget.parent_widget.updateFrameCSS();
+	}
+	
+	
+	/**
+	 * Parse styles
+	 */
+	void parseStyles()
+	{
+		string content = this.source;
+		
+		/* Create parser */
+		ComponentProcessor component_processor = this.parent_widget.parent_widget.component_processor;
+		ParserBay parser = component_processor.createParser();
+		parser = parser::setContent(parser, content);
+		
+		/* Parse CSS */
+		list res = static::parseCSS(parser, content);
+		
+		/* CSS Values */
+		this.styles = {};
+		Collection items = rs::split(";", res.get(0));
+		for (int i=0; i<items.count(); i++)
+		{
+			string item = items.get(i);
+			int pos = rs::indexOf(item, ":");
+			if (pos == -1) continue;
+			string item_key = rs::trim(rs::substr(item, 0, pos));
+			string item_value = rs::trim(rs::substr(item, pos + 1));
+			StyleItem value = this.createStyle(item_key);
+			value.initValue(item_value);
+			this.styles.set(value.key, value);
+		}
+		
+		/* CSS Ignore */
+		this.css_ignore = rs::trim(res.get(1));
+	}
+	
+	
+	/**
+	 * Set content
+	 */
+	void setContent(string source, bool parse_styles = true)
+	{
+		ComponentProcessor component_processor = this.parent_widget.parent_widget.component_processor;
+		ParserBay parser = component_processor.createParser();
+		TranslatorES6 translator = component_processor.createTranslator();
+		
+		/* Parse CSS */
+		string css_code = this.selector_name ~ "{" ~ source ~ "}";
+		string content = static::translateCSS(parser, translator, css_code);
+		
+		/* Set content */
+		this.source = source;
+		this.content = content;
+		if (parse_styles)
+		{
+			this.parseStyles();
+		}
+	}
+}

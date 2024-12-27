@@ -1,0 +1,368 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.Crud;
+
+use Runtime.BaseObject;
+use Runtime.Exceptions.ApiError;
+use Runtime.Exceptions.ItemNotFound;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.Web.BaseApi;
+use Runtime.Widget.Crud.Rules.CrudRule;
+use Runtime.Widget.Crud.FieldResult;
+
+
+class SaveApi extends BaseApi
+{
+	BaseObject item = null;
+	Dict pk = null;
+	Dict data = {};
+	FieldResult fields = null;
+	Collection<CrudRule> rules = [];
+	
+	
+	/**
+	 * Returns if item
+	 */
+	bool isActionItem() => this.action == "actionItem";
+	
+	
+	/**
+	 * Returns if save
+	 */
+	bool isActionSave() => this.action == "actionSave";
+	
+	
+	/**
+	 * Returns if delete
+	 */
+	bool isActionDelete() => this.action == "actionDelete";
+	
+	
+	/**
+	 * Init api
+	 */
+	void init()
+	{
+		this.fields = new FieldResult;
+		this.rules = this.getRules();
+		this.result.data.set("fields", this.fields);
+	}
+	
+	
+	/**
+	 * Returns rules
+	 */
+	Vector<CrudRule> getRules() =>
+	[
+	];
+	
+	
+	/**
+	 * Returns item fields
+	 */
+	Collection getItemFields() =>
+	[
+	];
+	
+	
+	/**
+	 * Returns save fields
+	 */
+	Collection getSaveFields() =>
+	[
+	];
+	
+	
+	/**
+	 * New item
+	 */
+	async BaseObject newItem() => null;
+	
+	
+	/**
+	 * Find item
+	 */
+	async BaseObject findItem(Dict pk) => null;
+	
+	
+	/**
+	 * Set item
+	 */
+	void setItemValue(string key, var value)
+	{
+	}
+	
+	
+	/**
+	 * Load item
+	 */
+	async void loadItem(bool create_instance = true)
+	{
+		Dict pk = this.post_data.get("pk");
+		if (pk != null and pk instanceof Dict)
+		{
+			this.pk = pk;
+			this.item = this.findItem(pk);
+		}
+		else
+		{
+			if (create_instance)
+			{
+				this.item = this.newItem();
+			}
+		}
+		
+		/* Check if item is exists */
+		if (this.item == null)
+		{
+			throw new ApiError(new ItemNotFound());
+		}
+	}
+	
+	
+	/**
+	 * Validate item
+	 */
+	async Dict validateItem(Dict data)
+	{
+		/* Call rules */
+		Collection<CrudRule> rules = this.getRules();
+		for (int i=0; i<rules.count(); i++)
+		{
+			CrudRule rule = rules[i];
+			data = await rule.validateItem(this, data);
+		}
+		
+		/* Filter data */
+		Dict new_data = data.intersect(this.getSaveFields());
+		return new_data;
+	}
+	
+	
+	/**
+	 * Load data
+	 */
+	async void loadData()
+	{
+		Dict item = this.post_data.get("item");
+		if (item == null)
+		{
+			throw new ApiError(new RuntimeException("Post data 'item' not found"));
+		}
+		if (not(item instanceof Dict))
+		{
+			throw new ApiError(new RuntimeException("Post data 'item' not found"));
+		}
+		
+		/* Get data */
+		this.data = await this.validateItem(item);
+		
+		/* Check fields error */
+		this.fields.checkError();
+	}
+	
+	
+	/**
+	 * Process data
+	 */
+	async void processData()
+	{
+		Collection<string> keys = this.getSaveFields();
+		for (int i=0; i<keys.count(); i++)
+		{
+			string key = keys.get(i);
+			if (not this.data.has(key)) continue;
+			var value = this.data.get(key);
+			this.setItemValue(key, value);
+		}
+	}
+	
+	
+	/**
+	 * Before save
+	 */
+	async void onSaveBefore()
+	{
+		Collection<CrudRule> rules = this.getRules();
+		for (int i=0; i<rules.count(); i++)
+		{
+			CrudRule rule = rules[i];
+			await rule.onSaveBefore(this);
+		}
+		
+		/* Check fields error */
+		this.fields.checkError();
+	}
+	
+	
+	/**
+	 * After save
+	 */
+	async void onSaveAfter()
+	{
+		Collection<CrudRule> rules = this.getRules();
+		for (int i=0; i<rules.count(); i++)
+		{
+			CrudRule rule = rules[i];
+			await rule.onSaveAfter(this);
+		}
+	}
+	
+	
+	/**
+	 * Save
+	 */
+	async void save()
+	{
+	}
+	
+	
+	/**
+	 * Save item
+	 */
+	async void saveItem()
+	{
+		/* Before save */
+		await this.onSaveBefore();
+		
+		/* Save item */
+		await this.save();
+		
+		/* After save */
+		await this.onSaveAfter();
+	}
+	
+	
+	/**
+	 * Before delete
+	 */
+	async void onDeleteBefore()
+	{
+		Collection<CrudRule> rules = this.getRules();
+		for (int i=0; i<rules.count(); i++)
+		{
+			CrudRule rule = rules[i];
+			await rule.onDeleteBefore(this);
+		}
+		
+		/* Check fields error */
+		this.fields.checkError();
+	}
+	
+	
+	/**
+	 * After delete
+	 */
+	async void onDeleteAfter()
+	{
+		Collection<CrudRule> rules = this.getRules();
+		for (int i=0; i<rules.count(); i++)
+		{
+			CrudRule rule = rules[i];
+			await rule.onDeleteAfter(this);
+		}
+	}
+	
+	
+	/**
+	 * Remove
+	 */
+	async void remove()
+	{
+	}
+	
+	
+	/**
+	 * Remove item
+	 */
+	async void removeItem()
+	{
+		/* Before delete */
+		await this.onDeleteBefore();
+		
+		/* Remove */
+		await this.remove();
+		
+		/* Before delete */
+		await this.onDeleteAfter();
+	}
+	
+	
+	/**
+	 * Build result
+	 */
+	async void buildResult()
+	{
+		if (not this.item) return;
+		
+		/* Success */
+		this.success();
+	}
+	
+	
+	/**
+	 * Action item
+	 */
+	async void actionItem()
+	{
+		/* Load data */
+		await this.loadItem();
+		
+		/* Build result */
+		await this.buildResult();
+		
+		/* Success */
+		this.success();
+	}
+	
+	
+	/**
+	 * Action save
+	 */
+	async void actionSave()
+	{
+		/* Load data */
+		await this.loadItem();
+		await this.loadData();
+		
+		/* Save item */
+		await this.processData();
+		await this.saveItem();
+		
+		/* Build result */
+		await this.buildResult();
+		
+		/* Success */
+		this.success();
+	}
+	
+	
+	/**
+	 * Action delete
+	 */
+	async void actionDelete()
+	{
+		/* Remove item */
+		await this.loadItem();
+		await this.removeItem();
+		
+		/* Build result */
+		await this.buildResult();
+	}
+}

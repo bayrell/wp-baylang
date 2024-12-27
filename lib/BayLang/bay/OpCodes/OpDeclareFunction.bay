@@ -1,0 +1,107 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+ 
+namespace BayLang.OpCodes;
+
+use Runtime.Serializer;
+use BayLang.OpCodes.BaseOpCode;
+use BayLang.OpCodes.OpAnnotation;
+use BayLang.OpCodes.OpComment;
+use BayLang.OpCodes.OpDeclareFunctionArg;
+use BayLang.OpCodes.OpFlags;
+use BayLang.OpCodes.OpItems;
+use BayLang.OpCodes.OpReturn;
+
+
+class OpDeclareFunction extends BaseOpCode
+{
+	string op = "op_function";
+	string name = "";
+	Collection<OpAnnotation> annotations = null;
+	Collection<OpComment> comments = null;
+	Collection<OpDeclareFunctionArg> args = null;
+	Collection<string> vars = null;
+	BaseOpCode result_type = null;
+	BaseOpCode expression = null;
+	BaseOpCode items = null;
+	OpFlags flags = null;
+	bool is_context = true;
+	bool is_html = false;
+	bool is_html_default_args = false;
+	
+	
+	/**
+	 * Serialize object
+	 */
+	void serialize(Serializer serializer, Map data)
+	{
+		parent(serializer, data);
+		serializer.process(this, "annotations", data);
+		serializer.process(this, "args", data);
+		serializer.process(this, "comments", data);
+		serializer.process(this, "expression", data);
+		serializer.process(this, "flags", data);
+		serializer.process(this, "is_context", data);
+		serializer.process(this, "is_html", data);
+		serializer.process(this, "is_html_default_args", data);
+		serializer.process(this, "items", data);
+		serializer.process(this, "name", data);
+		serializer.process(this, "result_type", data);
+		serializer.process(this, "vars", data);
+	}
+	
+	
+	/**
+	 * Returns true if static function
+	 */
+	bool isStatic() =>
+		this.flags != null and
+		(
+			this.flags.isFlag("static") or
+			this.flags.isFlag("lambda") or
+			this.flags.isFlag("pure")
+		)
+	;
+	
+	
+	/**
+	 * Returns true if is flag
+	 */
+	bool isFlag(string flag_name) =>
+		this.flags != null and this.flags.isFlag(flag_name)
+	;
+	
+	
+	/**
+	 * Returns function expression
+	 */
+	BaseOpCode getExpression()
+	{
+		if (this.expression != null)
+		{
+			return this.expression;
+		}
+		
+		if (not(this.items instanceof OpItems)) return null;
+		
+		BaseOpCode op_code_item = this.items.items.get(0);
+		if (not(op_code_item instanceof OpReturn)) return null;
+		
+		return op_code_item.expression;
+	}
+}

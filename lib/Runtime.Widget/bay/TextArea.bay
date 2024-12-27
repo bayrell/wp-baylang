@@ -1,0 +1,142 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.TextArea">
+
+<use name="Runtime.Web.Messages.ValueChangeMessage" />
+
+
+<style>
+.widget_textarea{
+	width: 100%;
+	max-width: 100%;
+	min-height: 400px;
+	font-family: var(--widget-font-family);
+	font-size: var(--widget-font-size);
+	padding: var(--widget-input-padding-y) var(--widget-input-padding-x);
+	background-color: var(--widget-color-default);
+	border-width: var(--widget-border-width);
+	border-color: var(--widget-color-border);
+	border-style: solid;
+	border-radius: 4px;
+	box-shadow: none;
+	outline: transparent;
+	line-height: normal;
+}
+.widget_textarea:focus{
+	outline: transparent;
+}
+</style>
+
+
+<template>
+	%set Map props = this.getProps();
+	<textarea
+		class="widget_textarea"
+		name={{ this.name }}
+		placeholder={{ this.placeholder }}
+		style={{ this.getStyle() }}
+		@ref="textarea"
+		@event:change={{ this.onChange }}
+		@event:keydown={{ this.onKeyDown }}
+		...props
+	>{{ this.value }}</textarea>
+</template>
+
+
+<script>
+
+props bool direct_update = false;
+props bool readonly = false;
+props string height = "";
+props string name = "";
+props string value = "";
+props string placeholder = "";
+var change_timer = null;
+
+
+/**
+ * Returns textarea props
+ */
+Map getProps()
+{
+	if (this.readonly) return {
+		"readonly": true,
+	};
+	return {};
+}
+
+
+/**
+ * Returns style
+ */
+string getStyle()
+{
+	Collection content = [];
+	if (this.height) content.push("min-height: " ~ this.height);
+	return rs::join(";", content);
+}
+
+
+/**
+ * Updated event
+ */
+void onUpdated()
+{
+	var textarea = this.getRef("textarea");
+	textarea.value = this.value;
+}
+
+
+/**
+ * KeyDown event
+ */
+void onKeyDown(var e)
+{
+	if (not this.direct_update) return;
+	if (this.change_timer != null)
+	{
+		window.clearTimeout(this.change_timer);
+		this.change_timer = null;
+	}
+	this.change_timer = window.setTimeout(void ()
+	{
+		this.onChange();
+	}, 300);
+}
+
+
+/**
+ * Change event
+ */
+void onChange()
+{
+	var textarea = this.getRef("textarea");
+	
+	/* Send value change */
+	this.emit("valueChange", new ValueChangeMessage{
+		"value": textarea.value,
+		"old_value": this.value,
+		"data": this.data,
+	});
+}
+
+
+</script>
+
+</class>

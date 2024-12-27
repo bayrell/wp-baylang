@@ -1,0 +1,137 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Admin;
+
+use Runtime.DateTime;
+use Runtime.Web.Hooks.AppHook as BaseAppHook;
+use Runtime.WordPress.WP_Helper;
+use Runtime.WordPress.Admin.CSS;
+use Runtime.WordPress.Admin.DefaultLayout;
+use BayLang.Constructor.Backend.ApiHook;
+use BayLang.Helper.Project;
+
+
+class AppHook extends BaseAppHook
+{
+	static const string GET_FRAME_PAGE_URL = "baylang.constructor::get_frame_page_url";
+	
+	
+	/**
+	 * Register hooks
+	 */
+	void register_hooks()
+	{
+		this.register(static::CALL_API_BEFORE);
+		this.register(static::GET_FRAME_PAGE_URL, "get_frame_page_url");
+		
+		#ifdef BACKEND then
+		this.register(ApiHook::GET_ASSETS_PATH, "get_assets_path");
+		this.register(ApiHook::GET_ASSETS_URL_PATH, "get_assets_url_path");
+		this.register(ApiHook::GET_PROJECT, "get_project");
+		this.register(ApiHook::GET_PROJECT_LIST, "get_project_list");
+		this.register(ApiHook::UPDATE_ASSETS, "update_assets");
+		#endif
+	}
+	
+	
+	/**
+	 * Call api before
+	 */
+	void call_api_before(Map params)
+	{
+		string api_url = "/wp-admin/admin-ajax.php?action=admin_call_api&api_name=" ~
+			rs::url_encode(params.get("post_data").get("api_name"))
+		;
+		params.set("api_url", api_url);
+	}
+	
+	
+	/**
+	 * Returns projects list
+	 */
+	void get_frame_page_url(Dict params)
+	{
+		string page_url = "/open/widget?widget_name=" ~ params.get("current_widget");
+		params.set("page_url", page_url);
+	}
+	
+	
+	#ifdef BACKEND then
+	
+	
+	/**
+	 * Returns assets path
+	 */
+	async void get_assets_path(Dict params)
+	{
+		params.set("path", rs::join_path([params.get("project").getPath(), "assets"]));
+	}
+	
+	
+	/**
+	 * Returns assets url path
+	 */
+	async void get_assets_url_path(Dict params)
+	{
+		string wp_theme_url = "";
+		#ifcode PHP then
+		$wp_theme_url = parse_url(get_template_directory_uri(), PHP_URL_PATH);
+		#endif
+		params.set("path", rs::join_path([wp_theme_url, "assets"]));
+	}
+	
+	
+	/**
+	 * Returns projects list
+	 */
+	async void get_project_list(Dict params)
+	{
+		string project_folder = "";
+		#ifcode PHP then
+		$project_folder = ABSPATH . "/wp-content/themes";
+		#endif
+		Collection<Project> items = await Project::readProjects(project_folder);
+		params.set("items", items);
+	}
+	
+	
+	/**
+	 * Returns projects
+	 */
+	async void get_project(Dict params)
+	{
+		string project_path = "";
+		#ifcode PHP then
+		$project_path = get_template_directory();
+		#endif
+		Project project = await Project::readProject(project_path);
+		params.set("project", project);
+	}
+	
+	
+	/**
+	 * Update assets
+	 */
+	async void update_assets(Dict params)
+	{
+		WP_Helper::update_option("app_js_vesion", DateTime::now().getTimestamp());
+	}
+	
+	#endif
+}

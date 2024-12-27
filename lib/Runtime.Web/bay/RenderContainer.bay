@@ -1,0 +1,352 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Web;
+
+use Runtime.BaseObject;
+use Runtime.Callback;
+use Runtime.Serializer;
+use Runtime.SerializerNative;
+use Runtime.Web.ApiResult;
+use Runtime.Web.BaseLayoutModel;
+use Runtime.Web.BaseModel;
+use Runtime.Web.BasePageModel;
+use Runtime.Web.BaseRoute;
+use Runtime.Web.Cookie;
+use Runtime.Web.Layout;
+use Runtime.Web.RenderResponse;
+use Runtime.Web.Request;
+use Runtime.Web.Response;
+use Runtime.Web.RouteInfo;
+use Runtime.Web.RouteList;
+use Runtime.Web.Hooks.AppHook;
+
+
+class RenderContainer extends BaseObject
+{
+	public BaseRoute base_route = null;
+	public Request request = null;
+	public Response response = null;
+	public RouteInfo route = null;
+	public Layout layout = null;
+	public Dict<Cookie> cookies = {};
+	
+	/* Backend storage */
+	public Map backend_storage = {};
+	
+	
+	/**
+	 * Create layout
+	 */
+	void createLayout(string layout_name)
+	{
+		/* Get layout class name */
+		Dict params = @.callHook(AppHook::LAYOUT_MODEL_NAME, {
+			"class_name": classof BaseLayoutModel,
+			"layout_name": layout_name,
+		});
+		
+		/* Create layout */
+		this.layout = rtl::newInstance(params.get("class_name"));
+		this.layout.setLayoutName(layout_name);
+		
+		/* Call create layout */
+		@.callHookAsync(AppHook::CREATE_LAYOUT, {
+			"container": this,
+		});
+	}
+	
+	
+	/**
+	 * Returns layout name
+	 */
+	string getLayoutName()
+	{
+		string layout_name = "default"
+		if (this.route == null) return layout_name;
+		
+		/* Set layout name from route */
+		if (this.route.layout)
+		{
+			layout_name = this.route.layout;
+		}
+		
+		/* Set layout name from route class */
+		else if (this.route.route_class)
+		{
+			Callback getLayoutName = new Callback(this.route.route_class, "getLayoutName");
+			if (getLayoutName.exists())
+			{
+				layout_name = getLayoutName.apply();
+			}
+		}
+		
+		/* Set layout name */
+		return layout_name;
+	}
+	
+	
+	/**
+	 * Resolve container
+	 */
+	async void resolve()
+	{
+		/* Resolve request */
+		await this.resolveRequest();
+		
+		/* Resolve route */
+		await this.resolveRoute();
+	}
+	
+	
+	/**
+	 * Resolve request and find route
+	 */
+	async void resolveRequest()
+	{
+		/* Call hook find route */
+		await @.callHook(AppHook::FIND_ROUTE_BEFORE, {
+			"container": this,
+		});
+		
+		/* Exit if route find */
+		if (this.route != null) return;
+		if (this.response != null) return;
+		
+		/* Find route */
+		RouteList routes = @.provider(classof RouteList);
+		this.route = routes.findRoute(this);
+		
+		/* Call hook found route */
+		await @.callHook(AppHook::FIND_ROUTE_AFTER, {
+			"container": this,
+		});
+		
+		/* Call middleware */
+		await this.callRouteMiddleware(this);
+	}
+	
+	
+	/**
+	 * Resolve route
+	 */
+	async void resolveRoute()
+	{
+		if (this.response) return;
+		
+		/* Create layout */
+		string layout_name = this.getLayoutName();
+		this.createLayout(layout_name);
+		
+		/* Set layout params */
+		this.layout.backend_storage = this.backend_storage;
+		this.layout.route = this.route;
+		
+		/* Call route before */
+		await @.callHookAsync(AppHook::ROUTE_BEFORE, {
+			"container": this,
+		});
+		
+		/* Call layout route before */
+		await this.layout.onActionBefore(this);
+		
+		/* Load layout data */
+		await this.layout.loadData(this);
+		
+		/* Render route */
+		if (this.route != null)
+		{
+			await this.route.render(this);
+		}
+		
+		/* Call layout route after */
+		await this.layout.onActionAfter(this);
+		
+		/* Call route after */
+		await @.callHookAsync(AppHook::ROUTE_AFTER, {
+			"container": this,
+		});
+	}
+	
+	
+	/**
+	 * Call route middleware
+	 */
+	async void callRouteMiddleware()
+	{
+		if (this.route and this.route.middleware)
+		{
+			for (int i = 0; i<this.route.middleware.count(); i++)
+			{
+				Callback middleware = this.route.middleware.get(i);
+				await rtl::apply(middleware, [this]);
+			}
+		}
+		
+		/* Call hook middleware */
+		await @.callHook(AppHook::ROUTE_MIDDLEWARE, {
+			"container": this,
+		});
+	}
+	
+	
+	/**
+	 * Set response
+	 */
+	void setResponse(Response response)
+	{
+		this.response = response;
+	}
+	
+	
+	/**
+	 * Render page model
+	 */
+	async void renderPageModel(string model_name)
+	{
+		this.layout.setPageModel(model_name);
+		BasePageModel page_model = this.layout.getPageModel();
+		if (page_model)
+		{
+			await page_model.actionIndex(this);
+		}
+	}
+	
+	
+	/**
+	 * Render page and setup response
+	 */
+	void renderPage(string page_class_name = "")
+	{
+		this.response = new RenderResponse();
+		this.layout.current_page_class = page_class_name;
+		if (page_class_name != "")
+		{
+			this.layout.addComponent(page_class_name);
+		}
+	}
+	
+	
+	/**
+	 * Cancel route
+	 */
+	void cancelRoute()
+	{
+		if (this.base_route) this.base_route.cancelRoute();
+	}
+	
+	
+	/**
+	 * Add cookie
+	 */
+	Response addCookie(Cookie cookie)
+	{
+		this.cookies.set(cookie.name, cookie);
+	}
+	
+	
+	/**
+	 * Returns frontend environments
+	 */
+	Map getFrontendEnvironments()
+	{
+		Map environments = {};
+		
+		/* Setup environments */
+		Collection arr = ["CLOUD_ENV", "DEBUG", "LOCALE", "TZ", "TZ_OFFSET", "ROUTE_PREFIX"];
+		
+		/* Call hook */
+		Dict params = @.callHook(AppHook::ENVIRONMENTS, {
+			"arr": arr,
+			"environments": environments,
+		});
+		
+		/* Get result */
+		arr = params.get("arr");
+		environments = params.get("environments");
+		
+		/* Copy environments */
+		for (int i=0; i<arr.count(); i++)
+		{
+			string name = arr.get(i);
+			environments.set(name, @.env(name));
+		}
+		
+		return environments;
+	}
+	
+	
+	/**
+	 * Export data
+	 */
+	Map exportData()
+	{
+		Map data = {
+			"entry_point": @.entry_point,
+			"modules": @.start_modules,
+			"environments": this.getFrontendEnvironments(),
+		};
+		
+		/* Create serializer */
+		Serializer serializer = new Serializer();
+		serializer.setFlag(Serializer::ALLOW_OBJECTS);
+		serializer.setFlag(Serializer::ENCODE);
+		
+		/* Export data */
+		serializer.process(this, "layout", data);
+		
+		/* Call hook */
+		@.callHook(AppHook::EXPORT_CONTAINER_DATA, {
+			"container": this,
+			"data": data,
+		});
+		
+		return data;
+	}
+	
+	
+	/**
+	 * Import data
+	 */
+	void importData(Map data)
+	{
+		/* Call hook */
+		@.callHook(AppHook::IMPORT_CONTAINER_DATA_BEFORE, {
+			"container": this,
+			"data": data,
+		});
+		
+		/* Create serializer */
+		Serializer serializer = new SerializerNative();
+		serializer.setFlag(Serializer::ALLOW_OBJECTS);
+		
+		/* Create layout */
+		string layout_name = data.get("layout").get("layout_name");
+		this.createLayout(layout_name);
+		
+		/* Load data */
+		serializer.setFlag(Serializer::DECODE);
+		this.layout.serialize(serializer, data.get("layout"));
+		
+		/* Call hook */
+		@.callHook(AppHook::IMPORT_CONTAINER_DATA_AFTER, {
+			"container": this,
+			"data": data,
+		});
+	}
+}

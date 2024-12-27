@@ -1,0 +1,330 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.Table;
+
+use Runtime.BaseObject;
+use Runtime.Callback;
+use Runtime.Serializer;
+use Runtime.Entity.Factory;
+use Runtime.Web.ApiResult;
+use Runtime.Web.BaseModel;
+use Runtime.Web.ModelFactory;
+use Runtime.Web.RenderContainer;
+use Runtime.Web.Messages.ClickMessage;
+use Runtime.Web.Messages.Message;
+use Runtime.Widget.Table.Table;
+use Runtime.Widget.Table.TableMessage;
+use Runtime.Widget.Table.TableStorageInterface;
+use Runtime.Widget.ButtonModel;
+use Runtime.Widget.Pagination;
+use Runtime.Widget.RenderListModel;
+use Runtime.Widget.RowButtonsModel;
+use Runtime.Widget.WidgetResultModel;
+
+
+class TableModel extends BaseModel
+{
+	string component = classof Table;
+	string widget_name = "table";
+	string pagination_class_name = classof Pagination;
+	Dict pagination_props = {
+		"name": "page",
+	};
+	TableStorageInterface storage = null;
+	int limit = 10;
+	int page = 0;
+	int pages = 0;
+	int row_selected = -1;
+	Dict foreign_key = null;
+	Dict post_data = null;
+	Collection<Dict> fields = [];
+	Collection<Dict> items = [];
+	Collection<string> styles = [];
+	RenderListModel render_list = null;
+	WidgetResultModel result = null;
+	
+	
+	/**
+	 * Create data storage
+	 */
+	BaseObject createDataStorage() => null;
+	
+	
+	/**
+	 * Set data storage
+	 */
+	void setDataStorage(TableStorageInterface storage)
+	{
+		this.storage = storage;
+	}
+	
+	
+	/**
+	 * Init widget params
+	 */
+	void initParams(Dict params)
+	{
+		parent(params);
+		
+		if (params == null) return;
+		if (params.has("foreign_key")) this.foreign_key = params.get("foreign_key");
+		if (params.has("post_data")) this.post_data = params.get("post_data");
+		if (params.has("limit")) this.limit = params.get("limit");
+		if (params.has("page")) this.page = params.get("page");
+		if (params.has("styles")) this.styles = params.get("styles");
+		
+		/* Setup pagination */
+		if (params.has("pagination_class_name"))
+		{
+			this.pagination_class_name = params.get("pagination_class_name");
+		}
+		if (params.has("pagination_props"))
+		{
+			this.pagination_props = params.get("pagination_props");
+		}
+		
+		/* Setup fields */
+		if (params.has("fields"))
+		{
+			this.fields = [];
+			this.addFields(params.get("fields"));
+		}
+		
+		/* Setup storage */
+		if (params.has("storage"))
+		{
+			this.storage = this.createModel(params.get("storage"));
+		}
+		if (this.storage == null)
+		{
+			this.storage = this.createDataStorage(params);
+		}
+		
+		/* Setup storage table */
+		if (this.storage != null)
+		{
+			this.storage.setTable(this);
+		}
+	}
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Render list */
+		this.render_list = this.addWidget(
+			classof RenderListModel,
+			{
+				"widget_name": "render_list",
+			}
+		);
+		
+		/* Result */
+		this.result = this.addWidget(
+			classof WidgetResultModel,
+			{
+				"widget_name": "result",
+			}
+		);
+		
+		/* Add layout */
+		this.layout.addComponent(this.pagination_class_name);
+	}
+	
+	
+	/**
+	 * Add field
+	 */
+	void addField(Map field)
+	{
+		/* Create model */
+		if (field.has("model"))
+		{
+			field.set("model", this.createModel(field.get("model")));
+		}
+		
+		/* Add field */
+		this.fields.append(field);
+		
+		/* Add component */
+		if (field.has("component"))
+		{
+			this.layout.addComponent(field.get("component"));
+		}
+	}
+	
+	
+	/**
+	 * Add fields
+	 */
+	void addFields(Collection fields)
+	{
+		for (int i=0; i<fields.count(); i++)
+		{
+			this.addField(fields.get(i));
+		}
+	}
+	
+	
+	/**
+	 * Remove field
+	 */
+	void removeField(string field_name)
+	{
+		this.fields = this.fields.filter(
+			bool (Map field) use (field_name) => field.get("name") != field_name
+		);
+	}
+	
+	
+	/**
+	 * Returns items
+	 */
+	Collection<Dict> getItems() => this.items;
+	
+	
+	/**
+	 * Returns item by row number
+	 */
+	Dict getItemByRowNumber(int row_number) => this.items.get(row_number);
+	
+	
+	/**
+	 * Returns item value
+	 */
+	Dict getItemValue(Dict item, string field_name) => item.get(field_name);
+	
+	
+	/**
+	 * Returns selected item
+	 */
+	Dict getSelectedItem() => this.getItemByRowNumber(this.row_selected);
+	
+	
+	/**
+	 * Process frontend data
+	 */
+	void serialize(Serializer serializer, Map data)
+	{
+		serializer.process(this, "limit", data);
+		serializer.process(this, "page", data);
+		serializer.process(this, "pages", data);
+		serializer.process(this, "items", data);
+		parent(serializer, data);
+	}
+	
+	
+	/**
+	 * Set api result
+	 */
+	void setApiResult(ApiResult res, string action)
+	{
+		if (res == null) return;
+		
+		/* Load */
+		if (action == "search" or action == "load" or action == "reload")
+		{
+			if (res.data.has("items")) this.items = res.data.get("items");
+			if (res.data.has("page")) this.page = res.data.get("page");
+			if (res.data.has("pages")) this.pages = res.data.get("pages");
+			this.result.setApiResult(res);
+		}
+	}
+	
+	
+	/**
+	 * Merge post data
+	 */
+	Dict mergePostData(Dict post_data, string action)
+	{
+		if (this.foreign_key)
+		{
+			post_data.set("foreign_key", this.foreign_key);
+		}
+		if (this.post_data)
+		{
+			post_data = post_data.concat(this.post_data);
+		}
+		return post_data;
+	}
+	
+	
+	/**
+	 * Change page
+	 */
+	async void changePage(string page)
+	{
+		this.page = page;
+		this.refresh();
+	}
+	
+	
+	/**
+	 * Load table data
+	 */
+	async void loadData(RenderContainer container)
+	{
+		await parent(container);
+		await this.reload();
+	}
+	
+	
+	/**
+	 * Reload table data
+	 */
+	async ApiResult reload()
+	{
+		if (not this.storage) return null;
+		
+		ApiResult res = await this.storage.load();
+		this.setApiResult(res, "reload");
+		return res;
+	}
+	
+	
+	/**
+	 * Row click
+	 */
+	void onRowClick(int row_number)
+	{
+		this.emit(new TableMessage{
+			"name": "row_click",
+			"data":
+			{
+				"row_number": row_number,
+			}
+		});
+	}
+	
+	
+	/**
+	 * Row button click
+	 */
+	void onRowButtonClick(ClickMessage message)
+	{
+		this.emit(new TableMessage{
+			"name": "row_button_click",
+			"message": message,
+		});
+	}
+}

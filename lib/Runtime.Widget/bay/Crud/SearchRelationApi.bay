@@ -1,0 +1,152 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.Crud;
+
+use Runtime.ORM.Connection;
+use Runtime.ORM.Cursor;
+use Runtime.ORM.Provider;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryField;
+use Runtime.ORM.QueryFilter;
+use Runtime.ORM.QueryResult;
+use Runtime.ORM.Relation;
+use Runtime.ORM.Annotations.BaseType;
+use Runtime.Widget.Crud.SearchApi;
+
+
+class SearchRelationApi extends SearchApi
+{
+	Provider provider = null;
+	QueryResult items = null;
+	int page = 0;
+	int pages = 0;
+	int limit = 0;
+	
+	
+	/**
+	 * Returns table name
+	 */
+	string getTableName() => "";
+	
+	
+	/**
+	 * Returns connection
+	 */
+	Connection getConnection() => Connection::get();
+	
+	
+	/**
+	 * Returns query field
+	 */
+	QueryField getQueryField(string table_name, string field_name)
+	{
+		BaseType field = this.provider.getFieldType(table_name, field_name);
+		if (not field) return null;
+		return new QueryField(table_name, field_name);
+	}
+	
+	
+	/**
+	 * Build search query
+	 */
+	async void buildSearchQuery(Query q)
+	{
+	}
+	
+	
+	/**
+	 * Convert item
+	 */
+	Map convertItem(Collection fields, Relation item)
+	{
+		return item.intersect(fields);
+	}
+	
+	
+	/**
+	 * Search items
+	 */
+	async void searchItems()
+	{
+		int page = this.post_data.get("page", 0);
+		int limit = this.post_data.get("limit", 10);
+		string table_name = this.getTableName();
+		
+		/* Build query */
+		Query q = new Query()
+			.select()
+			.from(table_name)
+			.limit(limit)
+			.page(page)
+		;
+		
+		/* Get provider */
+		this.provider = @.provider(classof Provider);
+		
+		/* Add fields */
+		Collection<string> fields = this.getItemFields();
+		for (int i=0; i<fields.count(); i++)
+		{
+			string field_name = fields.get(i);
+			QueryField field = this.getQueryField(table_name, field_name);
+			if (field) q.addField(field);
+		}
+		
+		/* Set found_rows */
+		q.calcFoundRows(true);
+		bool found_rows = this.post_data.get("found_rows", true);
+		if (q._calc_found_rows and not found_rows) q.calcFoundRows(false);
+		
+		/* Build search query */
+		await this.buildSearchQuery(q);
+		
+		/* Get query result */
+		Connection conn = Connection::get();
+		this.items = await conn.fetchAll(q);
+		
+		/* Set pages */
+		this.page = this.items.getPage();
+		this.pages = this.items.getPages();
+		this.limit = this.items.q._limit;
+	}
+	
+	
+	/**
+	 * Build result
+	 */
+	async void buildResult()
+	{
+		if (not this.items) return;
+		
+		/* Convert item */
+		Collection fields = this.getItemFields();
+		Collection items = this.items.map(
+			Dict (Relation item) use (fields) => this.convertItem(fields, item)
+		);
+		
+		/* Setup result */
+		this.result.data.set("items", items);
+		this.result.data.set("page", this.page);
+		this.result.data.set("pages", this.pages);
+		this.result.data.set("limit", this.limit);
+		
+		/* Success */
+		this.success();
+	}
+}

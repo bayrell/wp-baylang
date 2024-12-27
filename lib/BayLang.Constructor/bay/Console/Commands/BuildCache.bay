@@ -1,0 +1,92 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Constructor.Console.Commands;
+
+use Runtime.io;
+use Runtime.fs;
+use Runtime.Console.BaseCommand;
+use Runtime.Console.CommandsList;
+use BayLang.Helper.Module;
+use BayLang.Helper.Project;
+
+
+class BuildCache extends BaseCommand
+{
+	/**
+	 * Returns name
+	 */
+	static string getName() => "build_cache";
+	
+	
+	/**
+	 * Returns description
+	 */
+	static string getDescription() => "Build cache";
+	
+	
+	/**
+	 * Run task
+	 */
+	async static int run()
+	{
+		string project_id = @.cli_args.get(2);
+		
+		/* Projects list */
+		if (@.cli_args.count() <= 2)
+		{
+			Collection<Project> projects = await Project::readProjects(
+				fs::join([@.env("constructor_path"), "projects"])
+			);
+			
+			io::print("Projects:");
+			for (int i=0; i<projects.count(); i++)
+			{
+				Project project = projects.get(i);
+				io::print( io::color("yellow", project.getID()) ~ " - " ~ project.getName() );
+			}
+		}
+		
+		/* Build project cache */
+		else
+		{
+			Project project = Project::readProject(
+				fs::join([@.env("constructor_path"), "projects", project_id])
+			);
+			
+			if (not project)
+			{
+				io::print_error("Project " ~ project_id ~ " not found");
+				return static::UNKNOWN_ERROR;
+			}
+			
+			io::print("Build project cache");
+			io::print("Project: " ~ project.getID());
+			
+			await project.readModules();
+			await project.loadModules();
+			await project.saveCache();
+			
+			io::print("OK");
+		}
+		
+		return static::SUCCESS;
+	}
+	
+	
+}

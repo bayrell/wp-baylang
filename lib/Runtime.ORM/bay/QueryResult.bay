@@ -1,0 +1,96 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.ORM;
+
+use Runtime.BaseStruct;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryField;
+use Runtime.ORM.Relation;
+use Runtime.ORM.Annotations.ForeignKey;
+
+
+class QueryResult extends Vector<Dict>
+{
+	Query q = null;
+	Connection conn = null;
+	int rows = 0;
+	
+	
+	/**
+	 * Create new QueryResult
+	 */
+	void constructor()
+	{
+		parent();
+	}
+	
+	
+	/**
+	 * Returns pages
+	 */
+	async int getPages() => this.q ? this.q.getPages(this.rows) : 0;
+	
+	
+	/**
+	 * Returns page
+	 */
+	async int getPage() => this.q ? this.q.getPage() : 0;
+	
+	
+	/**
+	 * Returns relation by index
+	 */
+	Relation getRelation(int index)
+	{
+		string table_name = this.q._table_name;
+		Dict item = this.get(index);
+		return Relation::newInstance(table_name, item);
+	}
+	
+	
+	/**
+	 * Convert to Vector
+	 */
+	Vector<Dict> toDict(Collection fields = null) => this
+		.map(
+			BaseStruct (Dict item) use (fields)
+				=> (fields == null)
+					? item.toDict()
+					: item.intersect(fields)
+		)
+		.toVector()
+	;
+	
+	
+	/**
+	 * Transform item to Relation
+	 */
+	Vector<Relation> toRelation()
+	{
+		string table_name = this.q._table_name;
+		return this
+			.map(
+				BaseStruct (Dict item) use (table_name)
+					=> Relation::newInstance(table_name, item)
+			)
+			.toVector()
+		;
+	}
+}

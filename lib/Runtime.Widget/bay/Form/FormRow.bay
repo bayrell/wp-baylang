@@ -1,0 +1,92 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.Form.FormRow">
+
+
+<style>
+.form_row{
+	margin-bottom: 10px;
+	&:last-child{
+		margin-bottom: 0px;
+	}
+	&__label{
+		margin-bottom: 5px;
+	}
+}
+.form_row--flex{
+	display: flex;
+	align-items: center;
+	&__label, &__content{
+		width: 50%;
+	}
+}
+.form_row__error{
+	color: var(--widget-color-danger);
+	margin-top: var(--widget-space);
+}
+.form_row__error--hide{
+	display: none;
+}
+</style>
+
+
+<template>
+	<div class="form_row"
+		class={{ this.class }}
+		class={{ static::getStyles("form_row", this.styles) }}
+	>
+		%if (this.checkSlot("label"))
+		{
+			<div class="form_row__label" @key="label">
+				%render this.renderSlot("label");
+			</div>
+		}
+		%if (this.checkSlot("content"))
+		{
+			<div class="form_row__content" @key="content">
+				%render this.renderSlot("content");
+			</div>
+		}
+		%if (this.checkSlot("result"))
+		{
+			<div class="form_row__result" @key="result">
+				%render this.renderSlot("result");
+			</div>
+		}
+		%if (this.error.count() > 0)
+		{
+			<div class="form_row__error" @key="error">
+				%for (int i=0; i<this.error.count(); i++)
+				{
+					<div>{{ this.error.get(i) }}</div>
+				}
+			</div>
+		}
+	</div>
+</template>
+
+
+<script>
+
+props Collection<string> styles = [];
+props Collection<string> error = [];
+
+</script>
+
+</class>

@@ -1,0 +1,24 @@
+{
+	"name": "Runtime.Unit",
+	"assets":
+	[
+		"AssertHelper.bay",
+		"Test.bay",
+		"TestProvider.bay",
+		"UnitTest.bay"
+	],
+	"groups": [
+		"test"
+	],
+	"src": "./bay",
+	"dest":
+	{
+		"php": "./php",
+		"es6": "./es6",
+		"nodejs": "./nodejs"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

@@ -1,0 +1,169 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.XML;
+
+use Runtime.BaseObject;
+use Runtime.XML.XML;
+
+
+class YamlConverter
+{
+	XML xml = null;
+	Dict variables = null;
+	
+	
+	/**
+	 * Constructor
+	 */
+	void constructor(XML xml, Dict variables = null)
+	{
+		this.xml = xml;
+		this.variables = variables;
+	}
+	
+	
+	/**
+	 * Patch variables
+	 */
+	string patchVariables(string data)
+	{
+		if (this.variables == null) return data;
+		
+		Collection variables_keys = this.variables.keys();
+		for (int i=0; i<variables_keys.count(); i++)
+		{
+			string var_name = variables_keys.get(i);
+			string var_value = this.variables.get(var_name);
+			data = rs::replace(var_name, var_value, data);
+		}
+		
+		return data;
+	}
+	
+	
+	/**
+	 * Convert xml to dict
+	 */
+	Map xmlToDict(XML xml)
+	{
+		Map res = new Map;
+		
+		Collection<XML> items = xml.childs();
+		for (int i=0; i<items.count(); i++)
+		{
+			XML item = items.get(i);
+			
+			Dict attrs = item.attributes();
+			string key = item.getName();
+			var value = item.value();
+			
+			key = this.patchVariables(key);
+			
+			string type = attrs.get("type");
+			string trim = attrs.get("trim");
+			bool is_array = attrs.get("array") == "true";
+			
+			if (type == "int" or type == "integer")
+			{
+				value = rtl::toInt(value);
+			}
+			else if (type == "bool" or type == "boolean")
+			{
+				value = rtl::toBool(value);
+			}
+			else if (type == "map")
+			{
+				value = new Map();
+			}
+			else
+			{
+				value = this.patchVariables(value);
+			}
+			
+			if (item.childs().count() > 0)
+			{
+				value = this.xmlToDict(item);
+			}
+			
+			if (res.has(key) or is_array)
+			{
+				var exists_value = res.get(key);
+				
+				if (not (exists_value instanceof Vector))
+				{
+					exists_value = new Vector();
+					if (res.has(key))
+					{
+						exists_value = exists_value.concat(res.get(key));
+					}
+				}
+				
+				exists_value.push(value);
+				value = exists_value;
+			}
+			
+			if (value instanceof Dict)
+			{
+				value = value.toDict();
+			}
+			else if (value instanceof Vector)
+			{
+				value = value.toCollection();
+			}
+			
+			res.set(key, value);
+		}
+		
+		return res;
+	}
+	
+	
+	/**
+	 * Convert xml to dict
+	 */
+	Map toDict()
+	{
+		return this.xmlToDict(this.xml);
+	}
+	
+	
+	/**
+	 * Convert XML to Yaml
+	 */
+	string convert(Dict params = null)
+	{
+		string yaml = "";
+		Map data = this.toDict(this.xml);
+		
+		if (params == null) params = {};
+		int indent_spaces = params.get("indent-spaces", 2);
+		
+		#ifcode PHP then
+		$serializer = new \Runtime\SerializerNative();
+		$serializer->removeFlag(\Runtime\Serializer::ALLOW_OBJECTS);
+		$data = $serializer->encode($data);
+		$yaml = \Symfony\Component\Yaml\Yaml::dump(
+			$data, 10, $indent_spaces,
+			\Symfony\Component\Yaml\Yaml::DUMP_OBJECT_AS_MAP
+		);
+		#endif
+		
+		return yaml;
+	}
+}

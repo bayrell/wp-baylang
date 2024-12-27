@@ -1,0 +1,425 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.Form;
+
+use Runtime.lib;
+use Runtime.BaseObject;
+use Runtime.Serializer;
+use Runtime.Entity.Factory;
+use Runtime.Web.ApiResult;
+use Runtime.Web.BaseModel;
+use Runtime.Web.ModelFactory;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.Form.Form;
+use Runtime.Widget.Form.FormMessage;
+use Runtime.Widget.Form.FormStorageInterface;
+use Runtime.Widget.RowButtonsModel;
+use Runtime.Widget.WidgetResultModel;
+
+
+class FormModel extends BaseModel
+{
+	string component = classof Form;
+	string widget_name = "form";
+	
+	/* Fields */
+	Dict foreign_key = null;
+	Dict post_data = null;
+	Vector<Map> fields = [];
+	Dict<Vector> fields_error = {};
+	
+	/* Data */
+	int row_number = -1;
+	Dict pk = null;
+	Dict item = {};
+	Collection<string> primary_key = [];
+	FormStorageInterface storage = null;
+	RowButtonsModel bottom_buttons;
+	
+	/* Form result */
+	WidgetResultModel load = null;
+	WidgetResultModel result = null;
+	bool show_result = true;
+	
+	
+	/**
+	 * Create data storage
+	 */
+	BaseObject createDataStorage() => null;
+	
+	
+	/**
+	 * Set data storage
+	 */
+	void setDataStorage(FormStorageInterface storage)
+	{
+		this.storage = storage;
+	}
+	
+	
+	/**
+	 * Init widget params
+	 */
+	void initParams(Dict params)
+	{
+		parent(params);
+		
+		if (params == null) return;
+		if (params.has("foreign_key")) this.foreign_key = params.get("foreign_key");
+		if (params.has("post_data")) this.post_data = params.get("post_data");
+		if (params.has("show_result")) this.show_result = params.get("show_result");
+		
+		/* Setup params */
+		if (params.has("fields"))
+		{
+			this.fields = [];
+			this.addFields(params.get("fields"));
+		}
+		
+		/* Setup storage */
+		if (params.has("storage"))
+		{
+			var storage = params.get("storage");
+			if (storage instanceof Factory) this.storage = storage.factory();
+			else if (rtl::isString(storage)) this.storage = rtl::newInstance(storage, [this]);
+			else this.storage = storage;
+		}
+		if (this.storage == null)
+		{
+			this.storage = this.createDataStorage(params);
+		}
+		
+		/* Setup storage form */
+		if (this.storage != null)
+		{
+			this.storage.setForm(this);
+		}
+		
+		/* Setup primary key */
+		if (params.has("pk")) this.pk = params.get("pk");
+		if (params.has("primary_key")) this.primary_key = params.get("primary_key");
+	}
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Load result */
+		this.load = this.addWidget(
+			classof WidgetResultModel,
+			{
+				"widget_name": "load",
+			}
+		);
+		
+		/* Result */
+		this.result = this.addWidget(
+			classof WidgetResultModel,
+			{
+				"widget_name": "result",
+				"styles": ["margin_top"],
+			}
+		);
+		
+		/* Buttons */
+		this.bottom_buttons = this.addWidget(
+			classof RowButtonsModel,
+			{
+				"widget_name": "bottom_buttons",
+				"styles": ["@widget_form__bottom_buttons"],
+			}
+		);
+	}
+	
+	
+	/**
+	 * Add field
+	 */
+	void addField(Map field)
+	{
+		/* Create model */
+		if (field.has("model"))
+		{
+			var model = field.get("model");
+			if (model instanceof ModelFactory)
+			{
+				BaseModel instance = model.factory(this);
+				field.set("model", instance);
+			}
+		}
+		
+		/* Add field */
+		this.fields.append(field);
+		
+		/* Add component */
+		if (field.has("component"))
+		{
+			this.layout.addComponent(field.get("component"));
+		}
+	}
+	
+	
+	/**
+	 * Add fields
+	 */
+	void addFields(Collection fields)
+	{
+		for (int i=0; i<fields.count(); i++)
+		{
+			this.addField(fields.get(i));
+		}
+	}
+	
+	
+	/**
+	 * Get field
+	 */
+	void getField(string field_name) =>
+		this.fields.findItem(lib::equalAttr("name", field_name))
+	;
+	
+	
+	/**
+	 * Remove field
+	 */
+	void removeField(string field_name)
+	{
+		this.fields = this.fields.filter(
+			bool (Map field) use (field_name) => field.get("name") != field_name
+		);
+	}
+	
+	
+	/**
+	 * Returns field result
+	 */
+	Collection getFieldResult(string field_name)
+	{
+		if (this.fields_error.has(field_name)) return this.fields_error.get(field_name);
+		return [];
+	}
+	
+	
+	/**
+	 * Clear form
+	 */
+	void clear()
+	{
+		this.pk = null;
+		this.fields_error = {};
+		this.row_number = -1;
+		this.clearItem();
+		this.result.clear();
+	}
+	
+	
+	/**
+	 * Clear form
+	 */
+	void clearItem()
+	{
+		this.item = {};
+		for (int i=0; i<this.fields.count(); i++)
+		{
+			Dict field = this.fields.get(i);
+			string field_name = field.get("name");
+			var default_value = field.get("default", "");
+			this.item.set(field_name, default_value);
+		}
+	}
+	
+	
+	/**
+	 * Field changed event
+	 */
+	void onFieldChange(string field_name, var value)
+	{
+		var old_value = this.item.get(field_name);
+		this.item.set(field_name, value);
+		this.emitAsync(new FormMessage{
+			"name": "field_change",
+			"field_name": field_name,
+			"old_value": old_value,
+			"value": value,
+		});
+	}
+	
+	
+	/**
+	 * Returns item value
+	 */
+	var getItemValue(string field_name) => this.item.get(field_name);
+	
+	
+	/**
+	 * Returns primary key
+	 */
+	Dict getPrimaryKey(Dict item) => item.intersect(this.primary_key);
+	
+	
+	/**
+	 * Set item
+	 */
+	void setItem(Dict item)
+	{
+		if (item == null)
+		{
+			this.pk = null;
+			this.item = {};
+		}
+		else
+		{
+			this.pk = this.getPrimaryKey(item);
+			this.item = item;
+		}
+	}
+	
+	
+	/**
+	 * Set row number
+	 */
+	void setRowNumber(int row_number)
+	{
+		this.row_number = row_number;
+	}
+	
+	
+	/**
+	 * Process frontend data
+	 */
+	void serialize(Serializer serializer, Map data)
+	{
+		serializer.process(this, "pk", data);
+		serializer.process(this, "item", data);
+		serializer.process(this, "load", data);
+		parent(serializer, data);
+	}
+	
+	
+	/**
+	 * Set api result
+	 */
+	void setApiResult(ApiResult res, string action)
+	{
+		if (res == null) return;
+		
+		/* Load */
+		if (action == "load")
+		{
+			if (res.data.has("item"))
+			{
+				this.item = res.data.get("item");
+			}
+			this.load.setApiResult(res);
+		}
+		
+		/* Submit */
+		if (action == "submit")
+		{
+			if (res.data.has("item"))
+			{
+				this.item = res.data.get("item");
+			}
+			if (res.data.has("fields"))
+			{
+				this.fields_error = res.data.get("fields");
+			}
+			this.result.setApiResult(res);
+		}
+	}
+	
+	
+	/**
+	 * Returns post item
+	 */
+	Dict getPostItem() => this.item;
+	
+	
+	/**
+	 * Merge post data
+	 */
+	Dict mergePostData(Dict post_data, string action)
+	{
+		if (this.foreign_key)
+		{
+			post_data.set("foreign_key", this.foreign_key);
+			if (post_data.has("item"))
+			{
+				Dict item = post_data.get("item");
+				Collection<string> keys = this.foreign_key.keys();
+				for (int i=0; i<keys.count(); i++)
+				{
+					string key = keys.get(i);
+					item.set(key, this.foreign_key.get(key));
+				}
+			}
+		}
+		if (this.post_data)
+		{
+			post_data = post_data.concat(this.post_data);
+		}
+		return post_data;
+	}
+	
+	
+	/**
+	 * Load form data
+	 */
+	async void loadData(RenderContainer container)
+	{
+		await parent(container);
+		await this.loadForm();
+	}
+	
+	
+	/**
+	 * Load form
+	 */
+	async void loadForm()
+	{
+		if (not this.pk) return;
+		if (not this.storage) return;
+		
+		/* Load data */
+		ApiResult res = await this.storage.load();
+		this.setApiResult(res, "load");
+	}
+	
+	
+	/**
+	 * Submit form
+	 */
+	async ApiResult submit()
+	{
+		if (not this.storage) return null;
+		
+		this.result.setWaitMessage();
+		ApiResult res = await this.storage.submit();
+		this.setApiResult(res, "submit");
+		await this.emitAsync(new FormMessage{
+			"name": "submit",
+			"result": res,
+		});
+		return res;
+	}
+}

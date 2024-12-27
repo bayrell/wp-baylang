@@ -1,0 +1,155 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Constructor.Backend;
+
+use Runtime.fs;
+use Runtime.BaseHook;
+use BayLang.Helper.Project;
+
+
+class ApiHook extends BaseHook
+{
+	static const string GET_ASSETS_PATH = "baylang.constructor::get_assets_path";
+	static const string GET_ASSETS_URL_PATH = "baylang.constructor::get_assets_url_path";
+	static const string GET_PROJECT_LIST = "baylang.constructor::get_project_list";
+	static const string GET_PROJECT = "baylang.constructor::get_project";
+	static const string UPDATE_ASSETS = "baylang.constructor::update_assets";
+	
+	
+	/**
+	 * Register hooks
+	 */
+	void register_hooks()
+	{
+		this.register(static::GET_ASSETS_PATH);
+		this.register(static::GET_ASSETS_URL_PATH);
+		this.register(static::GET_PROJECT);
+		this.register(static::GET_PROJECT_LIST);
+	}
+	
+	
+	/**
+	 * Returns method name by hook name
+	 */
+	string getMethodName(string hook_name)
+	{
+		if (hook_name == static::GET_ASSETS_PATH) return "get_assets_path";
+		if (hook_name == static::GET_ASSETS_URL_PATH) return "get_assets_url_path";
+		if (hook_name == static::GET_PROJECT_LIST) return "get_project_list";
+		if (hook_name == static::GET_PROJECT) return "get_project";
+		if (hook_name == static::UPDATE_ASSETS) return "update_assets";
+		return "";
+	}
+	
+	
+	/**
+	 * Returns projects list
+	 */
+	async static Collection<Project> getProjectList()
+	{
+		Dict result = await @.callHookAsync(static::GET_PROJECT_LIST);
+		return result.get("items");
+	}
+	
+	
+	/**
+	 * Returns projects list
+	 */
+	async static Project getProject(string project_id)
+	{
+		Dict result = await @.callHookAsync(static::GET_PROJECT, {
+			"project": project_id,
+		});
+		return result.get("project");
+	}
+	
+	
+	/**
+	 * Returns assets path
+	 */
+	async static string getAssetsPath(Project project)
+	{
+		Dict result = await @.callHookAsync(static::GET_ASSETS_PATH, {
+			"project": project,
+			"path": fs::join([project.getPath(), "assets"]),
+		});
+		return result.get("path");
+	}
+	
+	
+	/**
+	 * Returns project assets url path
+	 */
+	async static string getAssetsUrlPath(Project project)
+	{
+		Dict result = await @.callHookAsync(static::GET_ASSETS_URL_PATH, {
+			"project": project,
+			"path": "/assets",
+		});
+		return result.get("path");
+	}
+	
+	
+	/**
+	 * Update assets
+	 */
+	async static void updateAssets()
+	{
+		await @.callHookAsync(static::UPDATE_ASSETS);
+	}
+	
+	
+	/**
+	 * Returns assets path
+	 */
+	async void get_assets_path(Dict params)
+	{
+	}
+	
+	
+	/**
+	 * Returns assets url path
+	 */
+	async void get_assets_url_path(Dict params)
+	{
+	}
+	
+	
+	/**
+	 * Returns projects list
+	 */
+	async void get_project_list(Dict params)
+	{
+		string project_folder = fs::join([@.env("constructor_path"), "projects"]);
+		Collection<Project> items = await Project::readProjects(project_folder);
+		params.set("items", items);
+	}
+	
+	
+	/**
+	 * Returns projects
+	 */
+	async void get_project(Dict params)
+	{
+		string project_id = params.get("project");
+		string project_path = fs::join([@.env("constructor_path"), "projects", project_id]);
+		Project project = await Project::readProject(project_path);
+		params.set("project", project);
+	}
+}

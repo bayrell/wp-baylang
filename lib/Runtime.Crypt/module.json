@@ -1,0 +1,16 @@
+{
+	"name": "Runtime.Crypt",
+	"assets": [],
+	"src": "./bay",
+	"dest":
+	{
+		"php": "./php",
+		"es6": "./es6"
+	},
+	"allow":
+	[
+		"\\.bay$",
+		"\\.php$",
+		"\\.js$"
+	]
+}

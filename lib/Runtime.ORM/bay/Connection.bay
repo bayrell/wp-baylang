@@ -1,0 +1,364 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.ORM;
+
+use Runtime.BaseStruct;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.ORM.Cursor;
+use Runtime.ORM.Provider;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryFilter;
+use Runtime.ORM.QueryResult;
+use Runtime.ORM.Relation;
+
+
+class Connection
+{
+	protected string name = "";
+	
+	
+	/**
+	 * Returns connection
+	 */
+	static Connection get(string name="default") => static::getConnection(name);
+	static Connection getConnection(string name = "default")
+	{
+		if (name == "") name = "default";
+		
+		Provider provider = @.provider(classof Provider);
+		Connection conn = provider.getConnection(name);
+		return conn;
+	}
+	
+	
+	/**
+	 * Constructor
+	 */
+	public void constructor(string name)
+	{
+		this.name = name;
+	}
+	
+	
+	/**
+	 * Connect
+	 */
+	async Connection connect()
+	{
+	}
+	
+	
+	/**
+	 * Check is connected
+	 */
+	bool isConnected() => false;
+	
+	
+	/**
+	 * Returns connection name
+	 */
+	bool getName() => this.name;
+	
+	
+	/**
+	 * Create new cursor
+	 */
+	Cursor createCursor() => new Cursor();
+	
+	
+	/**
+	 * Prepare field
+	 */
+	string prepare_field(var item) => item;
+	
+	
+	/**
+	 * Prepare value
+	 */
+	string prepare_value(string item, string op) => item;
+	
+	
+	/**
+	 * Quote
+	 */
+	string quote(string value) => value;
+	
+	
+	/**
+	 * Execute Query
+	 */
+	async Cursor execute(Query q, Dict params = null) => null;
+	async Cursor executeQuery(Query q, Dict params = null) => this.execute(q, params);
+	
+	
+	/**
+	 * Insert query
+	 */
+	async var insert(
+		string table_name,
+		Dict insert_data,
+		bool get_last_id = true,
+		Dict params = null
+	)
+	{
+		var last_id = null;
+		
+		if (table_name == "")
+		{
+			throw new RuntimeException("Table name is empty");
+		}
+		
+		Query q = new Query()
+			.insert(table_name)
+			.values(insert_data)
+		;
+		
+		Cursor c = await this.execute(q, params);
+		
+		if (get_last_id)
+		{
+			last_id = await c.lastInsertId();
+		}
+		
+		await c.close();
+		
+		return last_id;
+	}
+	
+	
+	/**
+	 * Update query
+	 */
+	async void update(
+		string table_name,
+		Collection filter,
+		Dict update_data,
+		Dict params = null
+	)
+	{
+		if (table_name == "")
+		{
+			throw new RuntimeException("Table name is empty");
+		}
+		
+		Query q = new Query()
+			.update(table_name)
+			.values(update_data)
+			.setFilter(filter)
+		;
+		
+		Cursor c = await this.execute(q, params);
+		await c.close();
+	}
+	
+	
+	/**
+	 * Delete item
+	 */
+	async void delete(
+		string table_name,
+		Collection filter,
+		Dict params = null
+	)
+	{
+		if (table_name == "")
+		{
+			throw new RuntimeException("Table name is empty");
+		}
+		
+		Query q = new Query()
+			|> .delete(table_name)
+			|> .setFilter(filter)
+		;
+		
+		Cursor c = await this.execute(q, params);
+		await c.close();
+	}
+	
+	
+	/**
+	 * Convert item from database
+	 */
+	var fromDatabase(BaseStruct annotation, Dict item, string field_name) => item;
+	
+	
+	/**
+	 * Convert item to database
+	 */
+	var toDatabase(BaseStruct annotation, Dict item, string field_name) => item;
+	
+	
+	/**
+	 * Fetch all
+	 */
+	async QueryResult fetchAll(Query q, Dict params = null)
+	{
+		Cursor c = await this.execute(q, params);
+		QueryResult items = await c.fetchAll();
+		await c.close();
+		return items;
+	}
+	
+	
+	/**
+	 * Fetch
+	 */
+	async QueryResult fetch(Query q, Dict params = null)
+	{
+		Cursor c = await this.execute(q, params);
+		QueryResult items = await c.fetch();
+		await c.close();
+		return items;
+	}
+	async Dict fetchOne(Query q, Dict params = null) => await this.fetch(q, params);
+	
+	
+	/**
+	 * Fetch variable
+	 */
+	async var fetchVar(Query q, string var_name, Dict params = null)
+	{
+		Cursor cursor = await this.execute(q, params);
+		var item = await cursor.fetchVar(var_name);
+		await cursor.close();
+		return item;
+	}
+	
+	
+	/**
+	 * Find relation by object
+	 */
+	async Relation findRelationByObject
+		(string table_name, Dict item, Dict params = null)
+	{
+		/* Build filter */
+		Vector filter = item.transition(
+			QueryFilter (var value, string key)
+			{
+				return new QueryFilter(key, "=", value);
+			}
+		);
+		
+		/* Find relation */
+		return await this.findRelationByFilter(table_name, filter, params);
+	}
+	
+	
+	/**
+	 * Find relation by object
+	 */
+	async Relation findRelationById
+		(string table_name, var id, Dict params = null)
+	{
+		/* Get primary keys */
+		Vector pk = Relation::getPrimaryKeys(table_name);
+		string pk_name = pk.get(0);
+	
+		/* Build filter */
+		Vector filter = [
+			new QueryFilter(pk_name, "=", id)
+		];
+		
+		/* Find relation */
+		return await this.findRelationByFilter(table_name, filter, params);
+	}
+	
+	
+	/**
+	 * Find relation by filter
+	 */
+	async Relation findRelationByFilter
+		(string table_name, Collection<QueryFilter> filter, Dict params = null)
+	{
+		Query q = new Query()
+			.select([table_name ~ ".*"])
+			.from(table_name)
+			.setFilter(filter)
+			.limit(1)
+		;
+		return await this.findRelation(q, params);
+	}
+	
+	
+	/**
+	 * Find relation by query
+	 */
+	async Relation findRelation(Query q, Dict params = null)
+	{
+		Cursor c = await this.execute(q, params);
+		Relation item = await c.fetchRelation(q, params);
+		await c.close();
+		return item;
+	}
+	
+	
+	/**
+	 * Find relations by filter
+	 */
+	async Vector<Relation> findRelationsByFilter
+		(string table_name, Collection<QueryFilter> filter, Dict params = null)
+	{
+		Query q = new Query()
+			.select([table_name ~ ".*"])
+			.from(table_name)
+			.setFilter(filter)
+		;
+		return await this.findRelations(q, params);
+	}
+	
+	
+	/**
+	 * Find relations by query
+	 */
+	async Relation findRelations(Query q, Dict params = null)
+	{
+		Cursor c = await this.execute(q, params);
+		QueryResult items = await c.fetchAll(q, params);
+		await c.close();
+		return items.toRelation();
+	}
+	
+	
+	/**
+	 * Find or create
+	 */
+	async Relation findOrCreate
+		(string table_name, Dict item, Dict params = null)
+	{
+		/* Build filter */
+		Vector filter = item.transition(
+			QueryFilter (var value, string key)
+			{
+				return new QueryFilter(key, "=", value);
+			}
+		);
+		
+		/* Find item */
+		Relation relation = await this.findRelationByFilter(table_name, filter, params);
+		if (relation) return relation;
+		
+		/* Create if not found */
+		relation = Relation::newInstance(table_name);
+		
+		/* Set new data */
+		relation.updateData(item);
+		
+		return relation;
+	}
+}

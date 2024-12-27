@@ -1,0 +1,137 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.WordPress.Components.Captcha">
+
+<use name="Runtime.DateTime" />
+<use name="Runtime.Core.Message" />
+<use name="Runtime.Web.Crud.Button" component="true" />
+<use name="Runtime.Web.Crud.Helper" />
+<use name="Runtime.Web.Crud.Input" component="true" />
+<use name="Runtime.Web.Events.ChangeEvent" />
+<use name="Runtime.Web.Events.MouseClickEvent" />
+<use name="Runtime.Web.ModelProxy" />
+<use name="Runtime.Web.RenderProvider" />
+<use name="Runtime.Web.VirtualDom" />
+
+
+<style>
+.captcha__label{
+	font-weight: bold;
+	margin-bottom: 5px;
+}
+.captcha__wrap{
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+.captcha__image{
+	width: 225px;
+	padding-right: 10px;
+}
+.captcha__input{
+	width: 50%;
+	padding-left: 10px;
+}
+.captcha__image img{
+	height: 86px;
+}
+.captcha__image img, .captcha__image .reload{
+	width: 100%;
+}
+.captcha__image .reload{
+	cursor: pointer;
+	background-color: white;
+	border: 1px #ccc solid;
+	color: black;
+}
+.captcha__image .reload:hover{
+	background-color: white;
+	border: 1px #ccc solid;
+	color: black;
+}
+.captcha__image .reload:active{
+	box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25);
+}
+</style>
+
+
+<template>
+	<div class="captcha">
+		
+		<div class="captcha__label">
+			Введите код, указанный на картинке
+		</div>
+		
+		<div class="captcha__wrap">
+			<div class="captcha__image">
+				<img @ref="image" />
+				<button class="reload"
+					@event:MouseClickEvent="reloadImage"
+				>Reload image</button>
+			</div>
+			<div class="captcha__input">
+				<Input @model=[] />
+			</div>
+		</div>
+		
+	</div>
+</template>
+
+
+<script>
+
+var image;
+
+/**
+ * Reload image
+ */
+void reloadImage()
+{
+	VirtualDom image = this.image;
+	image <= params <= src <= static::getImageHref();
+	this.repaintRef(image);
+}
+
+
+/**
+ * On render component
+ */
+void onRepaint()
+{
+	if (this.vdom.is_new_element)
+	{
+		VirtualDom image = this.image;
+		image <= params <= src <= static::getImageHref();
+		image.updateElemParams();
+	}
+}
+
+
+/**
+ * Returns image href
+ */
+static string getImageHref()
+{
+	return "/generate_captcha/?_" ~ DateTime::now().timestamp() ~ rtl::urandom();
+}
+
+</script>
+
+
+</class>

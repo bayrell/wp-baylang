@@ -1,0 +1,245 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Admin.MailLog;
+
+use Runtime.lib;
+use Runtime.Entity.Factory;
+use Runtime.Web.BasePageModel;
+use Runtime.Web.ModelFactory;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.ButtonModel;
+use Runtime.Widget.Input;
+use Runtime.Widget.Label;
+use Runtime.Widget.RowButtonsModel;
+use Runtime.Widget.SelectLabel;
+use Runtime.Widget.TextArea;
+use Runtime.Widget.Form.FormModel;
+use Runtime.Widget.Table.SaveDialogModel;
+use Runtime.Widget.Table.TableDialogModel;
+use Runtime.Widget.Table.TableRowButtonsModel;
+use Runtime.WordPress.Admin.MailLog.MailLogPage;
+
+
+class MailLogPageModel extends BasePageModel
+{
+	string component = classof MailLogPage;
+	FormModel form = null;
+	TableDialogModel table = null;
+	RowButtonsModel top_buttons = null;
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Normalize DateTime */
+		fn normalizeDateTime = fn (string field_name)
+		{
+			return var (Dict data) use (field_name)
+			{
+				Dict item = data.get("item");
+				DateTime date_time = item.get(field_name);
+				if (not date_time) return "";
+				return date_time.normalize().getDateTimeString();
+			};
+		};
+		
+		/* Add form */
+		this.form = this.addWidget(
+			classof FormModel,
+			{
+				"widget_name": "form",
+				"primary_key": ["id"],
+				"fields":
+				[
+					{
+						"name": "gmtime_send",
+						"label": "Send time",
+						"component": classof Label,
+					},
+					{
+						"name": "status",
+						"label": "Status",
+						"component": classof Label,
+					},
+					{
+						"name": "send_email_error",
+						"label": "Error",
+						"component": classof Label,
+					},
+					{
+						"name": "dest",
+						"label": "Dest",
+						"component": classof Label,
+					},
+					{
+						"name": "title",
+						"label": "Title",
+						"component": classof Label,
+					},
+					{
+						"name": "message",
+						"label": "Message",
+						"component": classof TextArea,
+						"props": {
+							"readonly": true,
+						}
+					},
+					{
+						"name": "worker",
+						"label": "Worker",
+						"component": classof Label,
+					},
+					{
+						"name": "plan",
+						"label": "Plan",
+						"component": classof Label,
+					},
+				],
+			}
+		);
+		
+		/* Add table */
+		this.table = this.addWidget(
+			classof TableDialogModel,
+			{
+				"widget_name": "table",
+				"styles": ["border"],
+				
+				/* Table title */
+				"get_title": void (Dict params)
+				{
+					string action = params.get("action");
+					Dict item = params.get("item");
+					if (action == "edit")
+					{
+						return item.get("title");
+					}
+					return "";
+				},
+				
+				/* Table storage */
+				"storage": new Factory
+				(
+					"Runtime.Widget.Table.TableStorage",
+					{
+						"api_name": "admin.wordpress.mail.log::search",
+					}
+				),
+				
+				/* Set page */
+				"page": this.layout.request_query.get("p", 1) - 1,
+				"pagination_props":
+				{
+					"name": "p",
+				},
+				
+				/* Form */
+				"add_form": this.form,
+				"edit_form": this.form,
+				
+				/* Table fields */
+				"fields":
+				[
+					{
+						"name": "row_number",
+					},
+					{
+						"name": "worker",
+						"label": "Worker",
+						"component": classof Label,
+					},
+					{
+						"name": "plan",
+						"label": "Plan",
+						"component": classof Label,
+					},
+					{
+						"name": "status",
+						"label": "Status",
+						"component": classof SelectLabel,
+						"props": {
+							"options": [
+								{"key": -1, "value": "Cancel"},
+							],
+						},
+					},
+					{
+						"name": "dest",
+						"label": "Dest",
+						"component": classof Label,
+					},
+					{
+						"name": "title",
+						"label": "Title",
+						"component": classof Label,
+					},
+					{
+						"name": "send_email_error",
+						"label": "Error",
+						"component": classof Label,
+					},
+					{
+						"name": "gmtime_send",
+						"label": "Send time",
+						"calculate": lib::pipe()
+							.add(lib::attr(["item", "gmtime_send"]))
+							.add(lib::normalizeDateTime())
+						,
+						"component": classof Label,
+					},
+					{
+						"name": "row_buttons",
+						"model": new ModelFactory(
+							"Runtime.Widget.Table.TableRowButtonsModel",
+							{
+								"delete": false
+							}
+						),
+					},
+				],
+			}
+		);
+		
+		/* Remove save button */
+		SaveDialogModel save_dialog = this.table.getWidget("save_dialog");
+		save_dialog.buttons.removeItemByName("confirm_button");
+		
+		/* Change cancel button text */
+		ButtonModel cancel_button = save_dialog.buttons.findItemByName("cancel_button");
+		cancel_button.content = "Close";
+		
+		/* Table row buttons */
+		TableRowButtonsModel row_buttons = this.table.getWidget("row_buttons");
+		ButtonModel edit_button = row_buttons.findItemByName("edit_button");
+		edit_button.content = "View";
+	}
+	
+	
+	/**
+	 * Build title
+	 */
+	void buildTitle(RenderContainer container)
+	{
+		this.layout.setPageTitle("Mail log");
+	}
+}

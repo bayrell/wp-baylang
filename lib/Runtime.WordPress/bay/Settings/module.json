@@ -1,0 +1,25 @@
+{
+	"name": "Runtime.WordPress.Settings",
+	"assets":
+	[
+		"FormModelSettings.bay",
+		"FormSettings.bay",
+		"ModuleDescription.bay",
+		"WidgetManager.bay"
+	],
+	"require": [
+	],
+	"groups": [
+		"constructor"
+	],
+	"src": "./",
+	"dest":
+	{
+		"php": "./../../php/Settings",
+		"es6": "./../../es6/Settings"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

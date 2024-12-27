@@ -1,0 +1,77 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.ORM.Annotations;
+
+use Runtime.BaseStruct;
+use Runtime.DateTime;
+use Runtime.ORM.Annotations.BaseType;
+use Runtime.ORM.Connection;
+
+
+struct DateTimeType extends BaseType
+{
+	string tz = "UTC";
+	
+	
+	/**
+	 * Process item from database
+	 */
+	async var fromDatabase(Connection conn, Dict item)
+	{
+		if (item.has(this.name))
+		{
+			string value = item[this.name];
+			item <= { this.name } <= static::convertFromDatabase(value);
+			item = await conn.fromDatabase(this, item, this.name);
+		}
+		return item;
+	}
+	
+	
+	/**
+	 * Process item to database
+	 */
+	async var toDatabase(Connection conn, Dict item, bool is_update)
+	{
+		DateTime value = item[this.name];
+		item <= { this.name } <= static::convertToDatabase(value);
+		item = await conn.toDatabase(this, item, this.name);
+		return item;
+	}
+	
+	
+	/**
+	 * Convert from db time
+	 */
+	static DateTime convertFromDatabase(string value)
+	{
+		return DateTime::fromString(value);
+	}
+	
+	
+	/**
+	 * Convert to db time
+	 */
+	static string convertToDatabase(DateTime value)
+	{
+		if (not(value instanceof DateTime)) return "";
+		return value.setOffset(0).getDateTimeString();
+	}
+	
+}

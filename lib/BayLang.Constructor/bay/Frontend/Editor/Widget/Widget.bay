@@ -1,0 +1,215 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Constructor.Frontend.Editor.Widget;
+
+use Runtime.BaseObject;
+use BayLang.Constructor.Frontend.Editor.Parameters.Parameter;
+use BayLang.Constructor.Frontend.Editor.Processor.CodeProcessor;
+use BayLang.Constructor.Frontend.Editor.Widget.Html.WidgetDiv;
+use BayLang.Constructor.Frontend.Editor.Widget.WidgetComponent;
+use BayLang.Constructor.Frontend.Editor.Widget.WidgetTag;
+use BayLang.Constructor.Frontend.Editor.WidgetEditPageModel;
+use BayLang.Constructor.Frontend.Editor.WidgetTreeItem;
+use BayLang.Constructor.Frontend.WidgetPage.ParameterFactory;
+use BayLang.Constructor.Frontend.WidgetPage.WidgetSettingsInterface;
+use BayLang.OpCodes.BaseOpCode;
+use BayLang.OpCodes.OpHtmlItems;
+use BayLang.OpCodes.OpHtmlTag;
+
+
+class Widget extends BaseObject
+{
+	BaseOpCode code = null;
+	BaseOpCode parent_code = null;
+	WidgetEditPageModel page_model = null;
+	WidgetTreeItem tree_item = null;
+	
+	/* Widget settings */
+	Collection<Parameter> params = [];
+	WidgetSettingsInterface settings = null;
+	
+	
+	/**
+	 * Constructor
+	 */
+	public void constructor(WidgetEditPageModel page_model, BaseOpCode code)
+	{
+		parent();
+		this.code = code;
+		this.page_model = page_model;
+	}
+	
+	
+	/**
+	 * Returns true if component
+	 */
+	bool isComponent() => false;
+	
+	
+	/**
+	 * Returns true if tag has model
+	 */
+	bool isModel() => false;
+	
+	
+	/**
+	 * Can insert widget
+	 */
+	bool canInsert(WidgetSettingsInterface widget_settings)
+	{
+		return false;
+	}
+	
+	
+	/**
+	 * Update tree item
+	 */
+	void updateTreeItem()
+	{
+		if (not this.tree_item)
+		{
+			this.tree_item = new WidgetTreeItem(this.code);
+		}
+		
+		/* Update label */
+		this.tree_item.updateLabel();
+	}
+	
+	
+	/**
+	 * Update tree items
+	 */
+	void updateTreeItems()
+	{
+		/* Create tree item if does not exists */
+		if (not this.tree_item)
+		{
+			this.updateTreeItem();
+		}
+		
+		/* Update items */
+		this.tree_item.items = [];
+		if (this.code.items instanceof OpHtmlItems)
+		{
+			for (int i=0; i<this.code.items.count(); i++)
+			{
+				BaseOpCode op_code_item = this.code.items.get(i);
+				Widget widget_item = this.page_model.widget_manager.get(op_code_item);
+				this.tree_item.items.push(widget_item.tree_item);
+			}
+		}
+	}
+	
+	
+	/**
+	 * Reset widget
+	 */
+	void reset()
+	{
+		this.is_initialized = false;
+		this.settings = null;
+	}
+	
+	
+	/**
+	 * Setup
+	 */
+	void setup()
+	{
+		if (this.is_initialized) return;
+		
+		/* Setup settings */
+		this.setupSettings();
+		
+		/* Setup params */
+		this.setupParams();
+		
+		/* Setup attrs */
+		this.setupAttrs();
+		
+		/* Init params */
+		this.initParams();
+		
+		/* Set flag initialized */
+		this.is_initialized = true;
+	}
+	
+	
+	/**
+	 * Setup settings
+	 */
+	void setupSettings()
+	{
+	}
+	
+	
+	/**
+	 * Setup attrs
+	 */
+	void setupAttrs()
+	{
+	}
+	
+	
+	/**
+	 * Setup params
+	 */
+	void setupParams()
+	{
+	}
+	
+	
+	/**
+	 * Init params
+	 */
+	void initParams()
+	{
+		this.params.each(
+			void (Parameter param)
+			{
+				param.init();
+			}
+		);
+		
+		/* Setup widget settings */
+		if (this.settings and rtl::exists(this.settings.setup))
+		{
+			this.settings.setup(this);
+		}
+	}
+	
+	
+	/**
+	 * Create new instance
+	 */
+	public static Widget newInstance(WidgetEditPageModel page_model, BaseOpCode op_code)
+	{
+		if (not (op_code instanceof OpHtmlTag)) return null;
+		
+		string selected_tag_name = op_code.tag_name;
+		if (CodeProcessor::isComponent(selected_tag_name))
+		{
+			return new WidgetComponent(page_model, op_code);
+		}
+		
+		/* Lower tag name */
+		selected_tag_name = rs::lower(selected_tag_name);
+		return new WidgetTag(page_model, op_code);
+	}
+}

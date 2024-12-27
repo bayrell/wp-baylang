@@ -1,0 +1,484 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.XML;
+
+use Runtime.XML.PatcherProvider;
+use Runtime.XML.BasePatcher;
+
+
+class XML
+{
+	var xml = null;
+	Collection errors = null;
+	
+	
+	/**
+	 * Load xml
+	 */
+	static XML loadXml(string xml_str)
+	{
+		XML res = static::newInstance();
+		
+		#ifcode PHP then
+		
+		$old_value = libxml_use_internal_errors(true);
+		libxml_clear_errors();
+		$xml = simplexml_load_string(
+			$xml_str, \SimpleXMLElement::class, LIBXML_NOCDATA | LIBXML_NONET
+		);
+		$errors = new \Runtime\Vector();
+		foreach (libxml_get_errors() as $error)
+		{
+			$errors->push( trim($error->message) );
+		}
+		libxml_use_internal_errors($old_value);
+		
+		$res->xml = $xml;
+		$res->errors = $errors->toCollection();
+		
+		#endif
+		
+		return res;
+	}
+	
+	
+	/**
+	 * Returns new instance
+	 */
+	static XML newInstance() => rtl::newInstance(static::getClassName());
+	
+	
+	/**
+	 * Returns true if XML is exists
+	 */
+	bool exists()
+	{
+		if (this.xml == null) return false;
+		return true;
+	}
+	
+	
+	/**
+	 * Return current name
+	 */
+	XML getName()
+	{
+		string res = "";
+		
+		#ifcode PHP then
+		if ($this->xml != null)
+		{
+			$res = $this->xml->getName();
+		}
+		#endif
+		
+		return res;
+	}
+	
+	
+	/**
+	 * Return items by name
+	 */
+	Vector<XML> get(string name)
+	{
+		#ifcode PHP then
+		$res = [];
+		
+		if ($this->xml != null)
+		{
+			$xml = $this->xml->$name;
+			for ($i=0; $i<$xml->count(); $i++)
+			{
+				$item = static::newInstance();
+				$item->xml = $xml[$i];
+				$res[] = $item;
+			}
+		}
+		
+		return \Runtime\Vector::from($res);
+		#endif
+		
+		return new Vector();
+	}
+	
+	
+	/**
+	 * Get value
+	 */
+	string value(bool trim=true)
+	{
+		string value = "";
+		
+		#ifcode PHP then
+		if ($this->xml != null)
+		{
+			$value = (string)$this->xml;
+		}
+		if ($trim)
+		{
+			$value = \Runtime\rs::trim($value);
+		}
+		#endif
+		
+		return value;
+	}
+	
+	
+	/**
+	 * Set value
+	 */
+	void setValue(string value)
+	{
+		#ifcode PHP then
+		if ($value != "")
+		{
+			$item = dom_import_simplexml($this->xml);
+			$item->nodeValue = $value;
+		}
+		#endif
+	}
+	
+	
+	/**
+	 * Returns childs count
+	 */
+	int count()
+	{
+		#ifcode PHP then
+		if ($this->xml != null)
+		{
+			return $this->xml->children()->count();
+		}
+		#endif
+		
+		return 0;
+	}
+	
+	
+	/**
+	 * Return items
+	 */
+	Vector<XML> childs()
+	{
+		#ifcode PHP then
+		$arr = [];
+		$pos = 0;
+		
+		if ($this->xml != null)
+		{
+			foreach ($this->xml as $child)
+			{
+				$item = static::newInstance();
+				$item->xml = $child;
+				$arr[] = $item;
+				$pos++;
+			}
+		}
+		
+		return \Runtime\Vector::from($arr);
+		#endif
+		
+		return new Vector();
+	}
+	
+	
+	/**
+	 * Remove childs
+	 */
+	void removeChilds()
+	{
+		Collection items = this.childs();
+		for (int i=0; i<items.count(); i++)
+		{
+			items.get(i).remove();
+		}
+	}
+	
+	
+	/**
+	 * Get attribute
+	 */
+	string attr(string key, bool trim=true)
+	{
+		#ifcode PHP then
+		if ($this->xml != null)
+		{
+			$attrs = $this->xml->attributes();
+			if (isset($attrs[$key]))
+			{
+				$value = (string)$attrs[$key];
+				if ($trim) $value = \Runtime\rs::trim($value);
+				return $value;
+			}
+		}
+		#endif
+		
+		return null;
+	}
+	
+	
+	/**
+	 * Get attribute
+	 */
+	Map attributes(bool trim=true)
+	{
+		Map items = new Map();
+		
+		#ifcode PHP then
+		
+		if ($this->xml != null)
+		{
+			$attrs = $this->xml->attributes();
+			foreach ($attrs as $key => $value)
+			{
+				if ($trim)
+				{
+					$items->set($key, \Runtime\rs::trim((string)$value));
+				}
+				else
+				{
+					$items->set($key, (string)$value);
+				}
+			}
+		}
+		
+		#endif
+		
+		return items;
+	}
+	
+	
+	/**
+	 * Add attribute
+	 */
+	void addAttribute(string key, string value)
+	{
+		#ifcode PHP then
+		if ($this->xml != null)
+		{
+			$this->xml->addAttribute($key, $value);
+		}
+		#endif
+	}
+	void addAttr(string key, string value) => this.addAttribute(key, value);
+	
+	
+	/**
+	 * Remove attribute
+	 */
+	void removeAttribute(string key)
+	{
+		#ifcode PHP then
+		if ($this->xml != null)
+		{
+			$dom = dom_import_simplexml($this->xml);
+			$dom->removeAttribute($key);
+		}
+		#endif
+	}
+	void removeAttr(string key) => this.removeAttribute(key);
+	
+	
+	/**
+	 * Add attributes
+	 */
+	void addAttributes(Dict attrs)
+	{
+		Collection attrs_keys = attrs.keys();
+		for (int i=0; i<attrs_keys.count(); i++)
+		{
+			string key = attrs_keys[i];
+			string value = attrs.get(key);
+			this.addAttribute(key, value);
+		}
+	}
+	
+	
+	/**
+	 * Remove attributes
+	 */
+	void removeAttributes()
+	{
+		Dict attrs = this.attributes();
+		Collection attrs_keys = attrs.keys();
+		
+		#ifcode PHP then
+		if ($this->xml != null)
+		{
+			$dom = dom_import_simplexml($this->xml);
+			for ($i=0; $i<$attrs_keys->count(); $i++)
+			{
+				$key = $attrs_keys->get($i);
+				$dom->removeAttribute($key);
+			}
+		}
+		#endif
+	}
+	
+	
+	/**
+	 * Remove current element
+	 */
+	void remove()
+	{
+		#ifcode PHP then
+		if ($this->xml != null)
+		{
+			$item = dom_import_simplexml($this->xml);
+			$item->parentNode->removeChild($item);
+		}
+		#endif
+	}
+	
+	
+	/**
+	 * Append XML
+	 */
+	XML append(XML item)
+	{
+		string name = item.getName();
+		string content = item.value();
+		XML child = static::newInstance();
+		
+		#ifcode PHP then
+		$xml = $this->xml->addChild($name, $content);
+		$child->xml = $xml;
+		#endif
+		
+		/* Append childs */
+		child.appendItems(item.childs());
+		
+		/* Add attrs */
+		child.addAttributes(item.attributes());
+		
+		return child;
+	}
+	
+	
+	/**
+	 * Prepend XML
+	 */
+	XML prepend(XML item)
+	{
+		string name = item.getName();
+		string content = item.value();
+		XML child = static::newInstance();
+		
+		#ifcode PHP then
+		$dom = dom_import_simplexml($this->xml);
+		$xml_elem = $dom->ownerDocument->createElement($name, $content);
+		$xml = $dom->insertBefore($xml_elem, $dom->firstChild);
+		$child->xml = simplexml_import_dom($xml);
+		#endif
+		
+		/* Append childs */
+		child.appendItems(item.childs());
+		
+		/* Add attrs */
+		child.addAttributes(item.attributes());
+		
+		return child;
+	}
+	
+	
+	/**
+	 * Append childs from XML
+	 */
+	void appendItems(Collection<XML> items)
+	{
+		for (int i=0; i<items.count(); i++)
+		{
+			XML item = items.get(i);
+			this.append(item);
+		}
+	}
+	
+	
+	/**
+	 * Prepend childs from XML
+	 */
+	void prependItems(Collection<XML> items)
+	{
+		for (int i=0; i<items.count(); i++)
+		{
+			XML item = items.get(i);
+			this.prepend(item);
+		}
+	}
+	
+	
+	/**
+	 * Patch XML with operation
+	 */
+	void patch(XML operation)
+	{
+		string type = operation.attr('type');
+		PatcherProvider provider = @.provider(classof PatcherProvider);
+		BasePatcher patcher = provider.getPatcher(type);
+		if (patcher)
+		{
+			patcher.patch(this, operation);
+		}
+	}
+	
+	
+	/**
+	 * Patch XML with operation
+	 */
+	Vector<XML> xpath(string path)
+	{
+		Vector res = new Vector();
+		
+		#ifcode PHP then
+		$items = $this->xml->xpath($path);
+		foreach ($items as $xml)
+		{
+			$item = static::newInstance();
+			$item->xml = $xml;
+			$res->push($item);
+		}
+		#endif
+		
+		return res;
+	}
+	
+	
+	/**
+	 * To string
+	 */
+	string toString(Dict params = null)
+	{
+		bool indent = params['indent'] |> default bool true;
+		bool wrap = params['wrap'] |> default bool false;
+		string xml_str = '';
+		
+		#ifcode PHP then
+		if ($params != null) $params = $params->_map;
+		if ($params == null) $params = [];
+		if (!isset($params['indent'])) $params['indent'] = true;
+		if (!isset($params['wrap'])) $params['wrap'] = false;
+		if (!isset($params['input-xml'])) $params['input-xml'] = true;
+		$xml_str = $this->xml->asXml();
+		$xml_str = tidy_repair_string($xml_str, $params);
+		#endif
+		
+		return xml_str;
+	}
+	
+}

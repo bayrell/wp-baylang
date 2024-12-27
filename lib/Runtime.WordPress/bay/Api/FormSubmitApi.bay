@@ -1,0 +1,246 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Api;
+
+use Runtime.re;
+use Runtime.DateTime;
+use Runtime.Exceptions.ApiError;
+use Runtime.Exceptions.ItemNotFound;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Cursor;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryField;
+use Runtime.ORM.QueryFilter;
+use Runtime.ORM.QueryResult;
+use Runtime.ORM.Relation;
+use Runtime.Web.BaseApi;
+use Runtime.Web.Annotations.ApiMethod;
+use Runtime.Widget.Crud.FieldException;
+use Runtime.Widget.Crud.FieldResult;
+
+
+class FormSubmitApi extends BaseApi
+{
+	Relation form = null;
+	
+	
+	/**
+	 * Returns api name
+	 */
+	pure string getApiName() => "runtime.wordpress.form.submit";
+	
+	
+	/**
+	 * Returns form settings
+	 */
+	@ApiMethod
+	async void actionItem()
+	{
+		Connection conn = Connection::get();
+		
+		/* Find form */
+		string form_name = this.post_data["form_name"];
+		this.form = await conn.findRelationByObject("forms", {
+			"api_name": form_name,
+		});
+		if (not this.form)
+		{
+			throw new ApiError(new ItemNotFound(form_name, "Form"));
+		}
+		
+		/* Get form settings */
+		string settings = this.form.get("settings");
+		Dict form_settings = rtl::json_decode(settings);
+		if (not form_settings)
+		{
+			throw new ApiError(new ItemNotFound(form_name, "Form settings"));
+		}
+		
+		/* Set result */
+		this.result.success({
+			"message": "Ok",
+			"data": {
+				"name": form_name,
+				"settings": form_settings,
+			}
+		});
+	}
+	
+	
+	/**
+	 * Check spam
+	 */
+	async bool checkSpam()
+	{
+		Connection conn = Connection::get();
+		
+		string client_ip = this.backend_storage["client_ip"];
+		int time = DateTime::now().getTimestamp();
+		
+		Relation item = await conn.findRelationByObject("forms_ip", {
+			"ip": client_ip
+		});
+		
+		if (not item)
+		{
+			item = new Relation("forms_ip");
+			item.set("count", 1);
+			item.set("ip", client_ip);
+			item.set("last", time);
+			
+			await item.save(conn);
+			
+			return false;
+		}
+		
+		bool spam_result = false;
+		int count = item.get("count") + 1;
+		
+		if (item.get("last") + 15*60 > time)
+		{
+			if (count > 3)
+			{
+				spam_result = true;
+			}
+		}
+		else
+		{
+			count = 1;
+		}
+		
+		item.set("count", count);
+		item.set("last", time);
+		await item.save(conn);
+		
+		return spam_result;
+	}
+	
+	
+	/**
+	 * Validate item
+	 */
+	async Map validateItem(Map update_data)
+	{
+		/* Get settings */
+		string settings_str = this.form.get("settings");
+		Dict settings = rtl::json_decode(settings_str);
+		if (not settings)
+		{
+			throw new ApiError(new RuntimeException("Settings error"));
+		}
+		
+		/* Default update data */
+		if (update_data == null) update_data = {};
+		
+		/* Creat new data */
+		Map new_data = new Map();
+		FieldResult fields_result = this.result.data.get("fields");
+		
+		/* Check fields */
+		Collection<Dict> fields = settings["fields"];
+		if (fields)
+		{
+			for (int i=0; i<fields.count(); i++)
+			{
+				Dict field_settings = fields.get(i);
+				string field_name = field_settings["name"];
+				string field_title = field_settings["title"];
+				bool required = (bool)field_settings["required"];
+				string value = update_data.has(field_name) ? rs::trim(update_data[field_name]) : "";
+				
+				/* Set value */
+				new_data.set(field_name, value);
+				
+				/* Check field */
+				if (not required) continue;
+				if (value == "")
+				{
+					fields_result.addFieldError(field_name, "Field is required");
+				}
+			}
+		}
+		
+		/* Check fields error */
+		FieldResult fields = this.result.data.get("fields");
+		if (not fields.isSuccess())
+		{
+			throw new ApiError(new FieldException());
+		}
+		
+		return new_data;
+	}
+	
+	
+	/**
+	 * Action save
+	 */
+	@ApiMethod
+	async void actionSave()
+	{
+		Connection conn = Connection::get();
+		
+		/* Find form */
+		string form_name = this.post_data["form_name"];
+		this.form = await conn.findRelationByObject("forms", {
+			"api_name": form_name,
+		});
+		if (!this.form)
+		{
+			throw new ApiError(new ItemNotFound(form_name, "Form"));
+		}
+		
+		/* Create field result */
+		this.result.data.set("fields", new FieldResult);
+		
+		/* Validate item */
+		Map update_data = this.post_data["item"];
+		update_data = await this.validateItem(update_data);
+		
+		/* Get title */
+		string form_title = this.form.get("name");
+		if (this.post_data.has("title"))
+		{
+			form_title = this.post_data.get("title");
+		}
+		
+		/* Spam check */
+		bool spam_check = this.checkSpam();
+		if (spam_check)
+		{
+			return this.result.success({
+				"message": "Ok",
+			});
+		}
+		
+		/* Save form */
+		Relation form_data = new Relation("forms_data");
+		form_data.set("form_id", this.form.get("id"));
+		form_data.set("form_title", form_title);
+		form_data.set("data", update_data);
+		form_data.set("spam", spam_check);
+		form_data.set("gmtime_add", DateTime::now());
+		await form_data.save(conn);
+		
+		/* Set result */
+		this.result.success({
+			"message": "Ok",
+		});
+	}
+}

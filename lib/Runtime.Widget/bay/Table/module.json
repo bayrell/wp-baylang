@@ -1,0 +1,37 @@
+{
+	"name": "Runtime.Widget.Table",
+	"assets":
+	[
+		"AddButtonModel.bay",
+		"DeleteDialog.bay",
+		"DeleteDialogModel.bay",
+		"RefreshButton.bay",
+		"RefreshButtonModel.bay",
+		"SaveDialog.bay",
+		"SaveDialogModel.bay",
+		"Table.bay",
+		"TableModel.bay",
+		"TableDialogModel.bay",
+		"TableMessage.bay",
+		"TableProxyStorage.bay",
+		"TableRowButtonsModel.bay",
+		"TableStorage.bay",
+		"TableStorageInterface.bay"
+	],
+	"require": [
+		"Runtime.Widget"
+	],
+	"groups": [
+		"widget"
+	],
+	"src": "./",
+	"dest":
+	{
+		"php": "./../../php/Table",
+		"es6": "./../../es6/Table"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

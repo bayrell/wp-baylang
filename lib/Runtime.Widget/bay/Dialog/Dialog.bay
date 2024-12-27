@@ -1,0 +1,212 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.Dialog.Dialog">
+
+<use name="Runtime.Widget.Button" component="true" />
+<use name="Runtime.Widget.RowButtons" component="true" />
+<use name="Runtime.Widget.WidgetResult" component="true" />
+
+
+<style>
+.widget_dialog{}
+.widget_dialog__box, .widget_dialog__shadow{
+	position: fixed;
+	top: 0; left: 0;
+	width: 100%; height: 100%;
+	z-index: 1001;
+}
+.widget_dialog__box{
+	overflow: auto;
+	overflow-y: scroll;
+	display: none;
+}
+.widget_dialog--open .widget_dialog__box{
+	display: block;
+}
+.widget_dialog__shadow{
+	background-color: #000;
+	opacity: 0.2;
+	overflow: hidden;
+	display: none;
+}
+.widget_dialog--open .widget_dialog__shadow{
+	display: block;
+}
+.widget_dialog__wrap{
+	width: 100%;
+	min-height: 100%;
+}
+.widget_dialog__wrap > tr > td{
+	padding: 20px;
+}
+.widget_dialog__container{
+	position: relative;
+	padding: calc(var(--widget-space) * 3);
+	background-color: white;
+	border-radius: 4px;
+	max-width: 600px;
+	margin: calc(var(--widget-space) * 5) auto;
+	width: auto;
+	z-index: 1002;
+	box-shadow: 2px 4px 10px 0px rgba(0,0,0,0.5);
+	font-size: var(--widget-font-size);
+}
+.widget_dialog__title{
+	font-weight: bold;
+	font-size: var(--widget-font-size-h2);
+	text-align: left;
+	margin: var(--widget-margin-h2);
+	margin-top: 0;
+}
+%(RowButtons)widget_dialog__buttons{
+	margin: var(--widget-margin-h2);
+	margin-bottom: 0;
+}
+%(RowButtons)widget_dialog__buttons %(Button)widget_button{
+	min-width: 70px;
+}
+</style>
+
+
+<template name="renderTitle">
+	%if (this.model.title != "")
+	{
+		<div class='widget_dialog__title'>{{ this.model.title }}</div>
+	}
+</template>
+
+
+<template name="renderContent">
+	<div class='widget_dialog__content'>{{ this.model.content }}</div>
+</template>
+
+
+<template name="renderButtons">
+	%render this.renderWidget(this.model.buttons);
+</template>
+
+
+<template name="renderResult">
+	%render this.renderWidget(this.model.result);
+</template>
+
+
+<template name="renderDialog">
+	%render this.renderTitle();
+	%render this.renderContent();
+	%render this.renderButtons();
+	%render this.renderResult();
+</template>
+
+
+<template name="renderDialogContainer">
+	%set Map props = this.getProps();
+	<div class="widget_dialog__container" ...props>
+		%render this.renderDialog();
+	</div>
+</template>
+
+
+<template name="render">
+	<div class="widget_dialog"
+		class={{ this.model.is_open ? "widget_dialog--open" : "widget_dialog--hide" }}
+		class={{ static::getStyles("widget_dialog", this.model.styles) }}
+		@event:click={{ this.onDialogClick }}
+	>
+		<div class="widget_dialog__shadow"></div>
+		<div class="widget_dialog__box" @ref="dialog_box">
+			<table class="widget_dialog__wrap"><tbody><tr><td class="widget_dialog__td">
+				%render this.renderDialogContainer();
+			</td></tr></tbody></table>
+		</div>
+	</div>
+</template>
+
+
+<script>
+
+Map getProps()
+{
+	Vector styles = [];
+	if (this.model.width != "")
+	{
+		styles.push("max-width: " ~ this.model.width);
+	}
+	return {
+		"style": styles.join(";"),
+	};
+}
+
+
+/**
+ * On shadow click
+ */
+void onShadowClick()
+{
+	if (not this.model.modal)
+	{
+		this.model.hide();
+	}
+}
+
+
+/**
+ * On dialog click
+ */
+void onDialogClick(var e)
+{
+	if (e.target.classList.contains("widget_dialog__td"))
+	{
+		this.onShadowClick();
+	}
+}
+
+
+/**
+ * Updated
+ */
+void onUpdated()
+{
+	var elem = document.documentElement;
+	bool is_scroll_lock = elem.classList.contains("scroll-lock");
+	if (this.model.is_open)
+	{
+		if (not is_scroll_lock)
+		{
+			elem.classList.add('scroll-lock');
+			this.nextTick(void(){
+				var dialog_box = this.getRef("dialog_box");
+				dialog_box.scrollTop = 0;
+			});
+		}
+	}
+	else
+	{
+		if (is_scroll_lock)
+		{
+			elem.classList.remove('scroll-lock');
+		}
+	}
+}
+
+
+</script>
+
+
+</class>

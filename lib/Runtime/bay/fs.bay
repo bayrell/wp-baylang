@@ -1,0 +1,298 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime;
+
+use Runtime.re;
+use Runtime.rs;
+
+
+#ifcode JAVASCRIPT then
+const fs = require('fs');
+const { promisify } = require('util');
+const { resolve } = require('path');
+
+const fileExists = promisify(fs.exists);
+const readFile = promisify(fs.readFile);
+const writeFile = promisify(fs.writeFile);
+const rename = promisify(fs.rename);
+const symlink = promisify(fs.symlink);
+const unlink = promisify(fs.unlink);
+const lstat = promisify(fs.lstat);
+const mkdir = promisify(fs.mkdir);
+const readdir = promisify(fs.readdir);
+#endif
+
+
+class fs
+{
+	static const string DIRECTORY_SEPARATOR = "/";
+	
+	
+	/**
+	 * Join
+	 */
+	static string join(Collection arr)
+	{
+		string path = rs::join(static::DIRECTORY_SEPARATOR, arr);
+		path = re::replace("\\/+", "/", path);
+		path = re::replace("\\/\\.\\/", "/", path);
+		path = re::replace("\\/+$", "", path);
+		return path;
+	}
+	
+	
+	/**
+	 * Return true if path is exists
+	 * @param string path
+	 * @param boolean
+	 */
+	static async bool exists(string filepath)
+	{
+		#switch
+		#case ifcode PHP then
+		return file_exists($filepath);
+		
+		#case ifcode JAVASCRIPT then
+		
+		var is_exists = await fileExists(filepath);
+		if (!is_exists) return Promise.resolve( false );
+		return Promise.resolve( true );
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Return true if path is folder
+	 * @param string path
+	 * @param boolean
+	 */
+	static async bool isDir(string filepath) => await static::isFolder(filepath);
+	
+	
+	/**
+	 * Return true if path is folder
+	 * @param string path
+	 * @param boolean
+	 */
+	static async bool isFolder(string filepath)
+	{
+		#switch
+		#case ifcode PHP then
+		return file_exists($filepath) && is_dir($filepath);
+		
+		#case ifcode JAVASCRIPT then
+		
+		var is_exists = await fileExists(filepath);
+		if (!is_exists) return Promise.resolve( false );
+		
+		filepath = resolve(filepath);
+		var stat = await lstat(filepath);
+		return Promise.resolve( stat.isDirectory() );
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Return true if path is file
+	 * @param string path
+	 * @param boolean
+	 */
+	static async bool isFile(string filepath)
+	{
+		#switch
+		#case ifcode PHP then
+		return file_exists($filepath) && is_file($filepath);
+		
+		#case ifcode JAVASCRIPT then
+		
+		var is_exists = await fileExists(filepath);
+		if (!is_exists) return Promise.resolve( false );
+		
+		filepath = resolve(filepath);
+		var stat = await lstat(filepath);
+		return Promise.resolve( stat.isFile() );
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Read local file
+	 */
+	static async string readFile(string filepath, string ch = "utf8")
+	{
+		#switch
+		
+		#case ifcode JAVASCRIPT then
+		
+		var content = await readFile( resolve(filepath), { "encoding": ch } );
+		return Promise.resolve( content );
+		
+		#case ifcode PHP then
+		
+		$filepath = realpath($filepath);
+		if ($filepath == false) return "";
+		if (!file_exists($filepath)) return "";
+		return file_get_contents($filepath);
+		
+		#endswitch
+		
+		return "";
+	}
+	
+	
+	/**
+	 * Save local file
+	 */
+	static async bool saveFile(string filepath, string content = "", string ch = "utf8")
+	{
+		#switch
+		
+		#case ifcode JAVASCRIPT then
+		
+		await writeFile( resolve(filepath), content, { "encoding": ch } );
+		
+		#case ifcode PHP then
+		
+		if ($filepath == false) return "";
+		return @file_put_contents($filepath, $content);
+		
+		#endswitch
+		return "";
+	}
+	
+	
+	/**
+	 * Rename file
+	 */
+	static async void rename(string file_path, string file_new_path)
+	{
+		#switch
+		#case ifcode JAVASCRIPT then
+		await rename(file_path, file_new_path);
+		#case ifcode PHP then
+		rename($file_path, $file_new_path);
+		#endswitch
+	}
+	
+	
+	/**
+	 * Remove file
+	 */
+	static async void unlink(string file_path)
+	{
+		#switch
+		#case ifcode JAVASCRIPT then
+		await unlink(file_path);
+		#case ifcode PHP then
+		unlink($file_path);
+		#endswitch
+	}
+	
+	
+	/**
+	 * Scan directory
+	 */
+	static async Collection<string> listDir(string dirpath)
+	{
+		#switch
+		#case ifcode JAVASCRIPT then
+		
+		dirpath = resolve(dirpath);
+		var Vector = use("Runtime.Vector");
+		var arr = await readdir(dirpath);
+		arr = arr.filter( (s) => s != "." && s != ".." ).sort();
+		arr = Vector.from(arr);
+		return Promise.resolve(arr);
+		
+		#case ifcode PHP then
+		
+		$arr = scandir($dirpath);
+		$arr = array_filter($arr, function($s){ return $s != "." && $s != ".."; });
+		return \Runtime\Vector::from(array_values($arr));
+		
+		#endswitch
+		
+		return null;
+	}
+	
+	
+	/**
+	 * Scan directory recursive
+	 */
+	static async Collection<string> listDirRecursive(
+		string dirpath, string parent_name = ""
+	)
+	{
+		Vector<string> res = new Vector();
+		Collection<string> items = await static::listDir(dirpath);
+		
+		for (int i=0; i<items.count(); i++)
+		{
+			string item_name = items.item(i);
+			string item_path = static::join([ dirpath, item_name ]);
+			string item_name2 = static::join([ parent_name, item_name ]);
+			
+			if (item_name == "." or item_name == "..") continue;
+			item_name2 = rs::removeFirstSlash(item_name2);
+			res.push( item_name2 );
+			
+			bool is_dir = await static::isDir(item_path);
+			if (is_dir)
+			{
+				Collection<string> sub_items = await static::listDirRecursive
+				(
+					item_path, item_name2
+				);
+				res.appendItems(sub_items);
+			}
+		}
+		
+		return res;
+	}
+	
+	
+	/**
+	 * Make dir recursive
+	 */
+	static async bool mkdir(string filepath, string mode = "755")
+	{
+		#switch
+		
+		#case ifcode JAVASCRIPT then
+		
+		filepath = resolve(filepath);
+		var exists = await fileExists(filepath);
+		if (!exists)
+		{
+			await mkdir(filepath, { "mode": mode, "recursive": true });
+		}
+		
+		#case ifcode PHP then
+		
+		if ($filepath == false) return false;
+		return @mkdir($filepath, octdec($mode), true);
+		
+		#endswitch
+		
+		return "";
+	}
+}

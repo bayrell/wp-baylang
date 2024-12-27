@@ -1,0 +1,86 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Web;
+
+use Runtime.BaseObject;
+use Runtime.Web.Cookie;
+
+
+class Request extends BaseObject
+{
+	static const string METHOD_GET = "GET";
+	static const string METHOD_HEAD = "HEAD";
+	static const string METHOD_POST = "POST";
+	static const string METHOD_PUT = "PUT";
+	static const string METHOD_DELETE = "DELETE";
+	static const string METHOD_CONNECT = "CONNECT";
+	static const string METHOD_OPTIONS = "OPTIONS";
+	static const string METHOD_TRACE = "TRACE";
+	static const string METHOD_PATCH = "PATCH";
+	
+	public string uri = "";
+	public string full_uri = "";
+	public string host = "";
+	public string method = "GET";
+	public string protocol = "";
+	public bool is_https = false;
+	public Dict<string> query = null;
+	public Dict<var> payload = null;
+	public Dict<string> cookies = null;
+	public Dict<string> headers = null;
+	public float start_time = 0;
+	
+	
+	/**
+	 * Returns client ip
+	 */
+	string getClientIp()
+	{
+		return this.headers.get("REMOTE_ADDR");
+	}
+	
+	
+	/**
+	 * Init request
+	 */
+	void initUri(string full_uri)
+	{
+		Dict res = rs::parse_url(full_uri);
+		
+		string uri = res["uri"];
+		Dict<string> query = res["query_arr"];
+		
+		this.full_uri = full_uri;
+		this.uri = uri;
+		this.query = query;
+		
+		if (this.uri == "") this.uri = "/";
+		
+		/* Route prefix */
+		string route_prefix = @.env("ROUTE_PREFIX");
+		if (route_prefix == null) route_prefix = "";
+		
+		int route_prefix_sz = rs::strlen(route_prefix);
+		if (route_prefix_sz != 0 and rs::substr(this.uri, 0, route_prefix_sz) == route_prefix)
+		{
+			this.uri = rs::substr(this.uri, route_prefix_sz);
+			this.full_uri = rs::substr(this.full_uri, route_prefix_sz);
+		}
+	}
+}

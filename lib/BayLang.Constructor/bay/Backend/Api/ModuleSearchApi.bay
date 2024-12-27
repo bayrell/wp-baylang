@@ -1,0 +1,86 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Constructor.Backend.Api;
+
+use Runtime.fs;
+use Runtime.Exceptions.ApiError;
+use Runtime.Exceptions.ItemNotFound;
+use Runtime.Web.Annotations.ApiMethod;
+use Runtime.Widget.Crud.SearchApi;
+use BayLang.Constructor.Backend.ApiHook;
+use BayLang.Helper.Module;
+use BayLang.Helper.Project;
+
+
+class ModuleSearchApi extends SearchApi
+{
+	Project project = null;
+	
+	
+	/**
+	 * Returns api name
+	 */
+	static string getApiName() => "baylang.constructor.module::search";
+	
+	
+	/**
+	 * Action search
+	 */
+	@ApiMethod
+	async void actionSearch()
+	{
+		/* Get project */
+		string project_id = this.post_data["foreign_key", "project_id"];
+		this.project = await ApiHook::getProject(project_id);
+		if (not this.project)
+		{
+			throw new ApiError(new ItemNotFound(project_id, "Project"));
+		}
+		
+		/* Load modules */
+		await this.project.load();
+		
+		/* Get modules */
+		Collection items = this.project.modules.transition( Module (Module item) => item );
+		
+		/* Sort modules */
+		items = items.sort(
+			int (Module a, Module b)
+			{
+				return rs::compare(a.getName(), b.getName());
+			}
+		);
+		
+		/* Filter items */
+		items = items.map(
+			Dict (Module module) => {
+				"id": module.getName(),
+			}
+		);
+		
+		/* Set result */
+		this.success({
+			"data": {
+				"items": items,
+				"page": 0,
+				"pages": 1,
+			}
+		})
+	}
+}

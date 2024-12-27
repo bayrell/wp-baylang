@@ -1,0 +1,505 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.ORM;
+
+use Runtime.lib;
+use Runtime.BaseObject;
+use Runtime.BaseStruct;
+use Runtime.MapInterface;
+use Runtime.Exceptions.ItemNotFound;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Cursor;
+use Runtime.ORM.DatabaseSchema;
+use Runtime.ORM.Provider;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryFilter;
+use Runtime.ORM.Annotations.AutoIncrement;
+use Runtime.ORM.Annotations.BaseType;
+use Runtime.ORM.Annotations.ForeignKey;
+use Runtime.ORM.Annotations.Primary;
+
+
+class Relation extends BaseObject implements MapInterface
+{
+	protected string table_name = "";
+	protected Map old_data = null;
+	protected Map new_data = new Map;
+	
+	
+	/**
+	 * Constructor
+	 */
+	void constructor(string table_name)
+	{
+		parent();
+		
+		if (table_name == "")
+		{
+			throw new RuntimeException("Table name is empty");
+		}
+		this.table_name = table_name;
+	}
+	
+	
+	/**
+	 * Returns table name
+	 */
+	string getTableName() => this.table_name;
+	
+	
+	/**
+	 * Create Instance of class
+	 */
+	pure Relation newInstance(string table_name, Dict data = null)
+	{
+		Relation instance = rtl::newInstance(static::getClassName(), [table_name]);
+		instance._setNewData(data);
+		return instance;
+	}
+	
+	
+	/**
+	 * Convert to model
+	 */
+	BaseStruct toModel(string class_name) =>
+		rtl::newInstance(class_name, [ this.toMap() ])
+	;
+	
+	
+	/**
+	 * Convert to Dict
+	 */
+	Map all() => this.new_data.clone();
+	Map toMap() => this.new_data.clone();
+	Map intersect(Collection fields = null) => this.new_data.intersect(fields);
+	
+	
+	/**
+	 * Returns table annotations
+	 */
+	pure memorize Collection<BaseStruct> getAnotations(string table_name)
+	{
+		Provider provider = @.provider(classof Provider);
+		return provider.getAnotations(table_name);
+	}
+	
+	
+	/**
+	 * To database
+	 */
+	static Dict toDatabase(string table_name, Connection conn, Dict data, bool is_update)
+	{
+		if (data == null) return null;
+		
+		Collection<BaseStruct> annotations = static::getAnotations(table_name);
+		for (int i=0; i<annotations.count(); i++)
+		{
+			BaseStruct annotation = annotations[i];
+			if (annotation instanceof BaseType)
+			{
+				data = annotation.toDatabase(conn, data, is_update);
+			}
+		}
+		
+		return data;
+	}
+	
+	
+	/**
+	 * From database
+	 */
+	static Dict fromDatabase(string table_name, Connection conn, Dict data)
+	{
+		if (data == null) return null;
+		
+		Collection<BaseStruct> annotations = static::getAnotations(table_name);
+		for (int i=0; i<annotations.count(); i++)
+		{
+			BaseStruct annotation = annotations[i];
+			if (annotation instanceof BaseType)
+			{
+				data = annotation.fromDatabase(conn, data);
+			}
+		}
+		
+		return data;
+	}
+	
+	
+	/**
+	 * Returns true if primary key is auto increment
+	 */
+	pure memorize AutoIncrement getAutoIncrement(string table_name)
+	{
+		Collection<BaseStruct> annotations = static::getAnotations(table_name);
+		AutoIncrement annotation = annotations.findItem( lib::isInstance(classof AutoIncrement) );
+		return annotation;
+	}
+	
+	
+	/**
+	 * Returns primary keys of table
+	 */
+	pure memorize Collection<string> getPrimaryKeys(string table_name)
+	{
+		/* Get primary annotation */
+		Collection<BaseStruct> annotations = static::getAnotations(table_name);
+		Primary primary = annotations.findItem( lib::isInstance(classof Primary) );
+		
+		if (primary == null) return null;
+		return primary.keys;
+	}
+	
+	
+	/**
+	 * Returns primary data
+	 */
+	pure Dict getPrimaryFromData(string table_name, Dict data)
+	{
+		/* Get primary annotation */
+		Collection<string> primary_keys = static::getPrimaryKeys(table_name);
+		
+		/* Check if primary keys if exists */
+		if (primary_keys == null)
+		{
+			throw new ItemNotFound(table_name, "Primary keys");
+		}
+		
+		/* Intersect values */
+		return data ? data.intersect(primary_keys, false) : {};
+	}
+	
+	
+	/**
+	 * Returns primary filter by data
+	 */
+	pure Vector<QueryFilter> getPrimaryFilter(string table_name, Dict data, bool use_alias = true)
+	{
+		Dict pk = static::getPrimaryFromData(table_name, data);
+		Vector filter = pk.transition(
+			QueryFilter (var value, string key) use (table_name, use_alias)
+			{
+				QueryFilter item = new QueryFilter;
+				item.key = key;
+				item.op = "=";
+				item.value = value;
+				if (use_alias)
+				{
+					item.key = table_name ~ "." ~ key;
+				}
+				return item;
+			}
+		);
+		return filter;
+	}
+	
+	
+	/**
+	 * Returns primary key
+	 */
+	public Map getPrimaryKey()
+	{
+		return static::getPrimaryFromData(this.table_name, this.new_data);
+	}
+	
+	
+	/**
+	 * Returns primary key
+	 */
+	public Map pk()
+	{
+		return static::getPrimaryFromData(this.table_name, this.new_data);
+	}
+	
+	
+	/**
+	 * Get updated data
+	 */
+	Map getUpdatedData()
+	{
+		if (this.new_data == null) return {};
+		
+		Map res = new Map;
+		
+		Collection new_data_keys = this.new_data.keys();
+		for (int i=0; i<new_data_keys.count(); i++)
+		{
+			string field_name = new_data_keys[i];
+			var new_value = this.new_data[field_name];
+			
+			if (this.old_data == null)
+			{
+				res.set(field_name, new_value);
+			}
+			else
+			{
+				if (not this.old_data.has(field_name))
+				{
+					res.set(field_name, new_value);
+				}
+				else
+				{
+					var old_value = this.old_data[field_name];
+					if (new_value != old_value)
+					{
+						res.set(field_name, new_value);
+					}
+				}
+			}
+		}
+		
+		return res;
+	}
+	
+	
+	/**
+	 * Set new data
+	 */
+	protected void _setNewData(Dict data = null)
+	{
+		this.old_data = data != null ? new Map(data) : null;
+		this.new_data = data != null ? new Map(data) : new Map();
+	}
+	
+	
+	/**
+	 * Returns true if object is new
+	 */
+	bool isNew()
+	{
+		return this.old_data ? false : true;
+	}
+	
+	
+	/**
+	 * Returns true if data has loaded from database
+	 */
+	bool isUpdate()
+	{
+		return this.old_data ? true : false;
+	}
+	
+	
+	/**
+	 * Returns true if model is changed
+	 */
+	bool isChanged()
+	{
+		Dict d1 = this.old_data;
+		Dict d2 = this.new_data;
+		
+		if (d1 == null) return true;
+		if (d2 == null) return true;
+		
+		Collection d1_keys = d1.keys();
+		Collection d2_keys = d2.keys();
+		
+		for (int i=0; i<d1_keys.count(); i++)
+		{
+			string key1 = d1_keys.get(i);
+			
+			if (not d2.has(key1))
+			{
+				return true;
+			}
+			
+			var value1 = d1.get(key1);
+			var value2 = d2.get(key1);
+			
+			if (value1 != value2)
+			{
+				return true;
+			}
+		}
+		
+		for (int i=0; i<d2_keys.count(); i++)
+		{
+			string key2 = d2_keys.get(i);
+			
+			if (not d1.has(key2))
+			{
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	
+	/**
+	 * Update data
+	 */
+	async void updateData(Dict item)
+	{
+		item.each(
+			void (var value, string key)
+			{
+				this.set(key, value);
+			}
+		);
+	}
+	
+	
+	/**
+	 * Save model
+	 */
+	async void save(Connection conn, Dict params = null)
+	{
+		/* Call before save */
+		await @.callHookAsync(DatabaseSchema::SAVE_BEFORE, {
+			"item": this,
+		});
+		
+		bool is_update = this.isUpdate();
+		Dict updated_data = this.getUpdatedData();
+		
+		if (is_update)
+		{
+			Collection updated_data_keys = updated_data.keys();
+			if (updated_data_keys.count() > 0)
+			{
+				Collection filter = static::getPrimaryFilter(this.table_name, this.old_data, false);
+				if (filter.count() > 0)
+				{
+					Dict db_updated_data = static::toDatabase
+						(this.table_name, conn, updated_data, is_update);
+					
+					await conn.update(
+						this.table_name,
+						filter,
+						db_updated_data,
+						params
+					);
+				}
+				else
+				{
+					throw new RuntimeException("Primary key does not exists in " ~ this.table_name);
+				}
+				
+				for (int i=0; i<updated_data_keys.count(); i++)
+				{
+					string field_name = updated_data_keys[i];
+					this.old_data.set(field_name, updated_data[field_name]);
+				}
+			}
+		}
+		else
+		{
+			Dict db_updated_data = static::toDatabase
+				(this.table_name, conn, updated_data, is_update);
+			
+			var last_id = await conn.insert(
+				this.table_name,
+				db_updated_data,
+				true,
+				params
+			);
+			
+			this._setNewData(this.new_data);
+			
+			AutoIncrement auto_increment = static::getAutoIncrement(this.table_name);
+			if (auto_increment and auto_increment.name)
+			{
+				this.old_data.set(auto_increment.name, last_id);
+				this.new_data.set(auto_increment.name, last_id);
+			}
+		}
+		
+		/* Call before after */
+		await @.callHookAsync(DatabaseSchema::SAVE_AFTER, {
+			"item": this,
+		});
+	}
+	
+	
+	/**
+	 * Delete model
+	 */
+	async Relation delete(Connection conn, Dict params = null)
+	{
+		if (this.isNew())
+		{
+			return;
+		}
+		
+		Collection filter = static::getPrimaryFilter(this.table_name, this.old_data, false);
+		
+		if (filter.count() > 0)
+		{
+			await conn.delete(
+				this.table_name,
+				filter,
+				params
+			);
+		}
+		else
+		{
+			throw new RuntimeException("Primary key does not exists in " ~ this.table_name);
+		}
+		
+		return this;
+	}
+	
+	
+	/**
+	 * Refresh model from database
+	 */
+	async Relation refresh(Connection conn, Dict params = null)
+	{
+		Dict item = null;
+		Collection<QueryFilter> filter = static::getPrimaryFilter(
+			this.table_name, this.old_data, false
+		);
+		
+		if (filter.count() > 0)
+		{
+			Query q = new Query()
+				.select([this.table_name ~ ".*"])
+				.from(this.table_name)
+				.setFilter(filter)
+				.limit(1)
+			;
+			
+			item = await conn.fetchOne(q, params);
+		}
+		
+		if (item)
+		{
+			this._setNewData(item.toDict());
+		}
+		
+		return this;
+	}
+	
+	
+	/**
+	 * Returns value
+	 */
+	var get(string name, var def_value = null) => this.new_data.get(name, def_value);
+	
+	
+	/**
+	 * Set new value
+	 */
+	void set(string name, var value)
+	{
+		this.new_data.set(name, value);
+	}
+}

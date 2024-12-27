@@ -1,0 +1,174 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime;
+
+use Runtime.Vector;
+
+
+class re
+{
+	/**
+	 * Разбивает строку на подстроки
+	 * @param string delimiter - regular expression
+	 * @param string s - строка, которую нужно разбить
+	 * @param integer limit - ограничение
+	 * @return Vector<string>
+	 */
+	pure string split(string delimiter, string s, int limit = -1)
+	{
+		#switch
+		#case ifcode PHP then
+		
+		$arr = preg_split("/" . $delimiter . "/", $s, $limit);
+		return Vector::from($arr);
+		
+		#case ifcode JAVASCRIPT then
+		
+		var _rtl = use("Runtime.rtl");
+		var _Vector = use("Runtime.Vector");
+		
+		var arr = null;
+		var delimiter = new RegExp(delimiter, "g");
+		if (!_rtl.exists(limit))
+		{
+			arr = s.split(delimiter);
+		}
+		else
+		{
+			arr = s.split(delimiter, limit);
+		}
+		return _Vector.from(arr);
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Search regular expression
+	 * @param string r regular expression
+	 * @param string s string
+	 * @return bool
+	 */
+	static bool match(string r, string s, string pattern="")
+	{
+		#switch
+		
+		#case ifcode PHP then
+		
+		$matches = [];
+		if (preg_match("/" . $r . "/" . $pattern, $s, $matches))
+		{
+			return $matches != null;
+		}
+		
+		return false;
+		
+		#case ifcode JAVASCRIPT then
+		
+		pattern = "g" + pattern;
+		return s.match( new RegExp(r, pattern) ) != null;
+		
+		#endswitch
+	}
+	
+	
+	/**
+	 * Search regular expression
+	 * @param string r regular expression
+	 * @param string s string
+	 * @return Vector result
+	 */
+	static Vector<string> matchAll(string r, string s, string pattern="")
+	{
+		#switch
+		
+		#case ifcode PHP then
+		
+		$matches = [];
+		if (preg_match_all("/" . $r . "/" . $pattern, $s, $matches))
+		{
+			$res = [];
+			foreach ($matches as $index1 => $obj1)
+			{
+				foreach ($obj1 as $index2 => $val)
+				{
+					if (!isset($res[$index2])) $res[$index2] = [];
+					$res[$index2][$index1] = $val;
+				}
+			}
+			$res = array_map
+			(
+				function ($item) { return Vector::from($item); },
+				$res
+			);
+			return Vector::from($res);
+		}
+		
+		return null;
+		
+		#case ifcode JAVASCRIPT then
+		
+		pattern = "g" + pattern;
+		
+		var arr = [];
+		var r = new RegExp(r, pattern);
+		
+		if (s.matchAll == undefined)
+		{
+			while ((m = r.exec(s)) !== null)
+			{
+				arr.push(m);
+			}
+		}
+		else arr = [...s.matchAll(r)];
+		
+		if (arr.length == 0) return null;
+		return Runtime.Vector.from( arr.map( (v) => Runtime.Vector.from(v) ) );
+		
+		#endswitch
+		
+		return null;
+	}
+	
+	
+	/**
+	 * Replace with regular expression
+	 * @param string r - regular expression
+	 * @param string replace - new value
+	 * @param string s - replaceable string
+	 * @return string
+	 */
+	static string replace(var r, string replace, string s, string pattern="")
+	{
+		#switch
+		
+		#case ifcode PHP then
+		return preg_replace("/" . $r . "/" . $pattern, $replace, $s);
+		
+		#case ifcode ES6 then
+		pattern = "g" + pattern;
+		return s.replace(new RegExp(r, pattern), replace);
+		
+		#case ifcode NODEJS then
+		pattern = "g" + pattern;
+		return s.replace(new RegExp(r, pattern), replace);
+		
+		#endswitch
+	}
+}

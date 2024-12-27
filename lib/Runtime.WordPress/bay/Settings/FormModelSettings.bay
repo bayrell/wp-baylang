@@ -1,0 +1,216 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Settings;
+
+use Runtime.lib;
+use Runtime.BaseObject;
+use Runtime.Web.ApiResult;
+use Runtime.Web.BaseModel;
+use Runtime.Web.RenderContainer;
+use BayLang.Constructor.Frontend.Editor.Parameters.Parameter;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterFactoryModel;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel;
+use BayLang.Constructor.WidgetPage.ParameterFactory;
+use BayLang.Constructor.WidgetPage.WidgetSettingsInterface;
+
+
+class FormModelSettings extends BaseObject implements WidgetSettingsInterface
+{
+	Collection options = null;
+	
+	
+	/**
+	 * Returns widget name
+	 */
+	string getWidgetName() => "";
+	
+	
+	/**
+	 * Returns alias name
+	 */
+	string getAliasName() => "WP_FormModel";
+	
+	
+	/**
+	 * Returns component name
+	 */
+	string getComponentName() => "";
+	
+	
+	/**
+	 * Returns model name
+	 */
+	string getModelName() => "Runtime.WordPress.Components.FormModel";
+	
+	
+	/**
+	 * Returns selector name
+	 */
+	string getSelectorName() => "form";
+	
+	
+	/**
+	 * Returns group name
+	 */
+	string getGroupName() => "widget";
+	
+	
+	/**
+	 * Returns true if model
+	 */
+	bool isModel() => true;
+	
+	
+	/**
+	 * Returns true if is widget settings
+	 */
+	bool checkWidget(var widget)
+	{
+		if (not widget.isComponent()) return false;
+		if (widget.model_class_name != this.getModelName()) return false;
+		return true;
+	}
+	
+	
+	/**
+	 * Can insert widget
+	 */
+	bool canInsert(WidgetSettingsInterface widget)
+	{
+		return false;
+	}
+	
+	
+	/**
+	 * Returns params
+	 */
+	Collection<ParameterFactory> getParams() =>
+	[
+		new ParameterFactory
+		(
+			classof ParameterModel,
+			{
+				"name": "form_name",
+				"label": "Form name",
+				"component": "Runtime.Widget.Select",
+				"default": "",
+				"props": {
+					"options": [
+					],
+				}
+			}
+		),
+	];
+	
+	
+	/**
+	 * On change
+	 */
+	bool onChange(BaseModel model, ParameterModel param)
+	{
+		/* Change form name */
+		if (param.name == "form_name")
+		{
+			model.form_name = param.value;
+			model.loadForm();
+			return true;
+		}
+		return false;
+	}
+	
+	
+	/**
+	 * Load form name options
+	 */
+	async void loadOptions(var runtime, var widget)
+	{
+		if (this.options) return;
+		
+		Dict data = ParameterFactory::copy(runtime, {
+			"api_name": "admin.wordpress.forms.settings::search",
+			"method_name": "actionSearch",
+			"data": {
+				"limit": "1000",
+			},
+		});
+		ApiResult result = await widget.page_model.layout.callApi(data);
+		if (result.isSuccess())
+		{
+			Dict result_data = ParameterFactory::restore(runtime, result.data);
+			this.options = result_data.get("items").map(Dict (Dict item) => {
+				"key": item.get("api_name"),
+				"value": item.get("name"),
+			});
+		}
+		else
+		{
+			this.options = [];
+		}
+	}
+	
+	
+	/**
+	 * Setup widget
+	 */
+	async void setup(var runtime, var widget)
+	{
+		/* Load options */
+		await this.loadOptions(runtime, widget);
+		
+		/* Add options to widget */
+		if (this.options)
+		{
+			Collection options = ParameterFactory::copy(runtime, this.options);
+			ParameterModel form_name_param = widget.params.findItem(
+				bool (Parameter param) => param.name == "form_name"
+			);
+			if (form_name_param)
+			{
+				form_name_param.props.set("options", options);
+			}
+		}
+	}
+	
+	
+	/**
+	 * Returns default template
+	 */
+	Dict<fn> getDefaultTemplate() =>
+	{
+		"default": Dict () =>
+		{
+			"modules":
+			[
+				"Runtime.Entity.Factory",
+			],
+			"model": rs::join("\n", [
+				"this.form = this.addWidget(classof WP_FormModel, {",
+				"\t'widget_name': 'form',",
+				"\t'form_name': 'default',",
+				"\t'submit_button':",
+				"\t{",
+				"\t\t'text': 'Отправить заявку',",
+				"\t},",
+				"});",
+			])
+		}
+	};
+}

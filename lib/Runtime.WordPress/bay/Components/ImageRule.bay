@@ -1,0 +1,162 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Components;
+
+use Runtime.lib;
+use Runtime.BaseStruct;
+use Runtime.DateTime;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Cursor;
+use Runtime.ORM.Query;
+use Runtime.Web.ApiResult;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.Crud.Rules.CrudRule;
+use Runtime.Widget.Crud.CrudPageApi;
+
+
+struct ImageRule extends CrudRule
+{
+	string name = "";
+	string key = "";
+	string db_prefix = "prefix";
+	string table_prefix = "";
+	
+	
+	/**
+	 * Search after
+	 */
+	void onSearchAfter(CrudPageApi api)
+	{
+		string action = api.action;
+		Collection<Dict> items = api.items;
+		
+		/* Get primary keys */
+		Collection<int> pk_ids = items
+			.map(lib::attr(this.key))
+			.filter(lib::equalNot(null))
+		;
+		
+		/* Get connection */
+		Connection conn = Connection::get(this.db_prefix);
+		
+		/* Get images metadata */
+		Query q = new Query()
+			.select(this.table_prefix ~ "postmeta")
+			.addRawField("*")
+			.where("meta_key", "=", ["_wp_attachment_metadata", "_wp_attached_file"])
+			.where("post_id", "=", pk_ids)
+		;
+		Dict images_metadata = await conn.fetchAll(q);
+		
+		/* Get post */
+		Query q = new Query()
+			.select(this.table_prefix ~ "posts")
+			.addRawField("*")
+			.where("ID", "=", pk_ids)
+		;
+		Dict posts = await conn.fetchAll(q);
+		
+		/* Upload dir */
+		string upload_url = "/wp-content/uploads";
+		
+		/* Map items */
+		items = items.map(
+			Dict (Dict item) use (images_metadata, posts, upload_url)
+			{
+				int image_id = item.get(this.key);
+				
+				/* Get post */
+				string post_time = "";
+				Dict post = posts.findItem(lib::equalAttr("ID", image_id));
+				if (post)
+				{
+					DateTime d = DateTime::fromString(post["post_modified_gmt"]);
+					post_time = d.timestamp();
+				}
+				
+				Dict res = null;
+				Dict obj_file = images_metadata.findItem(
+					bool (Dict item) use (image_id) =>
+						item["meta_key"] == "_wp_attached_file" and
+						item["post_id"] == image_id
+				);
+				Dict obj_metadata = images_metadata.findItem(
+					bool (Dict item) use (image_id) =>
+						item["meta_key"] == "_wp_attachment_metadata" and
+						item["post_id"] == image_id
+				);
+				if (obj_file and obj_metadata)
+				{
+					obj_metadata = obj_metadata.get("meta_value");
+					obj_file = obj_file.get("meta_value");
+					
+					string image_url_after = "?_=" ~ post_time;
+					
+					#ifcode PHP then
+					$obj_metadata = @unserialize($obj_metadata);
+					if ($obj_metadata)
+					{
+						$image_dir_name = dirname($obj_file);
+						$image_dir_name = $upload_url . "/" . $image_dir_name;
+						$sizes = $obj_metadata["sizes"];
+						
+						foreach ($sizes as $key => &$size)
+						{
+							$size = \Runtime\Dict::from([
+								"size" => $key,
+								"file" => $image_dir_name . "/" .
+									basename($size["file"]) . $image_url_after,
+								"width" => $size["width"],
+								"height" => $size["height"],
+								"mime_type" => $size["mime-type"],
+							]);
+						}
+						
+						$sizes = \Runtime\Dict::from($sizes);
+						$res = \Runtime\Dict::from([
+							"id" => $image_id,
+							"width" => $obj_metadata["width"],
+							"height" => $obj_metadata["height"],
+							"file" => $image_dir_name . "/" .
+								basename($obj_metadata["file"]) . $image_url_after,
+							"sizes" => $sizes,
+						]);
+					}
+					#endif
+				}
+				
+				item.set(this.name, res);
+				
+				return item;
+			}
+		);
+		
+		/* Set api items */
+		api.items = items;
+	}
+	
+	
+	/**
+	 * Save after
+	 */
+	void onSaveAfter(RenderContainer container)
+	{
+		static::onSearchAfter(container);
+	}
+}

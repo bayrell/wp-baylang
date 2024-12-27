@@ -1,0 +1,157 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.ORM.MySQL;
+
+use Runtime.ORM.Cursor;
+use Runtime.ORM.Query;
+use Runtime.ORM.MySQL.SQLBuilder;
+
+
+class CursorMySQL extends Cursor
+{
+	var st = null;
+	var q = null;
+	int found_rows = -1;
+		
+	
+	/**
+	 * Returns found rows
+	 */
+	async int foundRows()
+	{
+		if (this.found_rows >= 0) return this.found_rows;
+		
+		if (not this.q)
+		{
+			return 0;
+		}
+		
+		if (not this.q._calc_found_rows)
+		{
+			return 0;
+		}
+		
+		Query q = this.q.copy()
+			.clearFields()
+			.addRawField('count(1) as c')
+			.limit(-1)
+			.start(-1)
+			.clearOrder()
+		;
+		
+		Cursor cursor = await this.conn.executeQuery(q);
+		
+		int res = await cursor.fetchVar('c');
+		await cursor.close();
+		
+		this.found_rows = res;
+		
+		return res;
+	}
+	
+	
+	/**
+	 * Returns affected rows
+	 */
+	async int affectedRows()
+	{
+		#ifcode PHP then
+		return $this->st->rowCount();
+		#endif
+		
+		return 0;
+	}
+	
+	
+	/**
+	 * Insert id
+	 */
+	async int lastInsertId()
+	{
+		#ifcode PHP then
+		return $this->conn->pdo->lastInsertId();
+		#endif
+		
+		return 0;
+	}
+	
+	
+	/**
+	 * Execute sql query
+	 */
+	async CursorMySQL executeSQL(SQLBuilder builder)
+	{
+		/* Get sql */
+		string sql = builder.getSQL();
+		Dict data = builder.getData();
+		
+		#ifcode PHP then
+		
+		if ($data instanceof \Runtime\Dict)
+		{
+			$data = $data->_map;
+		}
+		
+		/* $data = \Runtime\rtl::PrimitiveToNative($ctx, $data); */
+		$this->st = $this->conn->pdo->prepare(
+			$sql, array(\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY)
+		);
+		$this->st->execute($data);
+		
+		#endif
+		
+		return this;
+	}
+	
+	
+	/**
+	 * Close cursor
+	 */
+	async Cursor close()
+	{
+		#ifcode PHP then
+		
+		if ($this->st) $this->st->closeCursor();
+		$this->st = null;
+		
+		#endif
+		
+		return this;
+	}
+	
+	
+	/**
+	 * Fetch next row
+	 */
+	async var fetchMap()
+	{
+		#switch
+		#case ifcode PHP then
+		
+		if ($this->st == null) return null;
+		
+		$row = $this->st->fetch(\PDO::FETCH_ASSOC);
+		$row = ($row != null) ? \Runtime\Map::from($row) : null;
+		
+		return $row;
+		#endswitch
+		
+		return null;
+	}
+}

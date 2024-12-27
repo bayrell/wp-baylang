@@ -1,0 +1,553 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.ORM;
+
+use Runtime.lib;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.BaseObject;
+use Runtime.BaseStruct;
+use Runtime.Math;
+use Runtime.ORM.Annotations.BaseType;
+use Runtime.ORM.Annotations.Primary;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Cursor;
+use Runtime.ORM.Driver;
+use Runtime.ORM.ForeignKey;
+use Runtime.ORM.Helper;
+use Runtime.ORM.Provider;
+use Runtime.ORM.QueryField;
+use Runtime.ORM.QueryFilter;
+use Runtime.ORM.Record;
+use Runtime.ORM.StructBuilder;
+
+
+class Query extends BaseObject
+{
+	static const string QUERY_RAW = "raw";
+	static const string QUERY_SELECT = "select";
+	static const string QUERY_INSERT = "insert";
+	static const string QUERY_UPDATE = "update";
+	static const string QUERY_DELETE = "delete";
+	static const string QUERY_INSERT_OR_UPDATE = "insert_or_update";
+	
+	string _class_name_relation = "";
+	string _kind = "";
+	string _table_name = "";
+	Vector<string> _fields = new Vector();
+	Vector<Dict> _join = new Vector();
+	Vector<Collection> _order = new Vector();
+	Vector<QueryFilter> _filter = new Vector();
+	string _sql = "";
+	Map _data = new Map();
+	int _start = 0;
+	int _limit = -1;
+	bool _debug = false;
+	bool _distinct = false;
+	bool _calc_found_rows = false;
+	Dict _db_params = null;
+	Provider _provider = null;
+	
+	
+	/**
+	 * Constructor
+	 */
+	void constructor()
+	{
+		parent();
+		this._provider = @.provider(classof Provider);
+	}
+	
+	
+	/**
+	 * Copy query
+	 */
+	Query copy()
+	{
+		Query q = new Query();
+		q._class_name_relation = this._class_name_relation;
+		q._kind = this._kind;
+		q._table_name = this._table_name;
+		q._fields = this._fields.toVector();
+		q._join = this._join.toVector();
+		q._order = this._order.toVector();
+		q._filter = this._filter.toVector();
+		q._sql = this._sql;
+		q._data = this._data.toMap();
+		q._start = this._start;
+		q._limit = this._limit;
+		q._debug = this._debug;
+		q._distinct = this._distinct;
+		q._calc_found_rows = this._calc_found_rows;
+		q._db_params = this._db_params;
+		q._provider = this._provider;
+		return q;
+	}
+	
+	
+	/**
+	 * Setup db params
+	 */
+	Query setDatabaseParams(Dict db_params = null)
+	{
+		this._db_params = db_params;
+		return this;
+	}
+	
+	
+	/**
+	 * Calc found rows
+	 */
+	Query raw(string sql, Dict data)
+	{
+		this._kind = static::QUERY_RAW;
+		this._sql = sql;
+		this._data = data.toMap();
+		return this;
+	}
+	
+	
+	/**
+	 * Calc found rows
+	 */
+	Query calcFoundRows(bool value = true)
+	{
+		this._calc_found_rows = value;
+		return this;
+	}
+	
+	
+	/**
+	 * Set distinct
+	 */
+	Query distinct(bool value = true)
+	{
+		this._distinct = value;
+		return this;
+	}
+	
+	
+	/**
+	 * Set debug log
+	 */
+	Query debug(bool value = true)
+	{
+		this._debug = value;
+		return this;
+	}
+	
+	
+	/**
+	 * Select query
+	 */
+	Query select(Collection fields = null)
+	{
+		this._kind = static::QUERY_SELECT;
+		if (fields) this.fields(fields);
+		return this;
+	}
+	
+	
+	/**
+	 * Set table
+	 */
+	Query table(string table_name = "")
+	{
+		this._table_name = table_name != "" ? table_name : this._table_name;
+		return this;
+	}
+	
+	
+	/**
+	 * Set table
+	 */
+	Query from(string table_name = "")
+	{
+		this._table_name = table_name != "" ? table_name : this._table_name;
+		return this;
+	}
+	
+	
+	/**
+	 * Insert query
+	 */
+	Query insert(string table_name = "")
+	{
+		this._kind = static::QUERY_INSERT;
+		this._table_name = table_name != "" ? table_name : this._table_name;
+		return this;
+	}
+	
+	
+	/**
+	 * Select query
+	 */
+	Query update(string table_name = "")
+	{
+		this._kind = static::QUERY_UPDATE;
+		this._table_name = table_name != "" ? table_name : this._table_name;
+		return this;
+	}
+	
+	
+	/**
+	 * Delete query
+	 */
+	Query delete(string table_name = "")
+	{
+		this._kind = static::QUERY_DELETE;
+		this._table_name = table_name != "" ? table_name : this._table_name;
+		return this;
+	}
+	
+	
+	/**
+	 * Set kind
+	 */
+	Query kind(string kind)
+	{
+		this._kind = kind;
+		return this;
+	}
+	
+	
+	/**
+	 * Clear fields
+	 */
+	Query clearFields()
+	{
+		this._fields = new Vector();
+		return this;
+	}
+	
+	
+	/**
+	 * Set fields
+	 */
+	Query fields(Collection fields)
+	{
+		this._fields = new Vector();
+		for (int i=0; i<fields.count(); i++)
+		{
+			string field_name = fields[i];
+			this.addField(field_name);
+		}
+		return this;
+	}
+	
+	
+	/**
+	 * Add table fields
+	 */
+	Query addTableFields(string table_name)
+	{
+		Collection<BaseStruct> annotations = this._provider.getAnotations(table_name);
+		for (int i=0; i<annotations.count(); i++)
+		{
+			BaseStruct annotation = annotations[i];
+			if (annotation instanceof BaseType)
+			{
+				QueryField field = new QueryField();
+				field.annotation = annotation;
+				field.field_name = annotation.name;
+				field.table_name = table_name;
+				this._fields.append(field);
+			}
+		}
+	}
+	
+	
+	/**
+	 * Add field
+	 */
+	Query addField(string field_name)
+	{
+		if (field_name instanceof QueryField or field_name instanceof QueryFilter)
+		{
+			this._fields.append(field_name);
+			return this;
+		}
+		
+		field_name = rs::trim(field_name);
+		
+		Collection res1 = rs::split(" as ", field_name);
+		Collection res2 = rs::split(".", res1[0]);
+		
+		if (res2.count() > 1 and res2.get(1) == "*")
+		{
+			string table_name = res2.get(0);
+			Collection<BaseStruct> annotations = this._provider.getAnotations(table_name);
+			for (int i=0; i<annotations.count(); i++)
+			{
+				BaseStruct annotation = annotations[i];
+				if (annotation instanceof BaseType)
+				{
+					QueryField field = new QueryField();
+					field.annotation = annotation;
+					field.field_name = annotation.name;
+					field.table_name = table_name;
+					this._fields.append(field);
+				}
+			}
+		}
+		
+		else
+		{
+			QueryField field = QueryField::fromString(field_name);
+			this._fields.append(field);
+		}
+		
+		return this;
+	}
+	
+	
+	/**
+	 * Add raw field
+	 */
+	Query addRawField(string field_name)
+	{
+		this._fields.append(field_name);
+		return this;
+	}
+	
+	
+	/**
+	 * Add fields
+	 */
+	Query addFields(Collection<string> fields)
+	{
+		for (int i=0; i<fields.count(); i++)
+		{
+			string field_name = fields[i];
+			this.addField(field_name);
+		}
+		return this;
+	}
+	
+	
+	/**
+	 * Set value
+	 */
+	Query value(string key, string value)
+	{
+		this._data.set(key, value);
+		return this;
+	}
+	
+	
+	/**
+	 * Set data
+	 */
+	Query values(Dict data)
+	{
+		this._data = data.toMap();
+		return this;
+	}
+	
+	
+	/**
+	 * Set data
+	 */
+	Query data(Dict data)
+	{
+		this._data = data.toMap();
+		return this;
+	}
+	
+	
+	/**
+	 * Add page
+	 */
+	Query page(int page, int limit = null)
+	{
+		int limit = (limit > 0) ? limit : this._limit;
+		int start = page * limit;
+		if (start < 0) start = 0;
+		
+		this._start = start;
+		this._limit = (limit > 0) ? limit : this._limit;
+		return this;
+	}
+	
+	
+	/**
+	 * Set offset
+	 */
+	Query offset(int start)
+	{
+		this._start = start;
+		return this;
+	}
+	
+	
+	/**
+	 * Set start
+	 */
+	Query start(int start)
+	{
+		this._start = start;
+		return this;
+	}
+	
+	
+	/**
+	 * Set limit
+	 */
+	Query limit(int limit)
+	{
+		this._limit = limit;
+		return this;
+	}
+	
+	
+	/**
+	 * Returns page
+	 */
+	int getPage()
+	{
+		int limit = this._limit;
+		int offset = this._start;
+		if (limit <= 0) return 0;
+		if (offset <= 0) return 0;
+		return Math::floor(offset / limit);
+	}
+	
+	
+	/**
+	 * Returns pages
+	 */
+	int getPages(int rows)
+	{
+		int limit = this._limit;
+		if (limit <= 0) return 0;
+		return rows > 0 ? Math::floor((rows - 1) / limit) + 1 : 0;
+	}
+	
+	
+	/**
+	 * Clear order
+	 */
+	Query clearOrder()
+	{
+		this._order = new Vector;
+		return this;
+	}
+	
+	
+	/**
+	 * Set order
+	 */
+	Query orderBy(string name, string sort)
+	{
+		this._order.append([ name, sort ]);
+		return this;
+	}
+	
+	
+	/**
+	 * Add where
+	 */
+	Query where(string key, string op, var value)
+	{
+		QueryFilter filter = new QueryFilter;
+		filter.key = key;
+		filter.op = op;
+		filter.value = value;
+		this._filter.append(filter);
+		return this;
+	}
+	
+	
+	/**
+	 * Add filter
+	 */
+	Query setFilter(Collection<QueryFilter> filter)
+	{
+		this._filter = filter.toVector();
+		return this;
+	}
+	
+	
+	/**
+	 * Add filter
+	 */
+	Query addFilter(var filter)
+	{
+		if (filter instanceof QueryFilter)
+		{
+			this._filter.append(filter);
+		}
+		else if (filter instanceof Collection)
+		{
+			this._filter.appendItems(filter);
+		}
+		return this;
+	}
+	
+	
+	/**
+	 * Add or filter
+	 */
+	Query addOrFilter(Collection filter)
+	{
+		this._filter.append(["$or", null, filter]);
+		return this;
+	}
+	
+	
+	/**
+	 * Clear filter
+	 */
+	Query clearFilter()
+	{
+		this._filter = [];
+		return this;
+	}
+	
+	
+	/**
+	 * Inner join
+	 */
+	Query innerJoin(string table_name, Collection filter, string alias_name = "")
+	{
+		if (alias_name == "") alias_name = table_name;
+		this._join.append({
+			"kind": "join",
+			"alias_name": alias_name,
+			"table_name": table_name,
+			"filter": filter,
+		});
+		return this;
+	}
+	
+	
+	/**
+	 * Left join
+	 */
+	Query leftJoin(string table_name, Collection filter, string alias_name = "")
+	{
+		if (alias_name == "") alias_name = table_name;
+		this._join.append({
+			"kind": "left",
+			"alias_name": alias_name,
+			"table_name": table_name,
+			"filter": filter,
+		});
+		return this;
+	}
+}

@@ -1,0 +1,509 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Constructor.WidgetPage;
+
+use Runtime.lib;
+use Runtime.Web.ApiResult;
+use Runtime.Web.BaseLayoutModel;
+use Runtime.Web.BaseModel;
+use Runtime.Web.BasePageModel;
+use Runtime.Web.RenderContainer;
+use Runtime.Web.RenderProvider;
+use BayLang.OpCodes.BaseOpCode;
+use BayLang.OpCodes.OpDeclareClass;
+use BayLang.OpCodes.OpDeclareFunction;
+use BayLang.Constructor.WidgetPage.EditorProvider;
+use BayLang.Constructor.WidgetPage.WidgetPage;
+
+
+class WidgetPageModel extends BasePageModel
+{
+	string component = classof WidgetPage;
+	string current_widget_name = "";
+	var selected_box = null;
+	var selected_elem = null;
+	Collection<int> selected_path = null;
+	var widget_component = null;
+	BaseModel widget_model = null;
+	string widget_css = "";
+	Map components = {};
+	
+	#ifcode JAVASCRIPT then
+	var current_window = window;
+	#endif
+	
+	
+	/**
+	 * Is model based widget
+	 */
+	static bool isModelBased(string widget_name) => rs::substr(widget_name, -5) == "Model";
+	
+	 
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Get current widget name */
+		this.current_widget_name = this.layout.request_query.get("widget_name");
+		
+		/* Create model based widget */
+		if (static::isModelBased(this.current_widget_name))
+		{
+			this.widget_model = this.addWidget(
+				this.current_widget_name,
+				{
+					"widget_name": "widget_model",
+				}
+			);
+		}
+		
+		/* Create component based widget */
+		else
+		{
+			this.widget_model = this.addWidget(
+				classof BaseModel,
+				{
+					"component": this.current_widget_name,
+					"widget_name": "current_widget",
+				}
+			);
+		}
+		
+		/* Add event listeners */
+		RenderProvider provider = @.provider(classof RenderProvider);
+		provider.events.add("onBeforeUpdate", method this.updateComponent);
+		provider.events.add("onMounted", method this.addComponent);
+		provider.events.add("onUnmount", method this.removeComponent);
+		
+		#ifcode JAVASCRIPT then
+		window.addEventListener("message", (event) => { Vue.reactive(this).onPostMessage(event); });
+		#endif
+	}
+	
+	
+	/**
+	 * Returns EditPageModel
+	 */
+	BasePageModel getEditPageModel()
+	{
+		#ifdef BACKEND then
+		return null;
+		#endif
+		BasePageModel page_model = window.parent.app_layout.getPageModel();
+		string page_model_class_name = page_model::getClassName();
+		if (page_model_class_name != "BayLang.Constructor.Frontend.Editor.WidgetEditPageModel")
+		{
+			return null;
+		}
+		return page_model;
+	}
+	
+	
+	/**
+	 * Convert tree_path to widget_path
+	 */
+	Collection<int> convertTreeToWidgetPath(Collection<int> path) => path.insertIm(0, 0);
+	
+	
+	/**
+	 * Convert widget_path to tree_path
+	 */
+	Collection<int> convertWidgetToTreePath(Collection<int> path) => path
+		.map(int (string s) => rtl::toInt(s))
+		.slice(1)
+	;
+	
+	
+	/**
+	 * Select item
+	 */
+	void selectItem(Collection<int> path)
+	{
+		this.selected_path = path;
+		if (path == null) return;
+		
+		string widget_path_str = rs::join(".", this.convertTreeToWidgetPath(path));
+		var component = this.components.get(widget_path_str);
+		var elem;
+		
+		/* Setup component */
+		if (component)
+		{
+			#ifcode JAVASCRIPT then
+			elem = component.$el;
+			#endif
+		}
+		else
+		{
+			string selector = ".debug_component[data-widget-path=\"" ~ widget_path_str ~ "\"]";
+			elem = document.querySelector(selector);
+		}
+		
+		/* Setup element */
+		this.selected_elem = elem;
+		this.updateSelectedBox();
+	}
+	
+	
+	/**
+	 * Returns components
+	 */
+	Collection<string> getComponents()
+	{
+		if (not this.widget_model) return "";
+		if (not this.widget_model.component) return "";
+		Vector res = [];
+		Vector cache = {};
+		string component = this.widget_model.component;
+		Collection<string> components = BaseLayoutModel::_getRequiredComponents(
+			res, cache, [component]
+		);
+		return components;
+	}
+	
+	
+	/**
+	 * Add widget model
+	 */
+	void addWidgetModel(string widget_name, string content)
+	{
+		content = rs::substr(content, 5);
+		content = "fn_new = function (){ return this.widget_model." + content + "; };";
+		#ifcode JAVASCRIPT then
+		var fn_new = window.eval(content);
+		fn_new = fn_new.bind(this);
+		this.widget_model[widget_name] = fn_new();
+		#endif
+	}
+	
+	
+	/**
+	 * Build render function
+	 */
+	void buildRender(string render_name = "render")
+	{
+		var page_model = this.getEditPageModel();
+		if (not page_model) return;
+		
+		/* Get content */
+		string content = page_model.component_processor.buildRenderContent("render");
+		
+		/* log(content); */
+		this.widget_component.render = window.eval("fn_new = " + content + ";");
+		this.widget_component.reload();
+		
+		/* Update selected box */
+		RenderProvider::nextTick(void(){
+			this.selectItem(this.selected_path);
+			this.updateSelectedBox();
+		});
+		
+		/* Update selected box */
+		window.setTimeout(void (){ this.updateSelectedBox(); }, 10);
+	}
+	
+	
+	/**
+	 * Build CSS
+	 */
+	void buildCSS()
+	{
+		var page_model = this.getEditPageModel();
+		if (not page_model) return;
+		
+		/* Get css content */
+		Vector items = [];
+		items.push("var content = \"\";");
+		items.appendItems(
+			page_model.styles.getCSS().map(
+				string (string s) => "content += Runtime.rtl.toStr(" ~ s ~ ");"
+			)
+		);
+		items.push("return content;");
+		string content = "fn_new = function (){" ~ rs::join("\n", items) ~ "};";
+		#ifcode JAVASCRIPT then
+		var fn_new = window.eval(content);
+		fn_new = fn_new.bind(window.Runtime.Web.Component);
+		this.widget_css = fn_new();
+		#endif
+		
+		/* Update selected box */
+		RenderProvider::nextTick(void(){
+			this.updateSelectedBox();
+		});
+	}
+	
+	
+	/**
+	 * Build global CSS
+	 */
+	void buildGlobalCSS()
+	{
+		var page_model = this.getEditPageModel();
+		if (not page_model) return;
+		
+		/* Get components */
+		Collection<string> components = page_model.component_processor.getComponents();
+		components = this.layout.getComponents(components);
+		components.removeValue(this.widget_model.component);
+		string css = this.layout::getCss(components);
+		
+		/* Update style CSS */
+		var style_element = document.querySelector("style.components");
+		style_element.innerText = css;
+	}
+	
+	
+	/**
+	 * Post message event
+	 */
+	void onPostMessage(var event)
+	{
+		if (not event.data) return;
+		string name = event.data.name;
+		if (name == "add_widget_model")
+		{
+			this.addWidgetModel(event.data.widget, event.data.content);
+		}
+		else if (name == "update_css")
+		{
+			this.buildCSS();
+		}
+		else if (name == "update_global_css")
+		{
+			this.buildGlobalCSS();
+		}
+		else if (name == "update_render")
+		{
+			this.buildRender(event.data.render);
+		}
+		else if (name == "update_selected_box")
+		{
+			this.updateSelectedBox();
+		}
+		else if (name == "select_item")
+		{
+			Collection<int> path = rs::split(".", event.data.path);
+			path = path.map(int (string item) => (int)item);
+			this.selectItem(path);
+		}
+	}
+	
+	
+	/**
+	 * Send message
+	 */
+	void sendMessage(Dict data)
+	{
+		window.parent.postMessage(data.toObject());
+	}
+	
+	
+	/**
+	 * Send loaded
+	 */
+	void sendAppLoaded()
+	{
+		this.sendMessage({
+			"name": "app_loaded",
+		});
+	}
+	
+	
+	/**
+	 * Send add widget
+	 */
+	void sendAddWidget(Collection<int> path, string kind)
+	{
+		this.sendMessage({
+			"name": "add_widget",
+			"path": path ? rs::join(".", path) : null,
+			"kind": kind,
+		});
+	}
+	
+	
+	/**
+	 * Send move widget
+	 */
+	void sendMoveWidget(Collection<int> path, string kind)
+	{
+		this.sendMessage({
+			"name": "move_widget",
+			"path": path ? rs::join(".", path) : null,
+			"kind": kind,
+		});
+	}
+	
+	
+	/**
+	 * Send remove widget
+	 */
+	void sendRemoveWidget(Collection<int> path)
+	{
+		this.sendMessage({
+			"name": "remove_widget",
+			"path": path ? rs::join(".", path) : null,
+		});
+	}
+	
+	
+	/**
+	 * Send select item
+	 */
+	void sendSelectItem(Collection<int> path)
+	{
+		this.sendMessage({
+			"name": "select_item",
+			"path": path ? rs::join(".", path) : null,
+		});
+	}
+	
+	
+	/**
+	 * Send context menu
+	 */
+	void sendContextMenu(int x, int y)
+	{
+		this.sendMessage({
+			"name": "context_menu",
+			"x": x,
+			"y": y,
+		});
+	}
+	
+	
+	/**
+	 * Add component
+	 */
+	void addComponent(var component)
+	{
+		if (not component.data_widget_path) return;
+		component._old_data_widget_path = component.data_widget_path;
+		this.components.set(component.data_widget_path, component);
+	}
+	
+	
+	/**
+	 * Remove component
+	 */
+	void removeComponent(var component)
+	{
+		if (not component._old_data_widget_path) return;
+		this.components.remove(component._old_data_widget_path);
+		component._old_data_widget_path = null;
+	}
+	
+	
+	/**
+	 * Update component
+	 */
+	void updateComponent(var component)
+	{
+		var old_component = null;
+		string old_data_widget_path = component._old_data_widget_path;
+		string new_data_widget_path = component.data_widget_path;
+		
+		if (old_data_widget_path == new_data_widget_path) return;
+		
+		/* Remove old component */
+		old_component = old_data_widget_path ? this.components.get(old_data_widget_path) : null;
+		if (old_component)
+		{
+			this.removeComponent(old_component);
+		}
+		
+		/* Remove new component */
+		old_component = new_data_widget_path ? this.components.get(new_data_widget_path) : null;
+		if (old_component)
+		{
+			this.removeComponent(old_component);
+		}
+		
+		/* Add new component */
+		this.addComponent(component);
+	}
+	
+	
+	/**
+	 * Update box styles
+	 */
+	void updateSelectedBox()
+	{
+		if (this.selected_elem)
+		{
+			this.selected_box = static::getBoxStyles(this.selected_elem);
+		}
+		else
+		{
+			this.selected_box = null;
+		}
+	}
+	
+	
+	/**
+	 * Returns box styles by element
+	 */
+	static Dict getBoxStyles(var elem)
+	{
+		int left, top, width, height;
+		
+		left = elem.offsetLeft;
+		top = elem.offsetTop;
+		width = elem.clientWidth - 2;
+		height = elem.clientHeight - 2;
+		
+		Map box = {};
+		box.set("left", rs::join(";", [
+			"left: " ~ left ~ "px",
+			"top: " ~ top ~ "px",
+			"width: 1px",
+			"height: " ~ height ~ "px",
+		]));
+		box.set("top", rs::join(";", [
+			"left: " ~ left ~ "px",
+			"top: " ~ top ~ "px",
+			"width: " ~ width ~ "px",
+			"height: 1px",
+		]));
+		box.set("right", rs::join(";", [
+			"left: " ~ (left + width) ~ "px",
+			"top: " ~ top ~ "px",
+			"width: 1px",
+			"height: " ~ height ~ "px",
+		]));
+		box.set("bottom", rs::join(";", [
+			"left: " ~ left ~ "px",
+			"top: " ~ (top + height) ~ "px",
+			"width: " ~ width ~ "px",
+			"height: 1px",
+		]));
+		box.set("box", rs::join(";", [
+			"left: " ~ left ~ "px",
+			"top: " ~ top ~ "px",
+			"width: " ~ width ~ "px",
+			"height: " ~ height ~ "px",
+		]));
+		
+		return box;
+	}
+}

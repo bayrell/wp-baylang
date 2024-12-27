@@ -1,0 +1,326 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="BayLang.Constructor.WidgetPage.WidgetPage">
+
+<use name="Runtime.Web.BaseLayoutModel" />
+<use name="Runtime.Web.BasePageModel" />
+<use name="Runtime.Widget.Button" component="true" />
+
+
+<style global="true">
+.widget_box__item{
+	position: absolute;
+	border-style: none;
+	border-width: 0;
+	border-color: transparent;
+}
+.widget_box__item--hover{
+	border-style: dashed;
+}
+.widget_box__item--current{
+	border-style: solid;
+}
+.widget_box__item--top{
+	border-top-width: 2px;
+	border-top-color: #e0e1e6;
+}
+.widget_box__item--left{
+	border-left-width: 2px;
+	border-left-color: #e0e1e6;
+}
+.widget_box__item--bottom{
+	border-bottom-width: 2px;
+	border-bottom-color: #e0e1e6;
+}
+.widget_box__item--right{
+	border-right-width: 2px;
+	border-right-color: #e0e1e6;
+}
+.widget_box__item_control{
+	display: inline-block;
+	position: relative;
+	background-color: white;
+	min-width: 98px;
+	left: calc(100% - 98px);
+	top: -13px;
+	border-width: 1px;
+	border-style: solid;
+	border-color: #e0e1e6;
+	z-index: 10;
+}
+.widget_box__item_control_wrap{
+	display: flex;
+	height: 24px;
+	line-height: 1;
+}
+.widget_box__item_control_button{
+	cursor: pointer;
+	font-size: 16px;
+	padding: 4px;
+	text-align: center;
+	user-select: none;
+	width: 24px;
+}
+.widget_page__add_section_button{
+	text-align: center;
+	padding-top: 10px;
+	padding: 5px;
+}
+</style>
+
+
+<template name="renderStyle">
+	<style>{{ this.model.widget_css }}</style>
+</template>
+
+
+<template name="renderSelectedBox">
+	%set BasePageModel page_model = this.model.getEditPageModel();
+	%if (this.model.selected_box)
+	{
+		<div class="widget_box__item widget_box__item--top widget_box__item--current"
+			style={{ this.model.selected_box.get("top") }}>
+			%if (page_model.selected.widget != null and this.renderWidgetControl())
+			{
+				<div class="widget_box__item_control">
+					<div class="widget_box__item_control_wrap">
+						<!--
+						<div class="widget_box__item_control_button">@raw{{ "&#9776;" }}</div>
+						-->
+						<div class="widget_box__item_control_button"
+							@event:click={{ void(){
+								this.onAddWidgetClick(this.model.selected_path);
+							} }}
+						>@raw{{ "+" }}</div>
+						<div class="widget_box__item_control_button"
+							@event:click={{ this.onUpWidgetClick }}
+						>@raw{{ "&#9652;" }}</div>
+						<div class="widget_box__item_control_button"
+							@event:click={{ this.onDownWidgetClick }}
+						>@raw{{ "&#9662;" }}</div>
+						<div class="widget_box__item_control_button"
+							@event:click={{ this.onRemoveWidgetClick }}
+						>@raw{{ "x" }}</div>
+					</div>
+				</div>
+			}
+		</div>
+		<div class="widget_box__item widget_box__item--bottom widget_box__item--current"
+			style={{ this.model.selected_box.get("bottom") }}></div>
+		<div class="widget_box__item widget_box__item--left widget_box__item--current"
+			style={{ this.model.selected_box.get("left") }}></div>
+		<div class="widget_box__item widget_box__item--right widget_box__item--current"
+			style={{ this.model.selected_box.get("right") }}></div>
+	}
+</template>
+
+
+<template name="renderAddWidgetButton">
+	%set BasePageModel page_model = this.model.getEditPageModel();
+	%if (this.is_loaded and page_model != null)
+	{
+		<div class="widget_page__add_section_button">
+			<Button styles={{ ["small"] }}
+				@event:click={{ void (){ this.onAddWidgetClick(null); } }}
+			>Add widget</Button>
+		</div>
+	}
+</template>
+
+
+<template>
+	<div class="widget_page"
+		@event:click={{ this.onClick }}
+		@event:contextmenu={{ this.onContextMenu }}
+	>
+		%render this.renderStyle();
+		%render this.renderWidget(this.model.widget_model, {"ref": "widget_component"});
+		%render this.renderSelectedBox();
+		%render this.renderAddWidgetButton();
+	</div>
+</template>
+
+
+<script>
+
+bool is_loaded = false;
+
+
+/**
+ * Render widget control
+ */
+bool renderWidgetControl() => false;
+
+
+/**
+ * Up widget click
+ */
+void onUpWidgetClick()
+{
+	this.model.sendMoveWidget(this.model.selected_path, "up");
+}
+
+
+/**
+ * Down widget click
+ */
+void onDownWidgetClick()
+{
+	this.model.sendMoveWidget(this.model.selected_path, "down");
+}
+
+
+/**
+ * Add widget click event
+ */
+void onAddWidgetClick(Collection<int> path)
+{
+	this.model.sendAddWidget(path, "after");
+}
+
+
+/**
+ * Remove widget click event
+ */
+void onRemoveWidgetClick()
+{
+	this.model.sendRemoveWidget(this.model.selected_path);
+}
+
+
+/**
+ * Returns component
+ */
+Collection<int> getComponent(var elem)
+{
+	#ifcode JAVASCRIPT then
+	while (elem != null)
+	{
+		if (elem.classList.contains("debug_component"))
+		{
+			return elem;
+		}
+		if (elem.__component__)
+		{
+			return elem;
+		}
+		elem = elem.parentElement;
+	}
+	return elem;
+	#endif
+}
+
+
+/**
+ * Returns widget path
+ */
+Collection<int> getWidgetPath(var elem)
+{
+	elem = this.getComponent(elem);
+	if (elem == null) return null;
+	if (elem.hasAttribute("data-widget-path"))
+	{
+		return elem.getAttribute("data-widget-path");
+	}
+	
+	var component = elem.__component__;
+	
+	#ifcode JAVASCRIPT then
+	while (
+		component != null &&
+		component.data_widget_path == null
+	)
+	{
+		component = component.$parent;
+	}
+	#endif
+	
+	return component ? component.data_widget_path : null;
+}
+
+
+/**
+ * Click
+ */
+void onClick(var e)
+{
+	var elem = e.target;
+	
+	/* Get widget path */
+	string widget_path_str = this.getWidgetPath(elem);
+	if (not widget_path_str) return;
+	
+	/* Get page model */
+	var page_model = this.model.getEditPageModel();
+	if (not page_model) return;
+	
+	/* Prevent default */
+	e.preventDefault();
+	
+	Collection<int> widget_path = rs::split(".", widget_path_str);
+	Collection<int> path = this.model.convertWidgetToTreePath(widget_path);
+	this.model.sendSelectItem(path);
+	return false;
+}
+
+
+/**
+ * Context menu click
+ */
+void onContextMenu(var e)
+{
+	var elem = e.target;
+	
+	/* Get widget path */
+	string widget_path_str = this.getWidgetPath(elem);
+	if (not widget_path_str) return;
+	
+	/* Prevent default */
+	e.preventDefault();
+	
+	/* Send select item */
+	Collection<int> widget_path = rs::split(".", widget_path_str);
+	Collection<int> path = this.model.convertWidgetToTreePath(widget_path);
+	this.model.sendSelectItem(path);
+	
+	/* Send event context menu */
+	this.model.sendContextMenu(e.clientX, e.clientY);
+	return false;
+}
+
+
+/**
+ * Mounted
+ */
+async void onMounted()
+{
+	this.nextTick(void (){
+		this.model.widget_component = this.getRef("widget_component");
+		this.model.buildRender();
+		this.model.buildCSS();
+		this.model.buildGlobalCSS();
+		this.model.sendAppLoaded();
+		this.is_loaded = true;
+	});
+}
+
+</script>
+
+
+</class>

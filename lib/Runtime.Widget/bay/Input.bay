@@ -1,0 +1,132 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.Input">
+
+<use name="Runtime.Web.Messages.ValueChangeMessage" />
+
+
+<style>
+.widget_input{
+	width: 100%;
+	font-family: var(--widget-font-family);
+	font-size: var(--widget-font-size);
+	padding: var(--widget-input-padding-y) var(--widget-input-padding-x);
+	background-color: var(--widget-color-default);
+	border-width: var(--widget-border-width);
+	border-color: var(--widget-color-border);
+	border-style: solid;
+	border-radius: 4px;
+	box-shadow: none;
+	outline: transparent;
+	line-height: normal;
+	min-height: 32px;
+}
+.widget_input:focus{
+	outline: transparent;
+}
+</style>
+
+
+<template>
+	%set Map props = this.getProps();
+	<input
+		class="widget_input"
+		type={{ this.type }}
+		name={{ this.name }}
+		value={{ this.getValue() }}
+		placeholder={{ this.placeholder }}
+		@ref="input"
+		@event:change={{ this.onChange }}
+		@event:keydown={{ this.onKeyDown }}
+		...props
+	/>
+</template>
+
+
+<script>
+
+props bool direct_update = false;
+props bool readonly = false;
+props string name = "";
+props string value = "";
+props string default = "";
+props string placeholder = "";
+props string type = "text";
+var change_timer = null;
+
+
+/**
+ * Returns value
+ */
+string getValue()
+{
+	if (this.value) return this.value;
+	return this.default;
+}
+
+
+/**
+ * Returns input props
+ */
+Map getProps()
+{
+	if (this.readonly) return {
+		"readonly": true,
+	};
+	return {};
+}
+
+
+/**
+ * KeyDown event
+ */
+void onKeyDown(var e)
+{
+	if (not this.direct_update) return;
+	if (this.change_timer != null)
+	{
+		window.clearTimeout(this.change_timer);
+		this.change_timer = null;
+	}
+	this.change_timer = window.setTimeout(void ()
+	{
+		this.onChange();
+	}, 300);
+}
+
+
+/**
+ * Change event
+ */
+void onChange(var e)
+{
+	var input = this.getRef("input");
+	
+	/* Send value change */
+	this.emit("valueChange", new ValueChangeMessage{
+		"value": input.value,
+		"old_value": this.value,
+		"data": this.data,
+	});
+}
+
+</script>
+
+
+</class>

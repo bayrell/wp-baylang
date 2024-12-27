@@ -1,0 +1,146 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+ 
+namespace BayLang.OpCodes;
+
+use Runtime.BaseObject;
+use Runtime.Serializer;
+use Runtime.SerializeInterface;
+
+
+class OpFlags extends BaseObject implements SerializeInterface
+{
+	public bool p_async = false;
+	public bool p_export = false;
+	public bool p_static = false;
+	public bool p_const = false;
+	public bool p_public = false;
+	public bool p_private = false;
+	public bool p_protected = false;
+	public bool p_declare = false;
+	public bool p_serializable = false;
+	public bool p_cloneable = false;
+	public bool p_assignable = false;
+	public bool p_memorize = false;
+	public bool p_multiblock = false;
+	public bool p_lambda = false;
+	public bool p_pure = false;
+	public bool p_props = false;
+	
+	
+	/**
+	 * Constructor
+	 */
+	public void constructor(Dict params = null)
+	{
+		parent();
+		this._assign_values(params);
+	}
+	
+	
+	/**
+	 * Serialize object
+	 */
+	void serialize(Serializer serializer, Map data)
+	{
+		serializer.process(this, "p_assignable", data);
+		serializer.process(this, "p_async", data);
+		serializer.process(this, "p_cloneable", data);
+		serializer.process(this, "p_const", data);
+		serializer.process(this, "p_declare", data);
+		serializer.process(this, "p_export", data);
+		serializer.process(this, "p_lambda", data);
+		serializer.process(this, "p_memorize", data);
+		serializer.process(this, "p_multiblock", data);
+		serializer.process(this, "p_private", data);
+		serializer.process(this, "p_props", data);
+		serializer.process(this, "p_protected", data);
+		serializer.process(this, "p_public", data);
+		serializer.process(this, "p_pure", data);
+		serializer.process(this, "p_serializable", data);
+		serializer.process(this, "p_static", data);
+	}
+	
+	
+	/**
+	 * Read is Flag
+	 */
+	public bool isFlag(string name)
+	{
+		if (not OpFlags::hasFlag(name))	return false;
+		return rtl::attr(this, "p_"~name);
+	}
+	
+	
+	
+	/**
+	 * Get flags
+	 */
+	pure Collection<string> getFlags()
+	{
+		return 
+		[
+			"async",
+			"export",
+			"static",
+			"const",
+			"public",
+			"private",
+			"declare",
+			"protected",
+			"serializable",
+			"cloneable",
+			"assignable",
+			"memorize",
+			"multiblock",
+			/*"lambda",*/
+			"pure",
+			"props",
+		];
+	}
+	
+	
+	
+	/**
+	 * Get flags
+	 */
+	pure bool hasFlag(string flag_name)
+	{
+		if (
+			flag_name == "async" or
+			flag_name == "export" or
+			flag_name == "static" or
+			flag_name == "const" or
+			flag_name == "public" or
+			flag_name == "private" or
+			flag_name == "declare" or
+			flag_name == "protected" or
+			flag_name == "serializable" or
+			flag_name == "cloneable" or
+			flag_name == "assignable" or
+			flag_name == "memorize" or
+			flag_name == "multiblock" or
+			flag_name == "lambda" or
+			flag_name == "pure" or
+			flag_name == "props"
+		){
+			return true;
+		}
+		return false;
+	}
+}

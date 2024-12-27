@@ -1,0 +1,40 @@
+{
+	"name": "Runtime.WordPress",
+	"assets":
+	[
+		"Components/CKEditor.bay",
+		"Components/Form.bay",
+		"Components/FormModel.bay",
+		"Components/Image.bay",
+		"Theme/AssetHook.bay",
+		"Theme/ModuleDescription.bay",
+		"WP_App.bay"
+	],
+	"modules":
+	[
+		{
+			"src": "bay/Admin",
+			"type": "module"
+		},
+		{
+			"src": "bay/Settings",
+			"type": "module"
+		}
+	],
+	"src": "./bay",
+	"dest":
+	{
+		"php": "./php",
+		"es6": "./es6"
+	},
+	"allow":
+	[
+		"\\.bay$",
+		"\\.php$",
+		"\\.js$"
+	],
+	"exclude":
+	[
+		"Admin/"
+	]
+}

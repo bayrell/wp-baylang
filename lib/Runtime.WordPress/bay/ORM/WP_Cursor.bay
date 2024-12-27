@@ -1,0 +1,108 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.ORM;
+
+use Runtime.ORM.MySQL.CursorMySQL;
+use Runtime.ORM.MySQL.SQLBuilder;
+
+
+class WP_Cursor extends CursorMySQL
+{
+	int num_rows = 0;
+	int rows_affected = 0;
+	int insert_id = 0;
+	var last_result = [];
+	var last_result_pos = 0;
+	var last_result_sz = 0;
+	
+	
+	/**
+	 * Execute sql query
+	 */
+	async WP_Cursor executeSQL(SQLBuilder builder)
+	{
+		/* Get sql */
+		string sql = builder.getSQL();
+		Dict data = builder.getData();
+		
+		#ifcode PHP then
+		
+		global $wpdb;
+		
+		/* Build sql */
+		$sql = $builder->formatSQL();
+		
+		/* Execute query */
+		$return_val = $wpdb->query($sql);
+		
+		if ($wpdb->last_error != '')
+		{
+			throw new \Runtime\ORM\Exceptions\OrmException($ctx, $wpdb->last_error);
+		}
+		
+		$this->num_rows = $wpdb->num_rows;
+		$this->rows_affected = $wpdb->rows_affected;
+		$this->insert_id = $wpdb->insert_id;
+		$this->last_result = $wpdb->last_result;
+		$this->last_result_sz = count($this->last_result);
+		$this->last_result_pos = 0;
+		
+		#endif
+		
+		return this;
+	}
+	
+	
+	/**
+	 * Fetch next row
+	 */
+	async var fetchMap()
+	{
+		#ifcode PHP then
+		
+		if ($this->last_result_pos >= $this->last_result_sz) return null;
+		
+		$item = $this->last_result[ $this->last_result_pos ];
+		$this->last_result_pos = $this->last_result_pos + 1;
+		$item = \Runtime\Map::from($item);
+		
+		return $item;
+		#endif
+		
+		return null;
+	}
+	
+	
+	/**
+	 * Returns affected rows
+	 */
+	async int affectedRows() => this.rows_affected;
+	
+	
+	/**
+	 * Insert id
+	 */
+	async int lastInsertId() => this.insert_id;
+	
+	
+	/**
+	 * Close cursor
+	 */
+	async WP_Cursor close() => this;
+}

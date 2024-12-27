@@ -1,0 +1,154 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.WordPress.Components.Image">
+
+<use name="Runtime.Widget.Button" component="true" />
+
+
+<style>
+.widget_image{
+	img{
+		max-width: 200px;
+		max-height: 200px;
+	}
+}
+.widget_image--small{
+	img{
+		max-width: 100px;
+		max-height: 100px;
+	}
+}
+.widget_image__upload_button{
+	padding-bottom: 10px;
+}
+</style>
+
+
+<template>
+	<div class="widget_image" class={{ this.getStyles() }} @key={{ "widget_image_" ~ this.name }}>
+		
+		%if (this.upload)
+		{
+			<div class="widget_image__upload_button">
+				<Button type="small" @event:click={{ this.onUploadImage }}>Upload image</Button>
+			</div>
+		}
+		
+		%set string image = this.getImage();
+		%if (image)
+		{
+			<img src={{ image }} />
+		}
+		
+	</div>
+</template>
+
+
+<script>
+
+props Collection styles = [];
+props string name = "";
+props string value = "";
+props string size = "default";
+props bool upload = false;
+
+
+/**
+ * Returns styles
+ */
+string getStyles()
+{
+	if (this.styles == null) return "";
+	Collection styles = this.styles.map( string (string name) => "widget_image--" ~ name );
+	return rs::join(" ", styles);
+}
+
+
+/**
+ * Return image
+ */
+string getImage()
+{
+	if (this.value == null) return null;
+	
+	string image = this.value.get("file");
+	
+	/* Resolve size */
+	Dict sizes = this.value.get("sizes");
+	if (sizes and sizes.has(this.size))
+	{
+		image = sizes.get(this.size).get("file");
+	}
+	
+	return image;
+}
+
+
+/**
+ * On upload image
+ */
+public void onUploadImage()
+{
+	#ifcode ES6 then
+	
+	var uploader = wp.media
+	({
+		title: "Файлы",
+		button: {
+			text: "Выбрать файл"
+		},
+		multiple: false
+	})
+	.on('select', () => {
+		let attachments = uploader.state().get('selection').toJSON();
+		let attachment = attachments[0];
+		
+		let sizes = {};
+		for (let size_name in attachment.sizes)
+		{
+			let size = attachment.sizes[size_name];
+			sizes[size_name] = {
+				"size": size_name,
+				"file": size.url,
+				"width": size.width,
+				"height": size.height,
+				"mime_type": "",
+			};
+		}
+		
+		let image = Runtime.Dict.from({
+			"id": attachment.id,
+			"width": attachment.width,
+			"height": attachment.height,
+			"file": attachment.url,
+			"sizes": Runtime.Dict.from(sizes),
+		});
+		
+		/* Send value change */
+		if (this.model) this.model.onValueChange(image, this.data);
+		this.emit("valueChange", image, this.data);
+	})
+	.open();
+	
+	#endif
+}
+
+</script>
+
+</class>

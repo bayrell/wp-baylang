@@ -1,0 +1,101 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Admin;
+
+use Runtime.Web.BaseRoute;
+use Runtime.Web.RouteInfo;
+use Runtime.Web.RouteModel;
+
+
+class Routes extends BaseRoute
+{
+	/**
+	 * Returns layout name
+	 */
+	static string getLayoutName() => "default";
+    
+    
+    /**
+	 * Returns routes
+	 */
+	pure Collection<RouteInfo> getRoutes()
+	{
+		return
+		[
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-forms",
+				"name": "admin:forms:data:index",
+				"model": "Runtime.WordPress.Admin.FormData.FormDataPageModel",
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-forms-settings",
+				"name": "admin:forms:settings:index",
+				"model": "Runtime.WordPress.Admin.FormSettings.FormSettingsPageModel",
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-mail-log",
+				"name": "admin:mail:log:index",
+				"model": "Runtime.WordPress.Admin.MailLog.MailLogPageModel",
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-mail-settings",
+				"name": "admin:mail:settings:index",
+				"model": "Runtime.WordPress.Admin.MailSettings.MailSettingsPageModel",
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-settings",
+				"name": "baylang:project:settings",
+				"model": "BayLang.Constructor.Frontend.Settings.SettingsModel",
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-widgets",
+				"name": "baylang:project:widgets",
+				"model": "BayLang.Constructor.Frontend.Widget.WidgetListModel",
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-widgets&action=open",
+				"name": "baylang:project:widget:edit",
+				"model": "BayLang.Constructor.Frontend.Editor.WidgetEditPageModel",
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-code-editor",
+				"name": "baylang:project:code:editor",
+				"model": "BayLang.Constructor.Frontend.Code.CodeEditorModel",
+				"data":
+				{
+					"back_url": "admin.php?page=baylang"
+				},
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-robots-txt",
+				"name": "admin:robots:txt",
+				"model": "Runtime.WordPress.Admin.Robots.RobotsPageModel",
+			},
+		];
+	}
+}

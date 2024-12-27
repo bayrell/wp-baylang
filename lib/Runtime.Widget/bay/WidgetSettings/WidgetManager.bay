@@ -1,0 +1,104 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.WidgetSettings;
+
+use Runtime.BaseObject;
+use Runtime.Web.BaseLayoutModel;
+use Runtime.Widget.WidgetSettings.Settings.ButtonSettings;
+use Runtime.Widget.WidgetSettings.Settings.ContainerSettings;
+use Runtime.Widget.WidgetSettings.Settings.FormSubmitSettings;
+use Runtime.Widget.WidgetSettings.Settings.FormSubmitModelSettings;
+use Runtime.Widget.WidgetSettings.Settings.ImageSettings;
+use Runtime.Widget.WidgetSettings.Settings.SectionSettings;
+use Runtime.Widget.WidgetSettings.Settings.TemplateSettings;
+use Runtime.Widget.WidgetSettings.Settings.TextImageSettings;
+use Runtime.Widget.WidgetSettings.Settings.Html.Div;
+use Runtime.Widget.WidgetSettings.Settings.Html.H1;
+use Runtime.Widget.WidgetSettings.Settings.Html.H2;
+use Runtime.Widget.WidgetSettings.Settings.Html.H3;
+use Runtime.Widget.WidgetSettings.Settings.Html.H4;
+use Runtime.Widget.WidgetSettings.Settings.Html.H5;
+use Runtime.Widget.WidgetSettings.Settings.Html.Link;
+use Runtime.Widget.WidgetSettings.Settings.Html.Paragraph;
+use Runtime.Widget.WidgetSettings.Settings.Html.Span;
+use BayLang.Constructor.WidgetPage.EditorProvider;
+use BayLang.Constructor.WidgetPage.WidgetManagerInterface;
+use BayLang.Constructor.WidgetPage.WidgetSettingsInterface;
+
+
+class WidgetManager extends BaseObject implements WidgetManagerInterface
+{
+	/**
+	 * Init widgets
+	 */
+	void init(EditorProvider provider)
+	{
+	}
+	
+	
+	/**
+	 * Returns group settings
+	 */
+	Dict getGroupSettings() =>
+	{
+		"basic":
+		{
+			"label": "Basic",
+			"priority": 0,
+		},
+		"widget":
+		{
+			"label": "Widget",
+			"priority": 100,
+		},
+		"other":
+		{
+			"label": "Basic",
+			"priority": 9999,
+		}
+	};
+	
+	
+	/**
+	 * Returns list of widget settings
+	 */
+	Collection<WidgetSettingsInterface> getWidgetSettings() =>
+	[
+		/* Html settings */
+		new Div(),
+		new H1(),
+		new H2(),
+		new H3(),
+		new H4(),
+		new H5(),
+		new Link(),
+		new Paragraph(),
+		new Span(),
+		
+		/* Widgets */
+		new ButtonSettings(),
+		new ContainerSettings(),
+		new FormSubmitSettings(),
+		new FormSubmitModelSettings(),
+		new ImageSettings(),
+		new SectionSettings(),
+		new TemplateSettings(),
+		new TextImageSettings(),
+	];
+}

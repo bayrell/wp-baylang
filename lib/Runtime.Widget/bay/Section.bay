@@ -1,0 +1,96 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.Section">
+
+
+<style>
+.widget_section__wrap{
+	max-width: 1200px;
+	margin-left: auto;
+	margin-right: auto;
+	padding: 0px 0px;
+	padding-left: 10px;
+	padding-right: 10px;
+}
+</style>
+
+
+<template>
+	<div class="widget_section" class={{ this.class }} style={{ this.getStyle() }}>
+		%if (this.wrap == "true")
+		{
+			<div class="widget_section__wrap" style={{ this.getWrapStyle() }}>
+				%render this.renderSlot("default");
+			</div>
+		}
+		%else
+		{
+			%render this.renderSlot("default");
+		}
+	</div>
+</template>
+
+
+<script>
+
+props string wrap = "true";
+props string flex = "false";
+props string align_items = "";
+props string justify_content = "";
+props string flex_wrap = "";
+props string height = "";
+props string min_height = "";
+
+
+/**
+ * Returns styles
+ */
+string getStyle()
+{
+	Dict res = [];
+	if (not this.wrap)
+	{
+		res.push(this.getWrapStyle());
+	}
+	return rs::join(";", res);
+}
+
+
+/**
+ * Returns wrap style
+ */
+string getWrapStyle()
+{
+	Dict res = [];
+	if (this.flex == "true")
+	{
+		res.push("display: flex;");
+		if (this.align_items) res.push("align-items: " ~ this.align_items);
+		if (this.justify_content) res.push("justify-content: " ~ this.justify_content);
+		if (this.flex_wrap) res.push("flex-wrap: " ~ this.flex_wrap);
+	}
+	if (this.height) res.push("height: " ~ this.height);
+	if (this.min_height) res.push("min-height: " ~ this.min_height);
+	return rs::join(";", res);
+}
+
+</script>
+
+
+</class>

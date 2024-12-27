@@ -1,0 +1,506 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime;
+
+use Runtime.lib;
+use Runtime.BaseObject;
+use Runtime.BaseProvider;
+use Runtime.BaseStruct;
+use Runtime.Callback;
+use Runtime.Entity.Entity;
+use Runtime.Entity.Provider;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.Hooks.RuntimeHook;
+
+
+class Context extends BaseObject
+{
+	protected var app = null;
+	protected string base_path = "";
+	protected string entry_point = "";
+	protected Vector<string> cli_args = [];
+	protected Map<string> environments = {};
+	protected Vector<string> modules = [];
+	protected Map<BaseObject> providers = {};
+	protected Vector<BaseStruct> entities = [];
+	protected Vector<string> start_modules = [];
+	protected int start_time = 0;
+	public string tz = "UTC";
+	protected bool initialized = false;
+	protected bool started = false;
+	
+	
+	/**
+	 * Returns app
+	 */
+	var getApp() => this.app;
+	
+	
+	/**
+	 * Returns true if is initialized
+	 */
+	bool isInitialized() => this.initialized;
+	
+	
+	/**
+	 * Returns true if is started
+	 */
+	bool isStarted() => this.started;
+	
+	
+	/**
+	 * Returns start time
+	 */
+	int getStartTime() => this.start_time;
+	
+	
+	/**
+	 * Returns base path
+	 */
+	var getBasePath() => this.base_path;
+	
+	
+	/**
+	 * Returns console args
+	 */
+	Vector<string> getConsoleArgs() => this.cli_args.slice();
+	
+	
+	/**
+	 * Returns modules
+	 */
+	Vector<string> getModules() => this.modules.slice();
+	
+	
+	/**
+	 * Returns entities
+	 */
+	Vector<string> getEntities(string class_name = "")
+	{
+		if (class_name == "")
+		{
+			return this.entities.slice();
+		}
+		return this.entities.filter( lib::isInstance(class_name) );
+	}
+	
+	
+	/**
+	 * Returns environments
+	 */
+	Map<string> getEnvironments() => this.environments.clone();
+	
+	
+	/**
+	 * Returns provider by name
+	 */
+	BaseObject provider(string provider_name)
+	{
+		if (not this.providers.has(provider_name))
+		{
+			throw new RuntimeException("Provider '" ~ provider_name ~ "' not found");
+		}
+		return this.providers.get(provider_name);
+	}
+	
+	
+	/**
+	 * Return environment
+	 */
+	var env(string name)
+	{
+		var value = this.environments[name];
+		
+		Map hook_res = this.callHook(RuntimeHook::ENV, {
+			"name": name,
+			"value": value,
+		});
+		
+		return hook_res["value"];
+	}
+	
+	
+	/**
+	 * Create context
+	 */
+	static Context create(Dict params)
+	{
+		if (not (params instanceof Dict))
+		{
+			params = Dict::@from(params);
+		}
+		
+		params = params.toMap();
+		
+		#switch
+		
+		#case ifcode PHP then
+		
+		
+		#case ifcode JAVASCRIPT then
+		
+		if (!params.has("start_time"))
+		{
+			params.set("start_time", Date.now());
+		}
+		
+		#case ifcode NODEJS then
+		
+		let Collection = use("Runtime.Collection");
+		let Dict = use("Runtime.Dict");
+		let Map = use("Runtime.Map");
+		
+		if (!params.has(ctx, "cli_args"))
+		{
+			params.set(ctx, "cli_args", Collection.from(process.argv.slice(1)));
+		}
+		if (!params.has(ctx, "base_path"))
+		{
+			params.set(ctx, "base_path", process.cwd());
+		}
+		if (!params.has(ctx, "environments"))
+		{
+			params.set(ctx, "environments", Map.from(process.env));
+		}
+		
+		#endswitch
+		
+		if (params.has("modules"))
+		{
+			var modules = params.get("modules");
+			if (not(modules instanceof Collection))
+			{
+				modules = Collection::@from(modules);
+			}
+			params.set("modules", modules.toVector());
+		}
+		
+		/* Setup default environments */
+		if (not params.has("environments")) params.set("environments", new Map());
+		
+		Map env = params["environments"];
+		if (not env) env = {};
+		if (not env.has("CLOUD_ENV")) env.set("CLOUD_ENV", false);
+		if (not env.has("DEBUG")) env.set("DEBUG", false);
+		if (not env.has("LOCALE")) env.set("LOCALE", "en_US");
+		if (not env.has("TZ")) env.set("TZ", "UTC");
+		if (not env.has("TZ_OFFSET")) env.set("TZ_OFFSET", 0);
+		
+		Context instance = rtl::newInstance(static::getClassName());
+		if (params.has("base_path")) instance.base_path = params.get("base_path");
+		if (params.has("entry_point")) instance.entry_point = params.get("entry_point");
+		if (params.has("cli_args")) instance.cli_args = params.get("cli_args");
+		if (params.has("environments")) instance.environments = params.get("environments");
+		if (params.has("modules")) instance.modules = params.get("modules");
+		if (params.has("start_time")) instance.start_time = params.get("start_time");
+		if (params.has("tz")) instance.tz = params.get("tz");
+		instance.start_modules = instance.modules.copy();
+		return instance;
+	}
+	
+	
+	/**
+	 * Init
+	 */
+	async void init()
+	{
+		if (this.initialized) return;
+		
+		/* Create app */
+		if (this.entry_point)
+		{
+			this.app = rtl::newInstance(this.entry_point);
+		}
+		
+		Vector<string> modules = this.modules;
+		if (modules.indexOf("Runtime")) modules.prepend("Runtime");
+		
+		/* Extend modules */
+		this.modules = static::getRequiredModules(modules);
+		
+		/* Get modules entities */
+		this.entities = static::getEntitiesFromModules(this.modules);
+		
+		/* Create providers */
+		this.createProviders();
+		
+		/* Init providers */
+		await this.initProviders();
+		
+		/* Hook init app */
+		await this.callHookAsync(RuntimeHook::INIT);
+		
+		/* Init app */
+		if (this.app != null and rtl::method_exists(this.app, "init"))
+		{
+			await this.app.init();
+		}
+		
+		/* Set initialized */
+		this.initialized = true;
+	}
+	
+	
+	/**
+	 * Start context
+	 */
+	async void start()
+	{
+		if (this.started) return;
+		
+		/* Start providers */
+		await this.startProviders();
+		
+		/* Hook start app */
+		await this.callHookAsync(RuntimeHook::START);
+		
+		/* Start app */
+		if (this.app and rtl::method_exists(this.app, "start"))
+		{
+			await this.app.start();
+		}
+		
+		/* Hook launched app */
+		await this.callHookAsync(RuntimeHook::LAUNCHED);
+		
+		/* Set started */
+		this.started = true;
+	}
+	
+	
+	/**
+	 * Run context
+	 */
+	async int run()
+	{
+		int code = 0;
+		
+		/* Run app */
+		if (this.app == null)
+			return;
+		
+		/* Run entry_point */
+		if (rtl::method_exists(this.app, "main"))
+		{
+			/* Hook launched app */
+			await this.callHookAsync(RuntimeHook::RUN);
+			
+			code = await this.app.main();
+		}
+		
+		return code;
+	}
+	
+	
+	/**
+	 * Call hook
+	 */
+	Map callHook(string hook_name, Map params = null)
+	{
+		if (params == null) params = {};
+		
+		if (not this.providers.has("hook")) return params;
+		var hook = this.provider("hook");
+		Collection<Callback> methods_list = hook.getMethods(hook_name);
+		
+		for (int i=0; i<methods_list.count(); i++)
+		{
+			Callback f = methods_list[i];
+			var res = rtl::apply(f, [params]);
+			if (rtl::isPromise(res))
+			{
+				throw new RuntimeException("Promise is not allowed");
+			}
+		}
+		
+		return params;
+	}
+	
+	
+	/**
+	 * Call hook
+	 */
+	async Map callHookAsync(string hook_name, Map params = null)
+	{
+		if (params == null) params = {};
+		
+		var hook = this.provider("hook");
+		Collection<Callback> methods_list = hook.getMethods(hook_name);
+		
+		for (int i=0; i<methods_list.count(); i++)
+		{
+			Callback f = methods_list[i];
+			await rtl::apply(f, [params]);
+		}
+		
+		return params;
+	}
+	
+	
+	/**
+	 * Translate message
+	 */
+	string translate(string module, string s, Dict params = null)
+	{
+		if (params == null) return s;
+		return rs::format(s, params);
+	}
+	
+	
+	/**
+	 * Create providers
+	 */
+	protected void createProviders()
+	{
+		Vector<Provider> providers = this.getEntities(classof Provider);
+		for (int i=0; i<providers.count(); i++)
+		{
+			Provider factory = providers.get(i);
+			
+			/* Create provider */
+			BaseProvider provider = factory.createProvider();
+			if (not provider)
+			{
+				throw new RuntimeException("Wrong declare provider '" ~ factory.name ~ "'");
+			}
+			
+			/* Add provider */
+			this.registerProvider(factory.name, provider);
+		}
+	}
+	
+	
+	/**
+	 * Init providers
+	 */
+	protected async void initProviders()
+	{
+		Vector<string> providers_names = this.providers.keys();
+		for (int i=0; i<providers_names.count(); i++)
+		{
+			string provider_name = providers_names.get(i);
+			BaseProvider provider = this.providers.get(provider_name);
+			await provider.init();
+		}
+	}
+	
+	
+	/**
+	 * Start providers
+	 */
+	protected async void startProviders()
+	{
+		Vector<string> providers_names = this.providers.keys();
+		for (int i=0; i<providers_names.count(); i++)
+		{
+			string provider_name = providers_names.get(i);
+			BaseProvider provider = this.providers.get(provider_name);
+			await provider.start();
+		}
+	}
+	
+	
+	/**
+	 * Register provider
+	 */
+	void registerProvider(string provider_name, BaseProvider provider)
+	{
+		if (this.initialized) return;
+		
+		if (not(provider instanceof BaseProvider))
+		{
+			throw new RuntimeException("Provider '" + provider_name +
+				"' must be intstanceof BaseProvider");
+		}
+		
+		this.providers.set(provider_name, provider);
+	}
+	
+	
+	/**
+	 * Returns all modules
+	 * @param Collection<string> modules
+	 * @return Collection<string>
+	 */
+	pure Vector<string> getRequiredModules(Collection<string> modules)
+	{
+		Vector<string> res = new Vector();
+		Map<string> cache = new Map();
+		static::_getRequiredModules(res, cache, modules);
+		return res.removeDuplicates();
+	}
+	
+	
+	/**
+	 * Returns required modules
+	 * @param string class_name
+	 * @return Collection<string>
+	 */
+	pure void _getRequiredModules
+	(
+		Vector<string> res,
+		Map<string> cache,
+		Collection<string> modules
+	)
+	{
+		if (modules == null) return;
+		for (int i=0; i<modules.count(); i++)
+		{
+			string module_name = modules.item(i);
+			if (not cache.has(module_name))
+			{
+				cache.set(module_name, true);
+				Callback f = new Callback(module_name ~ ".ModuleDescription", "requiredModules");
+				if (f.exists())
+				{
+					Map<string> sub_modules = rtl::apply(f);
+					if (sub_modules != null)
+					{
+						Vector<string> sub_modules = sub_modules.keys();
+						static::_getRequiredModules(res, cache, sub_modules);
+					}
+					res.push(module_name);
+				}
+			}
+		}
+	}
+	
+	
+	/**
+	 * Returns modules entities
+	 */
+	pure Collection<Entity> getEntitiesFromModules(Collection<string> modules)
+	{
+		Vector<Entity> entities = new Vector();
+		for (int i=0; i<modules.count(); i++)
+		{
+			string module_name = modules.item(i);
+			Callback f = new Callback(module_name ~ ".ModuleDescription", "entities");
+			if (f.exists())
+			{
+				Vector<Entity> arr = rtl::apply(f);
+				if (arr)
+				{
+					entities.appendItems(arr);
+				}
+			}
+		}
+		return entities;
+	}
+}

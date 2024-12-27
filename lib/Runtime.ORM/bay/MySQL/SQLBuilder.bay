@@ -1,0 +1,530 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.ORM.MySQL;
+
+use Runtime.re;
+use Runtime.BaseObject;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryField;
+use Runtime.ORM.QueryFilter;
+
+
+class SQLBuilder extends BaseObject
+{
+	Connection conn = null;
+	Map data = null;
+	Query q = null;
+	string sql = null;
+	
+	
+	/**
+	 * Constructor
+	 */
+	void constructor(Connection conn, Query q)
+	{
+		this.conn = conn;
+		this.q = q;
+	}
+	
+	
+	/**
+	 * Returns sql
+	 */
+	string getSQL() => this.sql;
+	
+	
+	/**
+	 * Returns data
+	 */
+	Map getData() => this.data;
+	
+	
+	/**
+	 * Returns true if builder is correct
+	 */
+	bool isValid() => this.sql != null;
+	
+	
+	/**
+	 * Format sql
+	 */
+	string formatSQL()
+	{
+		string sql = this.sql;
+		Map data = this.data;
+		
+		if (data == null) return sql;
+		
+		data.each(
+			void (string value, string key) use (sql)
+			{
+				if (value === null)
+				{
+					sql = rs::replace(this.formatKey(key), "null", sql);
+				}
+				else
+				{
+					value = this.quote(value);
+					sql = rs::replace(this.formatKey(key), value, sql);
+				}
+			}
+		);
+		
+		return sql;
+	}
+	
+	
+	/**
+	 * Format key
+	 */
+	string formatKey(string key) => ":" ~ key;
+	
+	
+	/**
+	 * Prepare field
+	 */
+	string prepare_field(string item)
+	{
+		Collection res1 = rs::split(",", item);
+		res1 = res1.map( string (string s) => rs::trim(s) );
+		res1 = res1.map(
+			string (string s)
+			{
+				Collection res2 = rs::split(".", s);
+				res2 = res2.map(string (string name) => "`" ~ name ~ "`");
+				return rs::join(".", res2);
+			}
+		);
+		return rs::join(",", res1);
+	}
+	
+	
+	/**
+	 * Prepare value
+	 */
+	string prepare_value(string item, string op)
+	{
+		if (op == "%like%")
+		{
+			item = "%" ~ item ~ "%";
+			op = "like";
+		}
+		else if (op == "like%")
+		{
+			item = item ~ "%";
+			op = "like";
+		}
+		else if (op == "%like")
+		{
+			item = "%" ~ item;
+			op = "like";
+		}
+		return [item, op];
+	}
+	
+	
+	/**
+	 * Quote
+	 */
+	string quote(string value)
+	{
+		#ifcode PHP then
+		$value = $this->conn->pdo->quote($value);
+		#endif
+		return value;
+	}
+	
+	
+	/**
+	 * Returns query sql
+	 */
+	SQLBuilder build()
+	{
+		if (this.q == null) return this;
+		
+		Query q = this.q;
+		
+		/* Select query */
+		if (q._kind == Query::QUERY_SELECT)
+		{
+			Map data = q._data.copy();
+			string sql = "SELECT ";
+			int field_index = 0;
+			
+			/* Add distinct */
+			if (q._distinct != "") sql ~= " DISTINCT ";
+			
+			/* Add fields */
+			if (q._fields != null)
+			{
+				Collection fields = q._fields
+					.map(
+						string (var item) use (q, data, field_index)
+						{
+							string field_name = "";
+							
+							if (item instanceof QueryField)
+							{
+								string table_name = item.table_name;
+								if (table_name == "") table_name = q._table_name;
+								field_name = "`" ~ table_name ~ "`.`" ~ item.field_name ~ "`";
+								if (item.alias_name != "")
+								{
+									field_name ~= " as `" ~ item.alias_name ~ "`";
+								}
+							}
+							else if (item instanceof QueryFilter)
+							{
+								list res = this.convertFilterItem(item, data, field_index);
+								field_name = res[0];
+								field_index = res[1];
+								if (item.alias != "")
+								{
+									field_name ~= " as `" ~ item.alias ~ "`";
+								}
+							}
+							else if (rtl::isCallable(item))
+							{
+								return item(this);
+							}
+							else
+							{
+								field_name = item;
+							}
+							
+							return field_name;
+						}
+					)
+				;
+				sql ~= rs::join(", ", fields);
+			}
+			else sql ~= " * ";
+			
+			/* New line */
+			sql ~= "\n";
+			
+			/* Add table name */
+			sql ~= " FROM `" ~ this.conn.prefix ~ q._table_name ~ "` AS `" ~ q._table_name ~ "`";
+			
+			/* New line */
+			sql ~= "\n";
+			
+			/* Add joins */
+			if (q._join != null and q._join.count() > 0)
+			{
+				for (int i=0; i<q._join.count(); i++)
+				{
+					Dict join = q._join[i];
+					
+					string kind = join["kind"];
+					string table_name = join["table_name"];
+					string alias_name = join["alias_name"];
+					
+					Collection filter = join["filter"];
+					list res = this.convertFilter(filter, data, field_index);
+					string where = res[0];
+					field_index = res[1];
+					
+					if (kind == "left") sql ~= " LEFT JOIN ";
+					else sql ~= " INNER JOIN ";
+					
+					sql ~= "`" ~ this.conn.prefix ~ table_name ~ "`";
+					if (alias_name != "") sql ~= " AS `" ~ alias_name ~ "`";
+					sql ~= " ON (" ~ where ~ ")";
+					
+					/* New line */
+					sql ~= "\n";
+				}
+			}
+			
+			/* Add where */
+			if (q._filter != null and q._filter.count() > 0)
+			{
+				list res = this.convertFilter(q._filter, data, field_index);
+				string where = res[0];
+				field_index = res[1];
+				
+				if (where != "") sql ~= " WHERE " ~ where;
+				
+				/* New line */
+				sql ~= "\n";
+			}
+			
+			/* Add order */
+			if (q._order != null and q._order.count() > 0)
+			{
+				Collection order = q._order.map
+				(
+					string (Collection item) => this.prepare_field(item[0]) ~ " " ~ item[1]
+				);
+				
+				sql ~= " ORDER BY " ~ rs::join(",", order);
+				
+				/* New line */
+				sql ~= "\n";
+			}
+			
+			/* Add order */
+			if (q._limit >= 0) sql ~= " LIMIT " ~ q._limit;
+			if (q._limit >= 0 and q._start >= 0) sql ~= " OFFSET " ~ q._start;
+			
+			this.sql = sql;
+			this.data = data;
+		}
+		
+		else if (q._kind == Query::QUERY_INSERT)
+		{
+			Vector keys = new Vector();
+			Vector values = new Vector();
+			
+			if (q._data)
+			{
+				q._data.each(
+					void (var value, string key) use (keys, values)
+					{
+						keys.push( "`" ~ key ~ "`" );
+						values.push( this.formatKey(key) );
+					}
+				);
+			}
+			
+			/* Build sql */
+			this.sql = "INSERT INTO " ~ this.conn.prefix ~ q._table_name ~
+				" (" ~ rs::join(",", keys) ~ ") VALUES (" ~ rs::join(",", values) ~ ")"
+			;
+			this.data = q._data.clone();
+		}
+		
+		else if (q._kind == Query::QUERY_UPDATE)
+		{
+			Vector update_arr = new Vector();
+			Vector values = new Vector();
+			Map data = new Map();
+			
+			/* Build update */
+			if (q._data)
+			{
+				q._data.each(
+					void (var value, string key) use (update_arr, data)
+					{
+						string field_key = "update_" ~ key;
+						string field_name = this.prepare_field(key)
+						update_arr.push(field_name ~ " = " ~ this.formatKey(field_key));
+						data = data.set(field_key, value);
+					}
+				);
+			}
+			
+			/* Build where */
+			list res = this.convertFilter(q._filter, data);
+			string where_str = res[0];
+			
+			/* Build sql */
+			this.sql = "UPDATE " ~ this.conn.prefix ~ q._table_name ~
+				" SET " ~ rs::join(", ", update_arr) ~ " WHERE " ~ where_str
+			;
+			this.data = data;
+		}
+		
+		else if (q._kind == Query::QUERY_DELETE)
+		{
+			/* Build where */
+			Map data = {};
+			list res = this.convertFilter(q._filter, data);
+			string where_str = res[0];
+			
+			/* Delete item */
+			this.sql = "DELETE FROM " ~ this.conn.prefix ~ q._table_name ~
+				" WHERE " ~ where_str
+			;
+			this.data = data;
+		}
+		
+		else if (q._kind == Query::QUERY_RAW)
+		{
+			this.sql = q._sql;
+			this.data = q._data;
+		}
+		
+		return this;
+	}
+	
+	
+	/**
+	 * Convert filter
+	 */
+	list convertFilterItem(var item, Map data, int field_index = 0)
+	{
+		if (rtl::isString(item))
+		{
+			return [item, field_index];
+		}
+		
+		Collection allow_operations = [
+			"=", "!=", ">=", "<=", "<", ">",
+			"like", "%like%", "like%", "%like",
+			"match", "match_boolean"
+		];
+		
+		fn convert_key = string (string s)
+		{
+			s = re::replace("[,\\.]", "_", s);
+			s = re::replace("[^0-9A-Za-z_]", "", s);
+			return s;
+		};
+		
+		string field_name = "", op = "";
+		var value = "";
+		
+		/* If QueryFilter */
+		if (item instanceof QueryFilter)
+		{
+			field_name = item.key;
+			op = item.op;
+			value = item.value;
+		}
+		else
+		{
+			field_name = item[0];
+			op = item[1];
+			value = item[2];
+		}
+		
+		/* OR */
+		if (field_name == "$or")
+		{
+			Vector where_or = new Vector();
+			
+			for (int j=0; j<value.count(); j++)
+			{
+				list res_or = this.convertFilterItem(value[j], data, field_index);
+				where_or.push( res_or[0] );
+				field_index = res_or[1];
+			}
+			
+			string s = "(" ~ rs::join(" OR ", where_or) ~ ")";
+			return [s, field_index];
+		}
+		
+		/* Check operation */
+		if (allow_operations.indexOf(op) == -1)
+		{
+			op = "=";
+		}
+		
+		if (value === null)
+		{
+			if (op == "!=")
+			{
+				string s = this.prepare_field(field_name) ~ " is not null";
+				return [s, field_index];
+			}
+			else
+			{
+				string s = this.prepare_field(field_name) ~ " is null";
+				return [s, field_index];
+			}
+		}
+		
+		else if (value instanceof Collection)
+		{
+			if (op == "=")
+			{
+				if (value.count() == 0)
+				{
+					return ["1 = 0", field_index];
+				}
+				else
+				{
+					Vector res = new Vector();
+					
+					for (int j=0; j<value.count(); j++)
+					{
+						string field_key = convert_key( field_index ~ "_where_" ~ field_name );
+						data.set( field_key, value[j] );
+						res.push( this.formatKey(field_key) );
+						field_index++;
+					}
+					
+					string s = this.prepare_field(field_name) ~
+						" in (" ~ rs::join(",", res) ~ ")"
+					;
+					return [s, field_index];
+				}
+			}
+		}
+		
+		else
+		{
+			string s = "";
+			string field_key = convert_key(field_index ~ "_where_" ~ field_name);
+			field_name = this.prepare_field(field_name);
+			
+			list res = this.prepare_value(value, op);
+			value = res[0];
+			op = res[1];
+			
+			if (op == "match")
+			{
+				s = "MATCH(" ~ field_name ~ ") AGAINST (" ~
+					this.formatKey(field_key) ~ ")"
+				;
+			}
+			else if (op == "match_boolean")
+			{
+				s = "MATCH(" ~ field_name ~ ") AGAINST (:" ~
+					this.formatKey(field_key) ~ " IN BOOLEAN MODE)"
+				;
+			}
+			else
+			{
+				s = field_name ~ " " ~ op ~ " " ~ this.formatKey(field_key);
+			}
+			
+			data.set( field_key, value );
+			field_index++;
+			
+			return [s, field_index];
+		}
+		
+		return ["", field_index];
+	}
+	
+	
+	/**
+	 * Convert filter
+	 */
+	list convertFilter(Collection filter, Map data, int field_index = 0)
+	{
+		Vector where = new Vector();
+		
+		for (int i=0; i<filter.count(); i++)
+		{
+			var item = filter.get(i);
+			list res = this.convertFilterItem(item, data, field_index);
+			string s = res.get(0);
+			field_index = res.get(1);
+			if (s != "") where.push(s);
+		}
+		
+		string where_str = rs::join(" AND ", where);
+		return [where_str, field_index];
+	}
+}

@@ -1,0 +1,298 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+ 
+namespace Runtime;
+
+use Runtime.rtl;
+use Runtime.Collection;
+use Runtime.Exceptions.IndexOutOfRange;
+
+
+class Vector<T> extends Collection
+{
+	/**
+	 * Returns new Instance
+	 * @return Object
+	 */
+	static Collection<T> Instance()
+	{
+		return new Vector();
+	}
+	
+	
+	/**
+	 * Returns new Vector
+	 * @param int offset
+	 * @param int lenght
+	 * @return Vector<T>
+	 */
+	Vector<T> removeRange(int offset, int length = null)
+	{
+		#switch
+		#case ifcode JAVASCRIPT then
+		if (offset == undefined) offset = 0;
+		if (length == undefined)
+		{
+			var arr = Array.prototype.slice.call(this, offset);
+			Object.setPrototypeOf(arr, this.constructor.prototype);
+			return arr;
+		}
+		if (length >= 0)
+		{
+			length = offset + length;
+		}
+		Array.prototype.splice.call(this, offset, length);
+		return this;
+		#case ifcode PHP then
+		array_splice($this->_arr, $offset, $length);
+		return $this;
+		#endswitch
+	}
+	
+	
+	/**
+	 * Remove item
+	 */
+	public Vector<T> remove(int pos)
+	{
+		if (pos == -1) return this;
+		#switch
+		#case ifcode JAVASCRIPT then
+		Array.prototype.splice.call(this, pos, 1);
+		return this;
+		#case ifcode PHP then
+		array_splice($this->_arr, $pos, 1);
+		return $this;
+		#endswitch
+	}
+	public Vector<T> removeItem(T item) => this.remove(this.indexOf(item));
+	
+	
+	/**
+	 * Append value to the end of array
+	 * @param T value
+	 */
+	public Vector<T> append(T value)
+	{
+		#switch
+		#case ifcode JAVASCRIPT then
+		Array.prototype.push.call(this, value);
+		return this;
+		#case ifcode PHP then
+		$this->_arr[] = $value;
+		return $this;
+		#endswitch
+	}
+	public Collection<T> push(T value) => this.append(value);
+	
+	
+	/**
+	 * Insert first value size_to array
+	 * @return T value
+	 */
+	public Vector<T> prepend(T value)
+	{
+		#switch
+		#case ifcode JAVASCRIPT then
+		Array.prototype.unshift.call(this, value);
+		return this;
+		#case ifcode PHP then
+		array_unshift($this->_arr, $value);
+		return $this;
+		#endswitch
+	}
+	
+	
+	/**
+	 * Extract last value from array
+	 * @return T value
+	 */
+	public T pop()
+	{
+		#switch
+		#case ifcode JAVASCRIPT then
+		return Array.prototype.pop.call(this);
+		#case ifcode PHP then
+		return array_pop($this->_arr);
+		#endswitch
+	}
+	
+	
+	/**
+	 * Extract first value from array
+	 * @return T value
+	 */
+	public T shift()
+	{
+		#switch
+		#case ifcode JAVASCRIPT then
+		return Array.prototype.shift.call(this);
+		#case ifcode PHP then
+		array_shift($this->_arr);
+		return $this;
+		#endswitch
+	}
+	
+	
+	/**
+	 * Insert value to position
+	 * @param int pos - position
+	 * @param T value
+	 */
+	public Vector<T> insert(int pos, T value)
+	{
+		#switch
+		#case ifcode JAVASCRIPT then
+		Array.prototype.splice.call(this, pos, 0, value);
+		return this;
+		#case ifcode PHP then
+		array_splice($this->_arr, $pos, 0, [$value]);
+		return $this;
+		#endswitch
+	}
+	
+	
+	/**
+	 * Add value to position
+	 * @param int pos - position
+	 * @param T value
+	 * @param string kind - after or before
+	 */
+	public int add(T value, int pos = -1, string kind = "after")
+	{
+		if (pos == -1)
+		{
+			if (kind == "before")
+			{
+				this.prepend(value);
+				return 0;
+			}
+			else
+			{
+				this.append(value);
+				return this.count() - 1;
+			}
+		}
+		if (kind == "after") pos = pos + 1;
+		this.insert(pos, value, kind);
+		return pos;
+	}
+	
+	
+	/**
+	 * Add value to position
+	 * @param int pos - position
+	 * @param T value
+	 * @param string kind - after or before
+	 */
+	public int addItem(T value, T dest_item, string kind = "after")
+	{
+		int pos = this.indexOf(dest_item);
+		return this.add(value, pos, kind);
+	}
+	
+	
+	/**
+	 * Set value size_to position
+	 * @param int pos - position
+	 * @param T value 
+	 */
+	public T set(int pos, T value)
+	{
+		pos = pos % this.count();
+		
+		#switch
+		#case ifcode JAVASCRIPT then
+		
+		this[pos] = value;
+		return this;
+		#case ifcode PHP then
+		
+		$this->_arr[$pos] = $value;
+		return $this;
+		#endswitch
+	}
+	
+	
+	/**
+	 * Remove value
+	 */
+	public Vector<T> removeValue(T value)
+	{
+		var index = this.indexOf(value);
+		if (index != -1) this.remove(index, 1);
+		return this;
+	}
+	
+	
+	/**
+	 * Find value and remove
+	 */
+	Collection<T> findAndRemove(fn f)
+	{
+		var index = this.find(f);
+		if (index != -1) this.remove(index);
+		return this;
+	}
+	
+	
+	/**
+	 * Clear all values from vector
+	 */
+	public Vector<T> clear()
+	{
+		#switch
+		#case ifcode JAVASCRIPT then
+		Array.prototype.splice.call(this, 0, this.length);
+		return this;
+		#case ifcode PHP then
+		$this->_arr = [];
+		return $this;
+		#endswitch
+	}
+	
+	
+	/**
+	 * Append vector to the end of the vector
+	 * @param Collection<T> arr
+	 */
+	public Vector<T> appendItems(Collection<T> items)
+	{
+		items.each(
+			void (var item)
+			{
+				this.push(item);
+			}
+		);
+	}
+	
+	
+	/**
+	 * Prepend vector to the end of the vector
+	 * @param Collection<T> arr
+	 */
+	public Vector<T> prependItems(Collection<T> items)
+	{
+		items.each(
+			void (var item)
+			{
+				this.prepend(item);
+			}
+		);
+	}
+}

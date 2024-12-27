@@ -1,0 +1,184 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Constructor.Frontend.Editor.Widget;
+
+use Runtime.lib;
+use BayLang.Constructor.Frontend.Editor.Parameters.Parameter;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterClassName;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterWidgetName;
+use BayLang.Constructor.Frontend.Editor.Styles.Selector;
+use BayLang.Constructor.Frontend.Editor.Widget.Widget;
+use BayLang.Constructor.Frontend.Editor.WidgetEditPageModel;
+use BayLang.Constructor.Frontend.WidgetPage.ParameterFactory;
+use BayLang.Constructor.Frontend.WidgetPage.WidgetSettingsInterface;
+use BayLang.OpCodes.BaseOpCode;
+use BayLang.OpCodes.OpHtmlAttribute;
+use BayLang.OpCodes.OpHtmlContent;
+use BayLang.OpCodes.OpHtmlTag;
+use BayLang.OpCodes.OpHtmlValue;
+use BayLang.OpCodes.OpString;
+
+
+class WidgetTag extends Widget
+{
+	/* Params */
+	Parameter param_class_name = null;
+	Parameter param_widget_name = null;
+	
+	/* Widget content */
+	bool is_raw = false;
+	string html_content = "";
+	
+	
+	/**
+	 * Returns widget name
+	 */
+	string getName() => this.param_widget_name.value;
+	
+	
+	/**
+	 * Returns CSS Content
+	 */
+	string getSelectorName() => "." ~ this.param_widget_name.value;
+	
+	
+	/**
+	 * Returns selector
+	 */
+	Selector getSelector()
+	{
+		string selector_name = this.getSelectorName();
+		return this.page_model.styles.getSelector(selector_name);
+	}
+	
+	
+	/**
+	 * Can insert widget
+	 */
+	bool canInsert(WidgetSettingsInterface widget_settings)
+	{
+		if (not this.settings) return false;
+		return this.settings.canInsert(widget_settings);
+	}
+	
+	
+	/**
+	 * Constructor
+	 */
+	public void constructor(WidgetEditPageModel page_model, BaseOpCode code)
+	{
+		parent(page_model, code);
+		
+		/* Create params */
+		this.param_class_name = new ParameterClassName
+		{
+			"widget": this,
+		};
+		this.param_widget_name = new ParameterWidgetName
+		{
+			"widget": this,
+		};
+		this.param_class_name.param_widget_name = this.param_widget_name;
+		this.param_widget_name.param_class_name = this.param_class_name;
+		this.param_class_name.op_attr = null;
+		this.param_class_name.value = [];
+		this.param_widget_name.op_attr = null;
+		this.param_widget_name.value = "";
+	}
+	
+	
+	/**
+	 * Setup settings
+	 */
+	void setupSettings()
+	{
+		if (this.settings != null) return;
+		BaseOpCode op_code = this.code;
+		
+		/* Find component settings */
+		this.settings = this.page_model.getFrameEditor()
+			.getWidgetSettings(this);
+	}
+	
+	
+	/**
+	 * Setup params
+	 */
+	void setupParams()
+	{
+		/* Clear params */
+		this.params = [];
+		this.params.add(this.param_widget_name);
+		this.params.add(this.param_class_name);
+		
+		/* Setup params from settings */
+		if (this.settings)
+		{
+			this.params.appendItems(
+				this.settings.getParams().map(
+					Parameter (ParameterFactory factory)
+					{
+						Parameter param = factory.factory(new rtl());
+						param.widget = this;
+						return param;
+					}
+				)
+			);
+		}
+	}
+	
+	
+	/**
+	 * Setup attrs
+	 */
+	void setupAttrs()
+	{
+		Collection<OpHtmlAttribute> attrs = this.code.attrs;
+		if (not attrs) return;
+		
+		/* Setup paremeters values */
+		for (int i=0; i<attrs.count(); i++)
+		{
+			OpHtmlAttribute op_attr = attrs.get(i);
+			for (int j=0; j<this.params.count(); j++)
+			{
+				Parameter param = this.params.get(j);
+				if (
+					param instanceof ParameterComponent and
+					param.isOpCode(op_attr)
+				)
+				{
+					param.setOpCode(op_attr);
+				}
+			}
+		}
+		
+		/* Create class attribute */
+		if (this.param_class_name.op_attr == null)
+		{
+			OpHtmlAttribute op_attr = new OpHtmlAttribute
+			{
+				"key": "class",
+			};
+			this.param_class_name.op_attr = op_attr;
+			this.param_widget_name.op_attr = op_attr;
+		}
+	}
+}

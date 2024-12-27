@@ -1,0 +1,162 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.ORM.MySQL;
+
+use Runtime.io;
+use Runtime.re;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Cursor;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryField;
+use Runtime.ORM.QueryFilter;
+use Runtime.ORM.Exceptions.OrmException;
+use Runtime.ORM.MySQL.CursorMySQL;
+use Runtime.ORM.MySQL.SQLBuilder;
+
+
+class ConnectionMySQL extends Connection
+{
+	public string host = "";
+	public string port = "";
+	public string login = "";
+	public string password = "";
+	public string database = "";
+	public string prefix = "";
+	public string connect_error = "";	
+	public var pdo = null;
+	public bool is_transaction = false;
+	
+	
+	/**
+	 * Connect
+	 */
+	async ConnectionMySQL connect()
+	{
+		this.connect_error = "";
+		
+		#ifcode PHP then
+		
+		try
+		{
+			$str = 'mysql:host='.$this->host;
+			if ($this->port != null) $str .= ':'.$this->port;
+			if ($this->database != null) $str .= ';dbname='.$this->database;
+			$this->pdo = new \PDO(
+				$str, $this->login, $this->password, 
+				array(
+					\PDO::ATTR_PERSISTENT => false
+				)
+			);
+			$this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+			$this->pdo->exec("set names utf8");
+		}
+		catch (\PDOException $e)
+		{
+			$this->connect_error = $e->getMessage();
+			throw new \Runtime\ORM\Exceptions\OrmException('Failed connected to database!');
+		}
+		catch (\Excepion $e)
+		{
+			$this->connect_error = $e->getMessage();
+		}
+		
+		#endif
+		
+		return this;
+	}
+	
+	
+	/**
+	 * Connect
+	 */
+	bool isConnected()
+	{
+		return this.pdo != null;
+	}
+	
+	
+	/**
+	 * Create new cursor
+	 */
+	CursorMySQL createCursor() => new CursorMySQL(this);
+	
+	
+	/**
+	 * Create SQLBuilder
+	 */
+	SQLBuilder createBuilder(Query q) => new SQLBuilder(this, q);
+	
+	
+	/**
+	 * Execute Query
+	 */
+	async Cursor execute(Query q, Dict params = null)
+	{
+		if (params == null) params = {};
+		
+		/* Check is debug */
+		bool is_debug = params.get("debug", false);
+		if (q._debug)
+		{
+			is_debug = true;
+		}
+		
+		/* Build query */
+		SQLBuilder builder = this.createBuilder(q).build();
+		
+		/* Check builder correct */
+		if (not builder.isValid())
+		{
+			throw new OrmException("SQL builder is not correct")
+		}
+		
+		/* Debug sql */
+		if (is_debug)
+		{
+			string sql_debug = builder.formatSQL();
+			io::print(sql_debug);
+		}
+		
+		/* Create cursor */
+		Cursor cursor = this.createCursor();
+		
+		/* Execute sql */
+		Cursor cursor = await cursor.executeSQL(builder);
+		cursor.q = q.copy();
+		
+		return cursor;
+	}
+	
+	
+	/**
+	 * Execute Query
+	 */
+	async Cursor executeSQL(string sql, Dict data = null)
+	{
+		/* Build query */
+		SQLBuilder builder = this.createBuilder(null);
+		builder.sql = sql;
+		builder.data = data;
+		
+		/* Execute */
+		Cursor cursor = this.createCursor();
+		Cursor cursor = await cursor.executeSQL(builder);
+		return cursor;
+	}
+}

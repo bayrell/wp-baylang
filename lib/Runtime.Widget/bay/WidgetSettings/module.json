@@ -1,0 +1,41 @@
+{
+	"name": "Runtime.Widget.WidgetSettings",
+	"assets":
+	[
+		"Settings/ButtonSettings.bay",
+		"Settings/ContainerSettings.bay",
+		"Settings/FormSubmitSettings.bay",
+		"Settings/FormSubmitModelSettings.bay",
+		"Settings/ImageSettings.bay",
+		"Settings/SectionSettings.bay",
+		"Settings/TemplateSettings.bay",
+		"Settings/TextImageSettings.bay",
+		"Settings/Html/Div.bay",
+		"Settings/Html/Header.bay",
+		"Settings/Html/H1.bay",
+		"Settings/Html/H2.bay",
+		"Settings/Html/H3.bay",
+		"Settings/Html/H4.bay",
+		"Settings/Html/H5.bay",
+		"Settings/Html/Link.bay",
+		"Settings/Html/Paragraph.bay",
+		"Settings/Html/Span.bay",
+		"WidgetManager.bay",
+		"ModuleDescription.bay"
+	],
+	"require": [
+	],
+	"groups": [
+		"constructor"
+	],
+	"src": "./",
+	"dest":
+	{
+		"php": "./../../php/WidgetSettings",
+		"es6": "./../../es6/WidgetSettings"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

@@ -1,0 +1,202 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.ORM;
+
+use Runtime.lib;
+use Runtime.BaseProvider;
+use Runtime.BaseStruct;
+use Runtime.Callback;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Annotations.AutoIncrement;
+use Runtime.ORM.Annotations.BaseType;
+use Runtime.ORM.Annotations.Database;
+use Runtime.ORM.Annotations.ForeignKey;
+use Runtime.ORM.Annotations.Primary;
+use Runtime.ORM.Annotations.Rule;
+use Runtime.ORM.Annotations.Table;
+use Runtime.ORM.Factory.ConnectionFactory;
+
+
+class Provider extends BaseProvider
+{
+	protected Map foreign_keys = new Map;
+	protected Map connection_list = new Map;
+	protected Map tables = new Map;
+	
+	
+	/**
+	 * Returns connection
+	 */
+	Connection getConnection(string name)
+	{
+		if (not this.connection_list.has(name))
+		{
+			throw new RuntimeException("Connection " ~ name ~ " not found");
+		}
+		return this.connection_list[name];
+	}
+	
+	
+	/**
+	 * Add new connection
+	 */
+	void addConnection(Connection conn)
+	{
+		this.connection_list.set(conn.getName(), conn);
+	}
+	
+	
+	/**
+	 * Returns table annotations
+	 */
+	Collection<BaseStruct> getAnotations(string table_name)
+	{
+		if (not this.tables.has(table_name)) return [];
+		return this.tables[table_name, "annotations"];
+	}
+	
+	
+	/**
+	 * Returns foreign_key by name
+	 */
+	ForeignKey getForeignKey(string name)
+	{
+		if (not this.foreign_keys.has(name)) return null;
+		return this.foreign_keys.get(name);
+	}
+	
+	
+	/**
+	 * Returns fields from table
+	 */
+	BaseType getFieldType(string table_name, string field_name)
+	{
+		Collection<BaseStruct> annotations = static::getAnotations(table_name);
+		for (int i=0; i<annotations.count(); i++)
+		{
+			BaseStruct annotation = annotations[i];
+			if (annotation instanceof BaseType)
+			{
+				if (annotation.name == field_name)
+				{
+					return annotation;
+				}
+			}
+		}
+		return null;
+	}
+	
+	
+	/**
+	 * Add table
+	 */
+	void addTable(Table table, Vector rules)
+	{
+		string table_name = table.name;
+		
+		for (int i=0; i<rules.count(); i++)
+		{
+			BaseStruct rule = rules.get(i);
+			rule <= table_name_source <= table_name;
+			rules.set(i, rule);
+		}
+		
+		this.tables.set(table_name, {
+			"annotations": rules.toCollection(),
+			"table": table,
+		});
+		
+		for (int i=0; i<rules.count(); i++)
+		{
+			BaseStruct rule = rules.get(i);
+			if (rule instanceof ForeignKey)
+			{
+				if (rule.name != "")
+				{
+					if (this.foreign_keys.has(rule.name))
+					{
+						throw new RuntimeException("Duplicate foreign_key name");
+					}
+					this.foreign_keys.set(rule.name, rule);
+				}
+			}
+		}
+	}
+	
+	
+	/**
+	 * Start provider
+	 */
+	async void start()
+	{
+		await parent::start();
+		this.registerTables();
+		this.registerConnections();
+	}
+	
+	
+	/**
+	 * Register tables
+	 */
+	protected void registerTables()
+	{
+		Collection<Database> items = @.getEntities(classof Database);
+		for (int i=0; i<items.count(); i++)
+		{
+			Database db = items[i];
+			string class_name = db.name;
+			Callback getMethodsList = new Callback(class_name, "getMethodsList");
+			Callback getMethodInfoByName = new Callback(class_name, "getMethodInfoByName");
+			
+			Collection<string> methods = rtl::apply(getMethodsList);
+			for (int j=0; j<methods.count(); j++)
+			{
+				string method_name = methods[j];
+				Dict info = rtl::apply(getMethodInfoByName, [method_name]);
+				
+				/* Get methods annotations */
+				Vector annotations = info.get("annotations");
+				if (annotations)
+				{
+					Table table = annotations.findItem( lib::isInstance(classof Table) );
+					if (table)
+					{
+						Vector rules = rtl::apply(new Callback(class_name, method_name));
+						this.addTable(table, rules);
+					}
+				}
+			}
+		}
+	}
+	
+	
+	/**
+	 * Register connections
+	 */
+	protected void registerConnections()
+	{
+		Collection<ConnectionFactory> items = @.getEntities(classof ConnectionFactory);
+		for (int i=0; i<items.count(); i++)
+		{
+			ConnectionFactory factory = items.get(i);
+			factory.registerConnections(this);
+		}
+	}
+}

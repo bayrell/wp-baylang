@@ -1,0 +1,100 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Admin.Robots;
+
+use Runtime.Callback;
+use Runtime.Entity.Factory;
+use Runtime.Web.BasePageModel;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.ButtonModel;
+use Runtime.Widget.Input;
+use Runtime.Widget.Select;
+use Runtime.Widget.TextArea;
+use Runtime.Widget.Form.FormModel;
+use Runtime.WordPress.Admin.Robots.RobotsPage;
+
+
+class RobotsPageModel extends BasePageModel
+{
+	string component = classof RobotsPage;
+	FormModel form = null;
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Add form */
+		this.form = this.addWidget(
+			classof FormModel,
+			{
+				"widget_name": "form",
+				"storage": new Factory
+				(
+					"Runtime.Widget.Form.FormSaveStorage",
+					{
+						"api_name": "admin.wordpress.robots::save",
+					}
+				),
+				"pk": [],
+				"fields":
+				[
+					{
+						"name": "content",
+						"component": classof TextArea,
+					},
+				],
+			}
+		);
+		
+		/* Add save button */
+		this.form.bottom_buttons.addButton(
+			{
+				"widget_name": "save_button",
+				"content": "Save",
+				"styles": ["large", "primary"],
+				"events":
+				{
+					"click": new Callback(this, "onSave")
+				},
+			}
+		);
+	}
+	
+	
+	/**
+	 * Save form
+	 */
+	async void onSave()
+	{
+		await this.form.submit();
+	}
+	
+	
+	/**
+	 * Build title
+	 */
+	void buildTitle(RenderContainer container)
+	{
+		this.layout.setPageTitle("Robots TXT");
+	}
+}

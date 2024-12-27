@@ -1,0 +1,56 @@
+{
+	"name": "Runtime.Web",
+	"assets":
+	[
+		"ApiResult.bay",
+		"BaseApp.bay",
+		"BaseModel.bay",
+		"BaseLayoutModel.bay",
+		"Bus.bay",
+		"BusHttp.bay",
+		"BusInterface.bay",
+		"Component.bay",
+		"DefaultLayout.bay",
+		"Events.bay",
+		"ModelFactory.bay",
+		"RenderContainer.bay",
+		"RenderHelper.bay",
+		"RenderProvider.bay",
+		"RouteInfo.bay",
+		"RouteAction.bay",
+		"RoutePage.bay",
+		"RouteModel.bay",
+		"Annotations/Components.bay",
+		"Annotations/SetupLayout.bay",
+		"Annotations/Widget.bay",
+		"Hooks/AppHook.bay",
+		"Hooks/AssetsHook.bay",
+		"Hooks/CanonicalUrl.bay",
+		"Hooks/Components.bay",
+		"Hooks/DetectLanguage.bay",
+		"Hooks/SetupLayout.bay",
+		"Hooks/WidgetModelFactory.bay",
+		"Messages/Message.bay",
+		"Messages/ValueChangeMessage.bay",
+		"Messages/ClickMessage.bay",
+		"AppComponent.bay",
+		"BasePage.bay",
+		"BasePageModel.bay",
+		"ModuleDescription.bay"
+	],
+	"groups": [
+		"runtime"
+	],
+	"src": "./bay",
+	"dest":
+	{
+		"php": "./php",
+		"es6": "./es6"
+	},
+	"allow":
+	[
+		"\\.bay$",
+		"\\.php$",
+		"\\.js$"
+	]
+}

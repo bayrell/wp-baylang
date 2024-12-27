@@ -1,0 +1,25 @@
+{
+	"name": "Runtime.Widget.ContextMenu",
+	"assets":
+	[
+		"ContextMenu.bay",
+		"ContextMenuMessage.bay",
+		"ContextMenuModel.bay"
+	],
+	"require": [
+		"Runtime.Widget"
+	],
+	"groups": [
+		"widget"
+	],
+	"src": "./",
+	"dest":
+	{
+		"php": "./../../php/ContextMenu",
+		"es6": "./../../es6/ContextMenu"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}
