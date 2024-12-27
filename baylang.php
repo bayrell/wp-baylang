@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: BayLang Constructor
+ * Plugin Name: BayLang Constructor (Source Code)
  * Plugin URI:  https://github.com/bayrell/wp-baylang
  * Description: BayLang Constructor for WordPress
  * Version:     0.12.0
@@ -114,21 +114,25 @@ class BayLang_Plugin
 	public static function initLoader()
 	{
 		if (static::$loader != null) return;
-		static::$loader = require_once __DIR__ . "/vendor/autoload.php";
+		require_once __DIR__ . "/lib/Runtime/php/Loader.php";
+		static::$loader = new Loader();
+		
+		/* Register autoload */
+		spl_autoload_register([static::$loader, 'load']);
 		
 		/* Add autoloader */
-		static::$loader->addPsr4("Runtime\\",  __DIR__ . "/lib/Runtime/php");
-		static::$loader->addPsr4("Runtime\\Crypt\\",  __DIR__ . "/lib/Runtime.Crypt/php");
-		static::$loader->addPsr4("Runtime\\ORM\\",  __DIR__ . "/lib/Runtime.ORM/php");
-		static::$loader->addPsr4("Runtime\\Unit\\",  __DIR__ . "/lib/Runtime.Unit/php");
-		static::$loader->addPsr4("Runtime\\Web\\",  __DIR__ . "/lib/Runtime.Web/php");
-		static::$loader->addPsr4("Runtime\\Widget\\",  __DIR__ . "/lib/Runtime.Widget/php");
-		static::$loader->addPsr4("Runtime\\WordPress\\",  __DIR__ . "/lib/Runtime.WordPress/php");
-		static::$loader->addPsr4("Runtime\\XML\\",  __DIR__ . "/lib/Runtime.XML/php");
+		static::$loader->add("Runtime",  __DIR__ . "/lib/Runtime/php");
+		static::$loader->add("Runtime.Crypt",  __DIR__ . "/lib/Runtime.Crypt/php");
+		static::$loader->add("Runtime.ORM",  __DIR__ . "/lib/Runtime.ORM/php");
+		static::$loader->add("Runtime.Unit",  __DIR__ . "/lib/Runtime.Unit/php");
+		static::$loader->add("Runtime.Web",  __DIR__ . "/lib/Runtime.Web/php");
+		static::$loader->add("Runtime.Widget",  __DIR__ . "/lib/Runtime.Widget/php");
+		static::$loader->add("Runtime.WordPress",  __DIR__ . "/lib/Runtime.WordPress/php");
+		static::$loader->add("Runtime.XML",  __DIR__ . "/lib/Runtime.XML/php");
 		
 		/* Add BayLang */
-		static::$loader->addPsr4("BayLang\\",  __DIR__ . "/lib/BayLang/php");
-		static::$loader->addPsr4("BayLang\\Constructor\\",  __DIR__ . "/lib/BayLang.Constructor/php");
+		static::$loader->add("BayLang",  __DIR__ . "/lib/BayLang/php");
+		static::$loader->add("BayLang.Constructor",  __DIR__ . "/lib/BayLang.Constructor/php");
 	}
 	
 	

@@ -1,0 +1,62 @@
+{
+	"name": "BayLang Constructor",
+	"languages": ["php", "es6"],
+	"modules":
+	[
+		{
+			"src": "lib",
+			"type": "folder"
+		}
+	],
+	"assets":
+	[
+		{
+			"type": "js",
+			"dest": "assets/runtime.js",
+			"modules":
+			[
+				"@runtime",
+				"@widget",
+				"Runtime.WordPress"
+			]
+		},
+		{
+			"type": "js",
+			"dest": "assets/admin.js",
+			"modules":
+			[
+				"@baylang",
+				"Runtime.WordPress.Admin"
+			]
+		},
+		{
+			"type": "js",
+			"dest": "assets/constructor.js",
+			"modules":
+			[
+				"BayLang.Constructor.WidgetPage",
+				"@constructor"
+			]
+		},
+		{
+			"type": "js",
+			"dest": "assets/test.js",
+			"modules":
+			[
+				"BayLang.Test",
+				"Runtime.Unit"
+			]
+		},
+		{
+			"type": "js",
+			"dest": "assets/app.js",
+			"modules":
+			[
+				"@app"
+			]
+		}
+	],
+	"exclude":
+	[
+	]
+}
