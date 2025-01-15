@@ -109,12 +109,25 @@ class BayLang_Plugin
 	
 	
 	/**
+	 * Returns plugin path
+	 */
+	public static function getPath()
+	{
+		return dirname(__FILE__);
+	}
+	
+	
+	/**
 	 * Init loader
 	 */
 	public static function initLoader()
 	{
 		if (static::$loader != null) return;
+		
+		/* Load file */
 		require_once __DIR__ . "/lib/Runtime/php/Loader.php";
+		
+		/* Create loader */
 		static::$loader = new Loader();
 		
 		/* Register autoload */
@@ -345,6 +358,8 @@ class BayLang_Plugin
 	 */
 	public static function register_admin_menu()
 	{
+		$baylang_url = plugin_dir_url(__FILE__);
+		
 		add_menu_page
 		(
 			'BayLang', 'BayLang',
@@ -353,8 +368,22 @@ class BayLang_Plugin
 			{
 				echo "BayLang";
 			},
-			'/wp-content/plugins/wp-baylang/assets/form.png',
+			$baylang_url . 'assets/form.png',
 			30
+		);
+		
+		add_submenu_page
+		(
+			'baylang',
+			'Fonts', 'Fonts',
+			'manage_options', 'baylang-fonts',
+			function()
+			{
+				$action = isset($_GET["action"]) ? $_GET["action"] : "index";
+				WP_Helper::wp_render_page(
+					"baylang:project:fonts:" . $action
+				);
+			}
 		);
 		
 		add_submenu_page
@@ -410,8 +439,13 @@ class BayLang_Plugin
 			'manage_options', 'baylang-settings',
 			function ()
 			{
+				$route = "admin:project:save";
+				$action = isset($_GET["action"]) ? $_GET["action"] : "save";
+				if ($action == "save") $route = "admin:project:save";
+				else if ($action == "create") $route = "admin:project:create";
+				else if ($action == "migrations") $route = "admin:database:migrations";
 				WP_Helper::wp_render_page(
-					"baylang:project:settings",
+					$route,
 					function ($container)
 					{
 						$container->route->matches->set("project_id", "default");
@@ -489,29 +523,30 @@ class BayLang_Plugin
 	 */
 	public static function add_admin_script()
 	{
-		$version = "0.12";
+		$baylang_url = plugin_dir_url(__FILE__);
+		$version = static::getVersion();
 		wp_enqueue_script(
 			'vue',
 			WP_DEBUG
-			? '/wp-content/plugins/wp-baylang/assets/vue.runtime.global.js'
-			: '/wp-content/plugins/wp-baylang/assets/vue.runtime.global.prod.js',
+			? $baylang_url . 'assets/vue.runtime.global.js'
+			: $baylang_url . 'assets/vue.runtime.global.prod.js',
 			[], $version, true
 		);
 		wp_enqueue_script(
 			'baylang-runtime',
-			'/wp-content/plugins/wp-baylang/assets/runtime.js',
+			$baylang_url . 'assets/runtime.js',
 			[], $version, true
 		);
 		wp_enqueue_script(
 			'baylang-runtime-admin',
-			'/wp-content/plugins/wp-baylang/assets/admin.js',
+			$baylang_url . 'assets/admin.js',
 			['baylang-runtime'], $version, true
 		);
 		if (WP_DEBUG)
 		{
 			wp_enqueue_script(
 				'baylang-runtime-test',
-				'/wp-content/plugins/wp-baylang/assets/test.js',
+				$baylang_url . 'assets/test.js',
 				['baylang-runtime-admin'], $version, true
 			);
 		}
@@ -523,17 +558,18 @@ class BayLang_Plugin
 	 */
 	static function add_template_script()
 	{
+		$baylang_url = plugin_dir_url(__FILE__);
 		$version = static::getVersion();
 		wp_enqueue_script(
 			'vue',
 			WP_DEBUG
-			? '/wp-content/plugins/wp-baylang/assets/vue.runtime.global.js'
-			: '/wp-content/plugins/wp-baylang/assets/vue.runtime.global.prod.js',
+			? $baylang_url . 'assets/vue.runtime.global.js'
+			: $baylang_url . 'assets/vue.runtime.global.prod.js',
 			[], $version, true
 		);
 		wp_enqueue_script(
 			'baylang-runtime',
-			'/wp-content/plugins/wp-baylang/assets/runtime.js',
+			$baylang_url . 'assets/runtime.js',
 			[], $version, true
 		);
 	}
@@ -546,10 +582,11 @@ class BayLang_Plugin
 	{
 		if (current_user_can("edit_pages"))
 		{
+			$baylang_url = plugin_dir_url(__FILE__);
 			$version = static::getVersion();
 			wp_enqueue_script(
 				'baylang-constructor',
-				'/wp-content/plugins/wp-baylang/assets/constructor.js',
+				$baylang_url . 'assets/constructor.js',
 				['baylang-runtime'], $version, true
 			);
 			
@@ -652,28 +689,6 @@ register_shutdown_function(function(){
 	}
 	
 });
-
-add_filter(
-	'pre_update_option_active_plugins',
-	'debug_errors_pre_update_option_active_plugins', 999999
-);
-function debug_errors_pre_update_option_active_plugins($plugins)
-{
-	
-	if ( empty( $plugins ) ) {
-		return $plugins;
-	}
-	
-	$name = plugin_basename(__FILE__);
-	if (($key = array_search($name, $plugins)) !== false)
-	{
-		unset($plugins[$key]);
-	}
-	array_unshift($plugins, $name);
-	
-	return $plugins;
-	
-}
 
 add_action
 (
