@@ -43,7 +43,7 @@ class BayLang_Plugin
 		add_action('wp_ajax_admin_call_api', 'BayLang_Plugin::admin_call_api');
 		
 		/* Add admin script */
-		add_action('baylang_admin_render_page', 'BayLang_Plugin::add_admin_script');
+		add_action('admin_render_page', 'BayLang_Plugin::add_admin_script');
 		add_action('admin_head', 'BayLang_Plugin::admin_head');
 		add_action('admin_print_footer_scripts', 'BayLang_Plugin::admin_footer', 999999);
 		
