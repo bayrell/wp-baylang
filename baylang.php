@@ -47,12 +47,25 @@ class BayLang_Plugin
 		add_action('admin_head', 'BayLang_Plugin::admin_head');
 		add_action('admin_print_footer_scripts', 'BayLang_Plugin::admin_footer', 999999);
 		
+		/* Init wordpress */
+		add_action('init', 'BayLang_Plugin::image_sizes');
+		
 		/* Template init */
 		add_action('wp', 'BayLang_Plugin::create_template_context', 0);
 		
 		/* Template scripts */
 		add_action('wp_enqueue_scripts', 'BayLang_Plugin::add_template_script');
 		add_action('wp_head', 'BayLang_Plugin::widget_page_scripts', 999999);
+		
+		/* Cron schedules */
+		add_filter('cron_schedules', 'BayLang_Plugin::cron_schedules');
+		
+		/* Add Cron send mail */
+		if ( !wp_next_scheduled('baylang_cron_send_mail' ))
+		{
+			wp_schedule_event(time() + 60, 'every_5_minute', 'baylang_cron_send_mail');
+		}
+		add_action('baylang_cron_send_mail', 'BayLang_Plugin::cron_send_mail');
 		
 		/* Robots tsxt */
 		add_filter('robots_txt', 'BayLang_Plugin::robots');
@@ -245,7 +258,7 @@ class BayLang_Plugin
 		{
 			$init["modules"]->push("BayLang.Constructor.WidgetPage");
 			$init["modules"]->push("Runtime.Widget.WidgetSettings");
-			$init["modules"]->push("Runtime.WordPress.Settings");
+			$init["modules"]->push("Runtime.WordPress.Theme.WidgetSettings");
 		}
 		
 		/* Call action */
@@ -305,6 +318,53 @@ class BayLang_Plugin
 		$app->sendResponse($container);
 		
 		exit();
+	}
+	
+	
+	/**
+	 * Cron schedules
+	 */
+	public static function cron_schedules($schedules)
+	{
+		$schedules['every_5_minute'] = array
+		(
+			'interval' => 300, // Каждые 5 минуты
+			'display'  => 'Every 5 Minutes',
+		);
+		$schedules['every_10_minute'] = array
+		(
+			'interval' => 600, // Каждые 10 минуты
+			'display'  => 'Every 10 Minutes',
+		);
+		return $schedules;
+	}
+	
+	
+	/**
+	 * Cron send mail
+	 */
+	public static function cron_send_mail()
+	{
+		static::create_admin_context();
+		
+		/* Load PHP Mailer */
+		require_once ABSPATH . "/wp-includes/PHPMailer/Exception.php";
+		require_once ABSPATH . "/wp-includes/PHPMailer/PHPMailer.php";
+		require_once ABSPATH . "/wp-includes/PHPMailer/SMTP.php";
+		
+		/* Send new message */
+		$provider = static::$context->provider("email");
+		$provider->loadSettings();
+		$provider->sendNewMessages();
+	}
+	
+	
+	/**
+	 * Image sizes
+	 */
+	public static function image_sizes()
+	{
+		add_image_size('medium_top', 300, 300, ['center', 'top']);
 	}
 	
 	
@@ -412,6 +472,21 @@ class BayLang_Plugin
 			}
 		);
 		
+		add_submenu_page
+		(
+			'baylang',
+			'Gallery', 'Gallery',
+			'manage_options', 'baylang-gallery',
+			function()
+			{
+				$action = isset($_GET["action"]) ? $_GET["action"] : "index";
+				wp_enqueue_media();
+				WP_Helper::wp_render_page(
+					"admin:gallery:" . $action
+				);
+			}
+		);
+		
 		add_submenu_page(
 			'baylang',
 			'Mail log', 'Mail log',
@@ -471,7 +546,7 @@ class BayLang_Plugin
 						{
 							$container->route->matches->set("project_id", "default");
 							$container->route->matches->set("widget_name",
-								$_GET["widget_name"]
+								isset($_GET["widget_name"]) ? $_GET["widget_name"] : ""
 							);
 						}
 					);
@@ -659,8 +734,11 @@ set_exception_handler(function ($e){
 	
 	if (!$e) return;
 	
-	status_header(500);
-	http_response_code(500);
+	if (php_sapi_name() != 'cli')
+	{
+		status_header(500);
+		http_response_code(500);
+	}
 	
 	echo "<b>Fatal Error</b><br/>";
 	echo nl2br($e->getMessage()) . "<br/>\n";
@@ -678,8 +756,11 @@ register_shutdown_function(function(){
 	if (!$e) return;
 	if (!($e['type'] & (E_ERROR | E_COMPILE_ERROR))) return;
 	
-	status_header(500);
-	http_response_code(500);
+	if (php_sapi_name() != 'cli')
+	{
+		status_header(500);
+		http_response_code(500);
+	}
 	
 	echo "<b>Fatal Error</b><br/>";
 	echo nl2br($e['message']) . "<br/>\n";

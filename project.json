@@ -17,7 +17,8 @@
 			[
 				"@runtime",
 				"@widget",
-				"Runtime.WordPress"
+				"Runtime.WordPress",
+				"Runtime.WordPress.Theme"
 			]
 		},
 		{
