@@ -25,7 +25,8 @@ use Runtime.ORM.ConnectionInterface as Connection;
 struct BaseType extends BaseStruct
 {
 	var default = null;
-	string table_name_source = "";
+	string table_name = "";
+	string class_name = "";
 	string name = "";
 	string comment = "";
 	bool nullable = false;

@@ -256,6 +256,7 @@ class CodeApi extends \Runtime\Web\BaseApi
 						
 						$module->compile($relative_src_file_path);
 						$module->updateAssets();
+						\BayLang\Constructor\Backend\ApiHook::updateAssets();
 					}
 					catch (\Exception $_ex)
 					{

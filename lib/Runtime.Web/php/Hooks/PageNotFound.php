@@ -52,6 +52,14 @@ class PageNotFound extends \Runtime\Web\Hooks\AppHook
 		{
 			return ;
 		}
+		if ($container->layout->current_page_class != "")
+		{
+			return ;
+		}
+		if ($container->layout->current_page_model != "")
+		{
+			return ;
+		}
 		$container->renderPageModel($this->model);
 	}
 	/* ======================= Class Init Functions ======================= */

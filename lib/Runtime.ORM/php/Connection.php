@@ -20,7 +20,9 @@ namespace Runtime\ORM;
 class Connection
 {
 	public $name;
-	function __construct($name)
+	public $cursor;
+	public $log;
+	function __construct($name="")
 	{
 		$this->name = $name;
 	}
@@ -40,6 +42,27 @@ class Connection
 		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
 		$conn = $provider->getConnection($name);
 		return $conn;
+	}
+	/**
+	 * Set cursor factory
+	 */
+	function setCursorFactory($factory)
+	{
+		$this->cursor = $factory;
+	}
+	/**
+	 * Set query log
+	 */
+	function setQueryLog($value)
+	{
+		$this->log = $value;
+	}
+	/**
+	 * Returns query log
+	 */
+	function getQueryLog()
+	{
+		return $this->log;
 	}
 	/**
 	 * Connect
@@ -66,19 +89,32 @@ class Connection
 	 */
 	function createCursor()
 	{
-		return new \Runtime\ORM\Cursor();
+		if (!$this->cursor)
+		{
+			return ;
+		}
+		$cursor = $this->cursor->createCursor();
+		$cursor->setConnection($this);
+		return $cursor;
+	}
+	/**
+	 * Fork connection
+	 */
+	function fork()
+	{
+		return \Runtime\rtl::newInstance(static::getClassName());
 	}
 	/**
 	 * Prepare field
 	 */
-	function prepare_field($item)
+	function prepareField($item)
 	{
 		return $item;
 	}
 	/**
 	 * Prepare value
 	 */
-	function prepare_value($item, $op)
+	function prepareValue($item, $op)
 	{
 		return $item;
 	}
@@ -90,15 +126,18 @@ class Connection
 		return $value;
 	}
 	/**
+	 * Returns table name
+	 */
+	function getTableName($table_name)
+	{
+		return $this->prefix . \Runtime\rtl::toStr($table_name);
+	}
+	/**
 	 * Execute Query
 	 */
 	function execute($q, $params=null)
 	{
 		return null;
-	}
-	function executeQuery($q, $params=null)
-	{
-		return $this->execute($q, $params);
 	}
 	/**
 	 * Insert query
@@ -197,40 +236,6 @@ class Connection
 		return $item;
 	}
 	/**
-	 * Find relation by object
-	 */
-	function findRelationByObject($table_name, $item, $params=null)
-	{
-		/* Build filter */
-		$filter = $item->transition(function ($value, $key)
-		{
-			return new \Runtime\ORM\QueryFilter($key, "=", $value);
-		});
-		/* Find relation */
-		return $this->findRelationByFilter($table_name, $filter, $params);
-	}
-	/**
-	 * Find relation by object
-	 */
-	function findRelationById($table_name, $id, $params=null)
-	{
-		/* Get primary keys */
-		$pk = \Runtime\ORM\Relation::getPrimaryKeys($table_name);
-		$pk_name = $pk->get(0);
-		/* Build filter */
-		$filter = \Runtime\Vector::from([new \Runtime\ORM\QueryFilter($pk_name, "=", $id)]);
-		/* Find relation */
-		return $this->findRelationByFilter($table_name, $filter, $params);
-	}
-	/**
-	 * Find relation by filter
-	 */
-	function findRelationByFilter($table_name, $filter, $params=null)
-	{
-		$q = (new \Runtime\ORM\Query())->select(\Runtime\Vector::from([$table_name . \Runtime\rtl::toStr(".*")]))->from($table_name)->setFilter($filter)->limit(1);
-		return $this->findRelation($q, $params);
-	}
-	/**
 	 * Find relation by query
 	 */
 	function findRelation($q, $params=null)
@@ -239,14 +244,6 @@ class Connection
 		$item = $c->fetchRelation($q, $params);
 		$c->close();
 		return $item;
-	}
-	/**
-	 * Find relations by filter
-	 */
-	function findRelationsByFilter($table_name, $filter, $params=null)
-	{
-		$q = (new \Runtime\ORM\Query())->select(\Runtime\Vector::from([$table_name . \Runtime\rtl::toStr(".*")]))->from($table_name)->setFilter($filter);
-		return $this->findRelations($q, $params);
 	}
 	/**
 	 * Find relations by query
@@ -258,32 +255,12 @@ class Connection
 		$c->close();
 		return $items->toRelation();
 	}
-	/**
-	 * Find or create
-	 */
-	function findOrCreate($table_name, $item, $params=null)
-	{
-		/* Build filter */
-		$filter = $item->transition(function ($value, $key)
-		{
-			return new \Runtime\ORM\QueryFilter($key, "=", $value);
-		});
-		/* Find item */
-		$relation = $this->findRelationByFilter($table_name, $filter, $params);
-		if ($relation)
-		{
-			return $relation;
-		}
-		/* Create if not found */
-		$relation = \Runtime\ORM\Relation::newInstance($table_name);
-		/* Set new data */
-		$relation->updateData($item);
-		return $relation;
-	}
 	/* ======================= Class Init Functions ======================= */
 	function _init()
 	{
 		$this->name = "";
+		$this->cursor = null;
+		$this->log = null;
 	}
 	static function getNamespace()
 	{

@@ -86,7 +86,7 @@ class ButtonModel extends \Runtime\Web\BaseModel
 	{
 		parent::_init();
 		$this->styles = \Runtime\Vector::from([]);
-		$this->component = "Runtime.Widget.ButtonWrap";
+		$this->component = "Runtime.Widget.Button";
 		$this->content = null;
 		$this->target = "_self";
 		$this->href = null;

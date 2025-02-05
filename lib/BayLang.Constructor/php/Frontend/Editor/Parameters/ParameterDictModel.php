@@ -21,6 +21,13 @@ class ParameterDictModel extends \BayLang\Constructor\Frontend\Editor\Parameters
 {
 	public $path;
 	/**
+	 * Returns attribute name
+	 */
+	function getAttributeName()
+	{
+		return $this->path->first();
+	}
+	/**
 	 * Is op_code
 	 */
 	function isOpCode($op_attr)
@@ -33,7 +40,19 @@ class ParameterDictModel extends \BayLang\Constructor\Frontend\Editor\Parameters
 		{
 			return false;
 		}
-		return $op_attr instanceof \BayLang\OpCodes\OpDictPair && $this->path->first() == $op_attr->key;
+		return $op_attr instanceof \BayLang\OpCodes\OpDictPair && $this->getAttributeName() == $op_attr->key;
+	}
+	/**
+	 * Set op_code
+	 */
+	function setOpCode($op_dict_pair)
+	{
+		$this->op_code = $op_dict_pair;
+		$code = $this->getCode();
+		if ($code)
+		{
+			$this->value = \BayLang\Constructor\Frontend\Editor\Processor\CodeProcessor::getValueFromOpCode($code->value);
+		}
 	}
 	/**
 	 * Get OpDictPair from OpDict by name
@@ -42,7 +61,7 @@ class ParameterDictModel extends \BayLang\Constructor\Frontend\Editor\Parameters
 	{
 		if (!($code instanceof \BayLang\OpCodes\OpDict))
 		{
-			return false;
+			return null;
 		}
 		for ($i = 0; $i < $code->values->count(); $i++)
 		{
@@ -53,6 +72,31 @@ class ParameterDictModel extends \BayLang\Constructor\Frontend\Editor\Parameters
 			}
 		}
 		return null;
+	}
+	/**
+	 * Create code
+	 */
+	function createCode()
+	{
+		$code = $this->op_code;
+		$path = $this->path->slice(1);
+		while ($path->count() > 0 && $code != null)
+		{
+			$name = $path->first();
+			$find_code = $this->findCodeByName($code->value, $name);
+			if (!$find_code)
+			{
+				$find_code = new \BayLang\OpCodes\OpDictPair(\Runtime\Map::from(["key"=>$name]));
+				if ($code->value == null)
+				{
+					$code->value = new \BayLang\OpCodes\OpDict(\Runtime\Map::from(["values"=>\Runtime\Vector::from([])]));
+				}
+				$code->value->values->append($find_code);
+			}
+			$code = $find_code;
+			$path = $path->slice(1);
+		}
+		return $code;
 	}
 	/**
 	 * Find OpDictPair by path
@@ -70,28 +114,37 @@ class ParameterDictModel extends \BayLang\Constructor\Frontend\Editor\Parameters
 		return $code;
 	}
 	/**
-	 * Set op_code
+	 * Remove attribute
 	 */
-	function setOpCode($op_dict_pair)
+	function removeModelAttribute()
 	{
-		$this->op_code = $op_dict_pair;
-		$code = $this->getCode();
-		if ($code)
-		{
-			$this->value = \BayLang\Constructor\Frontend\Editor\Processor\CodeProcessor::getValueFromOpCode($code->value);
-		}
 	}
 	/**
 	 * Set value
 	 */
 	function setValue($value)
 	{
-		$this->value = $value;
-		$code = $this->getCode();
-		if ($code)
+		if ($value === "")
 		{
-			$code->value = \BayLang\Constructor\Frontend\Editor\Processor\CodeProcessor::getOpCodeByValue($value);
+			$this->value = "";
+			return ;
 		}
+		/* Find item */
+		$this->findOpCode();
+		/* Create html attribute */
+		if ($this->op_code == null)
+		{
+			$this->createModelAttribute();
+		}
+		/* Find or create code */
+		$code = $this->getCode();
+		if (!$code)
+		{
+			$code = $this->createCode();
+		}
+		/* Set value */
+		$this->value = $value;
+		$code->value = \BayLang\Constructor\Frontend\Editor\Processor\CodeProcessor::getOpCodeByValue($value);
 	}
 	/* ======================= Class Init Functions ======================= */
 	function _init()

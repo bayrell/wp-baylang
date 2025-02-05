@@ -18,21 +18,13 @@
 
 namespace BayLang.Constructor.Backend.Api;
 
-use Runtime.fs;
-use Runtime.Serializer;
-use Runtime.SerializerBase64;
 use Runtime.Exceptions.ApiError;
-use Runtime.Exceptions.ItemNotFound;
 use Runtime.Exceptions.RuntimeException;
 use Runtime.Web.BaseApi;
 use Runtime.Web.Annotations.ApiMethod;
 use BayLang.Constructor.Backend.ApiHook;
-use BayLang.Helper.Module;
-use BayLang.Helper.Project;
-use BayLang.Helper.Widget;
-use BayLang.LangBay.TranslatorBay;
+use BayLang.Constructor.Backend.Service.WidgetService;
 use BayLang.OpCodes.BaseOpCode;
-use BayLang.OpCodes.OpModule;
 
 
 class WidgetApi extends BaseApi
@@ -47,34 +39,24 @@ class WidgetApi extends BaseApi
 	 * Load widget
 	 */
 	@ApiMethod
-	async static void getOpCode(BaseApi api)
+	async void getOpCode()
 	{
-		string project_id = api.post_data.get("project_id");
-		string current_widget = api.post_data.get("current_widget");
-		
-		/* Find project */
-		Project project = await ApiHook::getProject(project_id);
-		if (not project)
-		{
-			throw new ApiError( new ItemNotFound(project_id, "Project") );
-		}
+		WidgetService service = new WidgetService();
+		string project_id = this.post_data.get("project_id");
+		string current_widget = this.post_data.get("current_widget");
 		
 		/* Load project */
-		await project.load();
+		await service.loadProject(project_id);
 		
-		/* Find widget */
-		Widget widget = await project.getWidget(current_widget);
-		if (not widget)
-		{
-			throw new ApiError( new ItemNotFound(current_widget, "Widget") );
-		}
+		/* Load modules */
+		await service.loadItem({ "id": current_widget });
 		
 		/* Load widget */
-		await widget.load();
+		await service.item.load();
 		
 		/* Get widget op code */
-		BaseOpCode component = await widget.getComponentOpCode();
-		BaseOpCode model = await widget.getModelOpCode();
+		BaseOpCode component = await service.item.getComponentOpCode();
+		BaseOpCode model = await service.item.getModelOpCode();
 		
 		/* Get component path */
 		if (not component)
@@ -85,7 +67,7 @@ class WidgetApi extends BaseApi
 		}
 		
 		/* Success */
-		api.success({
+		this.success({
 			"data": {
 				"component": component,
 				"model": model,
@@ -98,33 +80,23 @@ class WidgetApi extends BaseApi
 	 * Save widget
 	 */
 	@ApiMethod
-	async static void save(BaseApi api)
+	async void save()
 	{
-		string project_id = api.post_data.get("project_id");
-		string current_widget = api.post_data.get("current_widget");
-		
-		/* Find project */
-		Project project = await ApiHook::getProject(project_id);
-		if (not project)
-		{
-			throw new ApiError( new ItemNotFound(project_id, "Project") );
-		}
+		WidgetService service = new WidgetService();
+		string project_id = this.post_data.get("project_id");
+		string current_widget = this.post_data.get("current_widget");
 		
 		/* Load project */
-		await project.load();
+		await service.loadProject(project_id);
 		
-		/* Find widget */
-		Widget widget = await project.getWidget(current_widget);
-		if (not widget)
-		{
-			throw new ApiError( new ItemNotFound(current_widget, "Widget") );
-		}
+		/* Load modules */
+		await service.loadItem({ "id": current_widget });
 		
 		/* Load widget */
-		await widget.load();
+		await service.item.load();
 		
 		/* Get component path */
-		string component_path = widget.getComponentPath();
+		string component_path = service.item.getComponentPath();
 		if (not component_path)
 		{
 			throw new ApiError(
@@ -133,40 +105,14 @@ class WidgetApi extends BaseApi
 		}
 		
 		/* Save file */
-		static::saveFile(widget, widget.getComponentPath(), api.post_data.get("component"));
-		static::saveFile(widget, widget.getModelPath(), api.post_data.get("model"));
+		await service.saveFile(service.item.getComponentPath(), this.post_data.get("component"));
+		await service.saveFile(service.item.getModelPath(), this.post_data.get("model"));
 		
 		/* Update assets */
-		widget.module.updateAssets();
-		ApiHook::updateAssets();
+		await service.item.module.updateAssets();
+		await ApiHook::updateAssets();
 		
 		/* Success */
-		api.success();
-	}
-	
-	
-	/**
-	 * Save file
-	 */
-	static void saveFile(Widget widget, string file_path, string content)
-	{
-		/* Get op_code */
-		Serializer serializer = new SerializerBase64();
-		serializer.setFlag(Serializer::ALLOW_OBJECTS);
-		OpModule op_code = serializer.decode(content);
-		
-		/* Translate */
-		TranslatorBay translator = new TranslatorBay();
-		list res = translator::translate(translator, op_code);
-		string content = res.get(1);
-		
-		/* Save content */
-		await fs::saveFile(file_path, content);
-		
-		/* Compile file */
-		string relative_src_file_path = widget.module.getRelativeSourcePath(file_path);
-		widget.module.compile(relative_src_file_path);
-		
-		/* widget.module.translateLanguages(relative_src_file_path, op_code); */
+		this.success();
 	}
 }

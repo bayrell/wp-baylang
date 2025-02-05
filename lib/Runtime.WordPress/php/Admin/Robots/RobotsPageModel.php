@@ -28,7 +28,7 @@ class RobotsPageModel extends \Runtime\Web\BasePageModel
 	{
 		parent::initWidget($params);
 		/* Add form */
-		$this->form = $this->addWidget("Runtime.Widget.Form.FormModel", \Runtime\Map::from(["widget_name"=>"form","storage"=>new \Runtime\Entity\Factory("Runtime.Widget.Form.FormSaveStorage", \Runtime\Map::from(["api_name"=>"admin.wordpress.robots::save"])),"pk"=>\Runtime\Vector::from([]),"fields"=>\Runtime\Vector::from([\Runtime\Map::from(["name"=>"content","component"=>"Runtime.Widget.TextArea"])])]));
+		$this->form = $this->addWidget("Runtime.Widget.Form.FormModel", \Runtime\Map::from(["widget_name"=>"form","storage"=>new \Runtime\Entity\Factory("Runtime.Widget.Form.FormSaveStorage", \Runtime\Map::from(["api_name"=>"admin.wordpress.robots.save"])),"pk"=>\Runtime\Vector::from([]),"fields"=>\Runtime\Vector::from([\Runtime\Map::from(["name"=>"content","component"=>"Runtime.Widget.TextArea"])])]));
 		/* Add save button */
 		$this->form->bottom_buttons->addButton(\Runtime\Map::from(["widget_name"=>"save_button","content"=>"Save","styles"=>\Runtime\Vector::from(["large","primary"]),"events"=>\Runtime\Map::from(["click"=>new \Runtime\Callback($this, "onSave")])]));
 	}

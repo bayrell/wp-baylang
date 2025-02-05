@@ -1,0 +1,286 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Constructor.Frontend.Fonts;
+
+use Runtime.lib;
+use Runtime.Callback;
+use Runtime.Entity.Factory;
+use Runtime.Web.ApiResult;
+use Runtime.Web.BasePageModel;
+use Runtime.Web.ModelFactory;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.RowButtonsModel;
+use Runtime.Widget.UploadFileButton;
+use Runtime.Widget.Form.FormDeleteStorage;
+use Runtime.Widget.Form.FormMessage;
+use Runtime.Widget.Form.FormModel;
+use Runtime.Widget.Form.FormSaveStorage;
+use Runtime.Widget.Form.FormSubmitModel;
+use Runtime.Widget.Table.Table;
+use Runtime.Widget.Table.TableDialogModel;
+use Runtime.Widget.Table.TableProxyStorage;
+use BayLang.Constructor.Frontend.Fonts.FontSave;
+
+
+class FontSaveModel extends BasePageModel
+{
+	string component = classof FontSave;
+	string project_id = "";
+	Table files = null;
+	FormSubmitModel form = null;
+	RowButtonsModel top_buttons = null;
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Set route matches */
+		this.project_id = this.layout.route.matches.get("project_id");
+		
+		/* Add top buttons */
+		this.top_buttons = this.addWidget(
+			classof RowButtonsModel,
+			{
+				"widget_name": "top_buttons",
+				"styles": ["@top_buttons"],
+				"buttons":
+				[
+					new ModelFactory
+					(
+						"Runtime.Widget.BackButtonModel",
+						{
+							"href": this.layout.url("baylang:project:fonts:index"),
+						}
+					)
+				],
+			}
+		);
+		
+		/* Add files */
+		this.files = this.addWidget(
+			classof TableDialogModel,
+			{
+				"widget_name": "files",
+				
+				/* Get title */
+				"get_title": void (Dict params)
+				{
+					string action = params.get("action");
+					Dict item = params.get("item");
+					if (action == "add")
+					{
+						return "Add files";
+					}
+					if (action == "edit")
+					{
+						return "Edit files '" ~ item.get("name") ~ "'";
+					}
+					if (action == "delete")
+					{
+						return "Delete files '" ~ item.get("name") ~ "'";
+					}
+					return "";
+				},
+				
+				/* Table storage */
+				"storage": new Factory
+				(
+					classof TableProxyStorage,
+					{
+						"container": this,
+						"path": ["form", "item", "files"],
+					}
+				),
+				
+				/* Delete form */
+				"delete_form": new ModelFactory(
+					classof FormModel,
+					{
+						"widget_name": "delete_form",
+						"primary_key": ["name"],
+						"foreign_key":
+						{
+							"project_id": this.project_id,
+							"name": this.layout.request_query.get("name"),
+						},
+						"storage": new Factory(
+							classof FormDeleteStorage,
+							{
+								"api_name": "baylang.constructor.fonts.save"
+								"method_name": "deleteFile",
+							}
+						),
+						"events":
+						{
+							"submit": new Callback(this, "onDeleteFile"),
+						},
+					}
+				),
+				
+				/* Foreign key */
+				"foreign_key": {
+					"project_id": this.project_id,
+				},
+				
+				/* Top buttons */
+				"top_buttons": [
+					{
+						"widget_name": "add",
+						"content": "Add file",
+						"styles": ["small", "primary"],
+						"component": classof UploadFileButton,
+						"events":
+						{
+							"file": new Callback(this, "onUploadFile"),
+						},
+					}
+				],
+				
+				/* Table fields */
+				"fields":
+				[
+					{
+						"name": "row_number",
+					},
+					{
+						"name": "name",
+						"label": "Font name",
+						"component": "Runtime.Widget.Label",
+					},
+					{
+						"name": "row_buttons",
+						"model": new ModelFactory(
+							"Runtime.Widget.Table.TableRowButtonsModel",
+							{
+								"edit": false,
+							}
+						),
+					},
+				],
+			}
+		);
+		
+		/* Add form */
+		this.form = this.addWidget(
+			classof FormSubmitModel,
+			{
+				"widget_name": "form",
+				"primary_key": ["name"],
+				"pk": {
+					"name": this.layout.request_query.get("name"),
+				},
+				"submit_button": {
+					"text": "Save",
+					"styles": ["success", "large"],
+				},
+				"foreign_key":
+				{
+					"project_id": this.project_id,
+				},
+				"storage": new Factory(
+					classof FormSaveStorage,
+					{
+						"api_name": "baylang.constructor.fonts.save"
+					}
+				),
+				"fields":
+				[
+					{
+						"name": "name",
+						"label": "Name",
+						"component": "Runtime.Widget.Input",
+					},
+					{
+						"name": "files",
+						"label": "Files",
+						"model": this.files
+					},
+					{
+						"name": "css",
+						"label": "CSS",
+						"component": "Runtime.Widget.Editor.Editor",
+					},
+				],
+			}
+		);
+	}
+	
+	
+	/**
+	 * Upload file event
+	 */
+	async void onUploadFile(var e)
+	{
+		var file = e.value;
+		Dict foreign_key = this.form.pk.copy();
+		foreign_key.set("project_id", this.project_id);
+		ApiResult result = await this.layout.callApi({
+			"api_name": "baylang.constructor.fonts.save",
+			"method_name": "uploadFile",
+			"data": {
+				"foreign_key": foreign_key,
+				"file": file,
+			}
+		});
+		if (result.isSuccess())
+		{
+			Collection files = this.form.item.get("files");
+			int index = files.find(lib::equalAttr("name", file.name));
+			if (index == -1)
+			{
+				files.push({
+					"name": file.name,
+				});
+			}
+			files = files.sort(lib::comparator(method lib::sortAsc, lib::attr("name")));
+			this.form.item.set("files", files);
+		}
+	}
+	
+	
+	/**
+	 * Delete file event
+	 */
+	void onDeleteFile(FormMessage message)
+	{
+		if (message.result.isSuccess())
+		{
+			Collection files = this.form.item.get("files");
+			string file_name = message.widget.item.get("name");
+			int index = files.find(lib::equalAttr("name", file_name));
+			if (index >= 0)
+			{
+				files.remove(index);
+			}
+		}
+	}
+	
+	
+	/**
+	 * Build title
+	 */
+	void buildTitle(RenderContainer container)
+	{
+		this.layout.setPageTitle("Edit font");
+	}
+}

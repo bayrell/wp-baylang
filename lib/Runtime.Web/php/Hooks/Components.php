@@ -23,7 +23,7 @@ class Components extends \Runtime\Web\Hooks\AppHook
 	/**
 	 * Hook factory
 	 */
-	static function hook($items)
+	static function create($items)
 	{
 		return new \Runtime\Entity\Hook(static::getClassName(), \Runtime\Map::from(["components"=>$items]));
 	}

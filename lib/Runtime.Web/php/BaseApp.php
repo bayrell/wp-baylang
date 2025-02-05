@@ -176,7 +176,7 @@ class BaseApp extends \Runtime\BaseObject
 			}
 			else
 			{
-				$this->buildPostData($payload, new \Runtime\Vector(), $post, $files);
+				$this->buildPostData($payload, new \Runtime\Vector(), $post);
 				$this->buildPostFiles($payload);
 			}
 		}
@@ -218,8 +218,6 @@ class BaseApp extends \Runtime\BaseObject
 	 */
 	function sendResponse($container)
 	{
-		/* Call response */
-		\Runtime\rtl::getContext()->callHookAsync(\Runtime\Web\Hooks\AppHook::RESPONSE, \Runtime\Map::from(["container"=>$container]));
 		$response = $container->response;
 		
 		if ($response != null)

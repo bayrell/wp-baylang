@@ -30,13 +30,33 @@ class ParameterDictModel extends ParameterModel
 	
 	
 	/**
+	 * Returns attribute name
+	 */
+	string getAttributeName() => this.path.first();
+	
+	
+	/**
 	 * Is op_code
 	 */
 	void isOpCode(OpDictPair op_attr)
 	{
 		if (not this.path) return false;
 		if (this.path.count() == 0) return false;
-		return op_attr instanceof OpDictPair and this.path.first() == op_attr.key;
+		return op_attr instanceof OpDictPair and this.getAttributeName() == op_attr.key;
+	}
+	
+	
+	/**
+	 * Set op_code
+	 */
+	void setOpCode(OpDictPair op_dict_pair)
+	{
+		this.op_code = op_dict_pair;
+		OpDictPair code = this.getCode();
+		if (code)
+		{
+			this.value = CodeProcessor::getValueFromOpCode(code.value);
+		}
 	}
 	
 	
@@ -45,13 +65,47 @@ class ParameterDictModel extends ParameterModel
 	 */
 	OpDictPair findCodeByName(OpDict code, string name)
 	{
-		if (not (code instanceof OpDict)) return false;
+		if (not (code instanceof OpDict)) return null;
 		for (int i=0; i<code.values.count(); i++)
 		{
 			OpDictPair pair = code.values.get(i);
 			if (pair.key == name) return pair;
 		}
 		return null;
+	}
+	
+	
+	/**
+	 * Create code
+	 */
+	OpDictPair createCode()
+	{
+		OpDictPair code = this.op_code;
+		Collection<string> path = this.path.slice(1);
+		while (path.count() > 0 and code != null)
+		{
+			string name = path.first();
+			OpDictPair find_code = this.findCodeByName(code.value, name);
+			if (not find_code)
+			{
+				find_code = new OpDictPair
+				{
+					"key": name,
+				};
+				if (code.value == null)
+				{
+					code.value = new OpDict
+					{
+						"values": [],
+					};
+				}
+				code.value.values.append(find_code);
+			}
+			code = find_code;
+			path = path.slice(1);
+		}
+		
+		return code;
 	}
 	
 	
@@ -74,16 +128,10 @@ class ParameterDictModel extends ParameterModel
 	
 	
 	/**
-	 * Set op_code
+	 * Remove attribute
 	 */
-	void setOpCode(OpDictPair op_dict_pair)
+	void removeModelAttribute()
 	{
-		this.op_code = op_dict_pair;
-		OpDictPair code = this.getCode();
-		if (code)
-		{
-			this.value = CodeProcessor::getValueFromOpCode(code.value);
-		}
 	}
 	
 	
@@ -92,11 +140,30 @@ class ParameterDictModel extends ParameterModel
 	 */
 	void setValue(var value)
 	{
-		this.value = value;
-		OpDictPair code = this.getCode();
-		if (code)
+		if (value === "")
 		{
-			code.value = CodeProcessor::getOpCodeByValue(value);
+			this.value = "";
+			return;
 		}
+		
+		/* Find item */
+		this.findOpCode();
+		
+		/* Create html attribute */
+		if (this.op_code == null)
+		{
+			this.createModelAttribute();
+		}
+		
+		/* Find or create code */
+		OpDictPair code = this.getCode();
+		if (not code)
+		{
+			code = this.createCode();
+		}
+		
+		/* Set value */
+		this.value = value;
+		code.value = CodeProcessor::getOpCodeByValue(value);
 	}
 }

@@ -100,6 +100,63 @@ class ModelProcessor extends CodeProcessor
 	
 	
 	/**
+	 * Setup model params
+	 */
+	void setupParams(Widget widget)
+	{
+		if (not widget.model_class_name) return;
+		if (not widget.primary_model_code) return;
+		if (not widget.model_settings) return;
+		
+		/* Add params */
+		widget.params.appendItems(
+			widget.model_settings.getParams().map(
+				Parameter (ParameterFactory factory) use (widget)
+				{
+					Parameter param = factory.factory(new rtl());
+					param.widget = widget;
+					return param;
+				}
+			)
+		);
+		
+		/* Get values */
+		OpDict op_dict = widget.primary_model_code.expression.args.get(1);
+		if (not op_dict) return;
+		if (not (op_dict instanceof OpDict)) return;
+		
+		/* Add params values */
+		Collection<OpDictPair> values = op_dict.values;
+		for (int i=0; i<values.count(); i++)
+		{
+			OpDictPair op_dict_pair = values.get(i);
+			for (int j=0; j<widget.params.count(); j++)
+			{
+				Parameter param = widget.params.get(j);
+				if (
+					param instanceof ParameterModel and
+					param.isOpCode(op_dict_pair)
+				)
+				{
+					param.setOpCode(op_dict_pair);
+				}
+			}
+		}
+		
+		/* Init params values */
+		widget.params.each(
+			void (Parameter param)
+			{
+				if (param instanceof ParameterModel)
+				{
+					param.init();
+				}
+			}
+		);
+	}
+	
+	
+	/**
 	 * Check is model
 	 */
 	bool checkIsModel(Widget widget)
@@ -251,52 +308,6 @@ class ModelProcessor extends CodeProcessor
 			not (op_code.expression.args.get(0) instanceof OpString)) return false;
 		if (not (op_code.expression.args.get(1) instanceof OpDict)) return false;
 		return true;
-	}
-	
-	
-	/**
-	 * Setup model params
-	 */
-	void setupParams(Widget widget)
-	{
-		if (not widget.model_class_name) return;
-		if (not widget.primary_model_code) return;
-		if (not widget.model_settings) return;
-		
-		/* Add params */
-		widget.params.appendItems(
-			widget.model_settings.getParams().map(
-				Parameter (ParameterFactory factory) use (widget)
-				{
-					Parameter param = factory.factory(new rtl());
-					param.widget = widget;
-					return param;
-				}
-			)
-		);
-		
-		/* Get values */
-		OpDict op_dict = widget.primary_model_code.expression.args.get(1);
-		if (not op_dict) return;
-		if (not (op_dict instanceof OpDict)) return;
-		
-		/* Add params values */
-		Collection<OpDictPair> values = op_dict.values;
-		for (int i=0; i<values.count(); i++)
-		{
-			OpDictPair op_dict_pair = values.get(i);
-			for (int j=0; j<widget.params.count(); j++)
-			{
-				Parameter param = widget.params.get(j);
-				if (
-					param instanceof ParameterModel and
-					param.isOpCode(op_dict_pair)
-				)
-				{
-					param.setOpCode(op_dict_pair);
-				}
-			}
-		}
 	}
 	
 	

@@ -146,11 +146,11 @@ class TextImageSettings extends BaseObject implements WidgetSettingsInterface
 				"<use name='Runtime.Widget.Image' component='true' />",
 				"<use name='Runtime.Widget.Text' component='true' />",
 				"<style>",
-				"%(TextImage)widget_text_image{",
-				"\t&__image{",
-				"\t}",
-				"\t&__text{",
-				"\t}",
+				"%(Image)widget_image{",
+				"}",
+				"%(TextImage)widget_text_image__image{",
+				"}",
+				"%(TextImage)widget_text_image__text{",
 				"}",
 				"</style>"
 			])

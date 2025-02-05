@@ -20,6 +20,7 @@ namespace Runtime.ORM.MySQL;
 
 use Runtime.io;
 use Runtime.re;
+use Runtime.ORM.Factory.CursorFactory;
 use Runtime.ORM.Connection;
 use Runtime.ORM.Cursor;
 use Runtime.ORM.Query;
@@ -41,6 +42,16 @@ class ConnectionMySQL extends Connection
 	public string connect_error = "";	
 	public var pdo = null;
 	public bool is_transaction = false;
+	
+	
+	/**
+	 * Constructor
+	 */
+	public void constructor(string name = "")
+	{
+		parent(name);
+		this.cursor = new CursorFactory(classof CursorMySQL);
+	}
 	
 	
 	/**
@@ -92,15 +103,70 @@ class ConnectionMySQL extends Connection
 	
 	
 	/**
-	 * Create new cursor
-	 */
-	CursorMySQL createCursor() => new CursorMySQL(this);
-	
-	
-	/**
 	 * Create SQLBuilder
 	 */
 	SQLBuilder createBuilder(Query q) => new SQLBuilder(this, q);
+	
+	
+	/**
+	 * Fork connection
+	 */
+	ConnectionMySQL fork()
+	{
+		ConnectionMySQL connection = parent();
+		connection.host = this.host;
+		connection.port = this.port;
+		connection.login = this.login;
+		connection.password = this.password;
+		connection.database = this.database;
+		connection.prefix = this.prefix;
+		connection.connect_error = this.connect_error;
+		connection.pdo = this.pdo;
+		return connection;
+	}
+	
+	
+	/**
+	 * Add to query log
+	 */
+	void logQuery(Dict params = null)
+	{
+		if (params == null) params = {};
+		
+		Query q = params.get("query");
+		SQLBuilder builder = params.get("builder", false);
+		
+		/* Check is debug */
+		bool is_debug = params.get("debug", false);
+		if (q != null and q._debug)
+		{
+			is_debug = true;
+		}
+		
+		/* Is debug */
+		if (not is_debug and not this.log) return;
+		
+		/* Get SQL query */
+		string sql_debug = "";
+		if (builder != null) sql_debug = builder.formatSQL();
+		else if (params.has(sql_debug)) sql_debug = params.get("sql_debug");
+		
+		/* Print debug SQL */
+		if (is_debug)
+		{
+			io::print(sql_debug);
+		}
+		
+		/* Query log */
+		if (this.log)
+		{
+			this.log.push({
+				"query": params.get("query"),
+				"builder": params.get("builder"),
+				"sql": sql_debug,
+			});
+		}
+	}
 	
 	
 	/**
@@ -109,13 +175,6 @@ class ConnectionMySQL extends Connection
 	async Cursor execute(Query q, Dict params = null)
 	{
 		if (params == null) params = {};
-		
-		/* Check is debug */
-		bool is_debug = params.get("debug", false);
-		if (q._debug)
-		{
-			is_debug = true;
-		}
 		
 		/* Build query */
 		SQLBuilder builder = this.createBuilder(q).build();
@@ -126,19 +185,21 @@ class ConnectionMySQL extends Connection
 			throw new OrmException("SQL builder is not correct")
 		}
 		
-		/* Debug sql */
-		if (is_debug)
-		{
-			string sql_debug = builder.formatSQL();
-			io::print(sql_debug);
-		}
+		/* Log query */
+		this.logQuery(params.concat({
+			"builder": builder,
+			"query": q.copy(),
+		}));
 		
 		/* Create cursor */
 		Cursor cursor = this.createCursor();
+		cursor.q = q.copy();
 		
 		/* Execute sql */
-		Cursor cursor = await cursor.executeSQL(builder);
-		cursor.q = q.copy();
+		if (cursor instanceof CursorMySQL)
+		{
+			cursor = await cursor.executeSQL(builder);
+		}
 		
 		return cursor;
 	}
@@ -147,16 +208,29 @@ class ConnectionMySQL extends Connection
 	/**
 	 * Execute Query
 	 */
-	async Cursor executeSQL(string sql, Dict data = null)
+	async Cursor executeSQL(string sql, Dict data = null, Dict params = null)
 	{
+		if (params == null) params = {};
+		
 		/* Build query */
 		SQLBuilder builder = this.createBuilder(null);
 		builder.sql = sql;
 		builder.data = data;
 		
-		/* Execute */
+		/* Log query */
+		this.logQuery(params.concat({
+			"builder": builder,
+		}));
+		
+		/* Create cursor */
 		Cursor cursor = this.createCursor();
-		Cursor cursor = await cursor.executeSQL(builder);
+		
+		/* Execute sql */
+		if (cursor instanceof CursorMySQL)
+		{
+			Cursor cursor = await cursor.executeSQL(builder);
+		}
+		
 		return cursor;
 	}
 }

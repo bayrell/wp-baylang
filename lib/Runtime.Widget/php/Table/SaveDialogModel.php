@@ -55,6 +55,21 @@ class SaveDialogModel extends \Runtime\Widget\Dialog\ConfirmDialogModel
 	{
 		parent::initWidget($params);
 	}
+	/**
+	 * Add close button click
+	 */
+	function onCloseButtonClick($message)
+	{
+		parent::onCloseButtonClick();
+		if ($this->action == "add" && $this->add_form)
+		{
+			$this->add_form->setItem(null);
+		}
+		if ($this->action == "edit" && $this->edit_form)
+		{
+			$this->edit_form->setItem(null);
+		}
+	}
 	/* ======================= Class Init Functions ======================= */
 	function _init()
 	{

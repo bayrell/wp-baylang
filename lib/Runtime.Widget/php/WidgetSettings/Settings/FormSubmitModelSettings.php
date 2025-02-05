@@ -100,7 +100,7 @@ class FormSubmitModelSettings extends \Runtime\BaseObject implements \BayLang\Co
 	/**
 	 * On change
 	 */
-	function onChange($iframeWindow, $widget, $param)
+	function onChange($runtime, $widget, $param)
 	{
 		if ($param->name == "submit_button_text")
 		{

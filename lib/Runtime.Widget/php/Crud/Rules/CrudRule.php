@@ -17,14 +17,19 @@
  *  limitations under the License.
  */
 namespace Runtime\Widget\Crud\Rules;
-class CrudRule extends \Runtime\BaseStruct
+class CrudRule extends \Runtime\Widget\Crud\Rules\BaseRule
 {
 	/**
-	 * Validate item
+	 * Before search item
 	 */
-	function validateItem($api, $data)
+	function onSearchBefore($api)
 	{
-		return $data;
+	}
+	/**
+	 * After search item
+	 */
+	function onSearchAfter($api)
+	{
 	}
 	/**
 	 * Before save item
@@ -64,7 +69,7 @@ class CrudRule extends \Runtime\BaseStruct
 	}
 	static function getParentClassName()
 	{
-		return "Runtime.BaseStruct";
+		return "Runtime.Widget.Crud.Rules.BaseRule";
 	}
 	static function getClassInfo()
 	{

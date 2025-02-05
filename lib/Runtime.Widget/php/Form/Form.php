@@ -19,12 +19,26 @@
 namespace Runtime\Widget\Form;
 class Form extends \Runtime\Web\Component
 {
-	function renderTitle()
+	function renderContent()
 	{
 		$__v = new \Runtime\Vector();
 		
-		/* Text */
-		$this->_t($__v, $this->renderSlot("title"));
+		if ($this->model->form_content != "")
+		{
+			/* Element 'div' */
+			$__v0 = new \Runtime\Vector();
+			
+			/* Text */
+			$this->_t($__v0, $this->_escape($this->model->form_content));
+			
+			/* Element 'div' */
+			$this->_e($__v, "div", ["class" => $this->_class_name(["widget_form__content"])], $__v0);
+		}
+		else
+		{
+			/* Text */
+			$this->_t($__v, $this->renderSlot("content"));
+		}
 		
 		return $__v;
 	}
@@ -122,21 +136,29 @@ class Form extends \Runtime\Web\Component
 		{
 			$buttons = $field->get("buttons");
 			
-			/* Element 'div' */
-			$__v0 = new \Runtime\Vector();
-			
-			for ($i = 0; $i < $buttons->count(); $i++)
+			if ($buttons instanceof \Runtime\Widget\RowButtonsModel)
 			{
-				$settings = $buttons->get($i);
-				$props = $settings->get("props");
-				$content = $settings->get("content");
-				
-				/* Component 'Button' */
-				$this->_c($__v0, "Runtime.Widget.Button", $this->_merge_attrs([], $props));
+				/* Text */
+				$this->_t($__v, $this->renderWidget($buttons));
 			}
-			
-			/* Element 'div' */
-			$this->_e($__v, "div", ["class" => $this->_class_name(["widget_form__field_buttons"])], $__v0);
+			else
+			{
+				/* Element 'div' */
+				$__v0 = new \Runtime\Vector();
+				
+				for ($i = 0; $i < $buttons->count(); $i++)
+				{
+					$settings = $buttons->get($i);
+					$props = $settings->get("props");
+					$content = $settings->get("content");
+					
+					/* Component 'Button' */
+					$this->_c($__v0, "Runtime.Widget.Button", $this->_merge_attrs([], $props));
+				}
+				
+				/* Element 'div' */
+				$this->_e($__v, "div", ["class" => $this->_class_name(["widget_form__field_buttons"])], $__v0);
+			}
 		}
 		
 		return $__v;
@@ -144,34 +166,47 @@ class Form extends \Runtime\Web\Component
 	function renderFieldRow($field)
 	{
 		$__v = new \Runtime\Vector();
+		$is_show = true;
 		$field_name = $field->get("name");
+		$field_show = $field->get("show", null);
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
-		
-		if ($field->has("label"))
+		if ($field_show)
 		{
-			/* Element 'div' */
-			$__v1 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v1, $this->renderFieldLabel($field));
-			
-			/* Text */
-			$this->_t($__v1, $this->renderFieldButtons($field));
-			
-			/* Element 'div' */
-			$this->_e($__v0, "div", ["class" => $this->_class_name(["widget_form__field_label"])], $__v1);
+			$data = \Runtime\Map::from(["item"=>$this->model->item,"field_name"=>$field_name,"form"=>$this->model]);
+			$is_show = \Runtime\rtl::apply($field_show, \Runtime\Vector::from([$data]));
 		}
 		
-		/* Text */
-		$this->_t($__v0, $this->renderField($field));
-		
-		/* Text */
-		$this->_t($__v0, $this->renderFieldResult($field));
-		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["data-name" => $field_name,"class" => $this->_class_name(["widget_form__field_row"])], $__v0);
+		if ($is_show)
+		{
+			$show_label = $this->model->field_settings->get("show_label", true);
+			
+			/* Element 'div' */
+			$__v0 = new \Runtime\Vector();
+			
+			if ($field->has("label") && ($show_label === true || $show_label == "true"))
+			{
+				/* Element 'div' */
+				$__v1 = new \Runtime\Vector();
+				
+				/* Text */
+				$this->_t($__v1, $this->renderFieldLabel($field));
+				
+				/* Text */
+				$this->_t($__v1, $this->renderFieldButtons($field));
+				
+				/* Element 'div' */
+				$this->_e($__v0, "div", ["class" => $this->_class_name(["widget_form__field_label"])], $__v1);
+			}
+			
+			/* Text */
+			$this->_t($__v0, $this->renderField($field));
+			
+			/* Text */
+			$this->_t($__v0, $this->renderFieldResult($field));
+			
+			/* Element 'div' */
+			$this->_e($__v, "div", ["data-name" => $field_name,"class" => $this->_class_name(["widget_form__field_row"])], $__v0);
+		}
 		
 		return $__v;
 	}
@@ -228,7 +263,7 @@ class Form extends \Runtime\Web\Component
 		$__v0 = new \Runtime\Vector();
 		
 		/* Text */
-		$this->_t($__v0, $this->renderTitle());
+		$this->_t($__v0, $this->renderContent());
 		
 		/* Text */
 		$this->_t($__v0, $this->renderFields());
@@ -240,7 +275,7 @@ class Form extends \Runtime\Web\Component
 		$this->_t($__v0, $this->renderResult());
 		
 		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_form", $this->class])], $__v0);
+		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_form", $this->class, static::mergeStyles("widget_form", $this->model->styles)])], $__v0);
 		
 		return $this->_flatten($__v);
 	}
@@ -251,7 +286,7 @@ class Form extends \Runtime\Web\Component
 	static function css($vars)
 	{
 		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_form.h-b6a8 .widget_form__field_row.h-b6a8{margin-bottom: 10px}.widget_form.h-b6a8 .widget_form__field_label.h-b6a8{display: flex;align-items: center;padding-bottom: 5px;gap: 5px}.widget_form.h-b6a8 .widget_form__field_error.h-b6a8{color: var(--widget-color-danger);margin-top: var(--widget-space)}.widget_form.h-b6a8 .widget_form__field_error--hide.h-b6a8{display: none}.widget_form.h-b6a8 .widget_form__bottom_buttons.h-a598{justify-content: center}.widget_form.fixed.h-b6a8{max-width: 600px;margin-left: auto;margin-right: auto}");
+		$res .= \Runtime\rtl::toStr(".widget_form.h-b6a8 .widget_form__content.h-b6a8{text-align: center;font-size: 16px;margin-bottom: 10px}.widget_form.h-b6a8 .widget_form__field_row.h-b6a8{margin-bottom: 10px}.widget_form.h-b6a8 .widget_form__field_label.h-b6a8{display: flex;align-items: center;padding-bottom: 10px}.widget_form.h-b6a8 .widget_form__field_error.h-b6a8{color: var(--widget-color-danger);margin-top: 5px}.widget_form.h-b6a8 .widget_form__field_error--hide.h-b6a8{display: none}.widget_form.h-b6a8 .widget_form__bottom_buttons.h-a598{justify-content: center}.widget_form.fixed.h-b6a8{max-width: 600px;margin-left: auto;margin-right: auto}");
 		return $res;
 	}
 	/* ======================= Class Init Functions ======================= */

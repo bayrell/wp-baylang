@@ -72,7 +72,7 @@
 		border: var(--widget-border-width) var(--widget-color-border) solid;
 		border-radius: 4px;
 		text-align: center;
-		flex: 1 1 30%;
+		width: calc((100% - 30px) / 3);
 	}
 }
 </style>

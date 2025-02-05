@@ -40,6 +40,24 @@ class Routes extends BaseRoute
 		[
 			new RouteModel
 			{
+				"uri": "admin.php?page=baylang-settings",
+				"name": "admin:project:save",
+				"model": "Runtime.WordPress.Admin.Settings.ProjectSaveModel",
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-settings&action=create",
+				"name": "admin:project:create",
+				"model": "Runtime.WordPress.Admin.Settings.ProjectCreateModel",
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-settings&action=migrations",
+				"name": "admin:database:migrations",
+				"model": "Runtime.WordPress.Admin.Settings.MigrationPageModel",
+			},
+			new RouteModel
+			{
 				"uri": "admin.php?page=baylang-forms",
 				"name": "admin:forms:data:index",
 				"model": "Runtime.WordPress.Admin.FormData.FormDataPageModel",
@@ -49,6 +67,18 @@ class Routes extends BaseRoute
 				"uri": "admin.php?page=baylang-forms-settings",
 				"name": "admin:forms:settings:index",
 				"model": "Runtime.WordPress.Admin.FormSettings.FormSettingsPageModel",
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-gallery",
+				"name": "admin:gallery:index",
+				"model": "Runtime.WordPress.Admin.Gallery.GalleryPageModel",
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-gallery&action=item",
+				"name": "admin:gallery:item",
+				"model": "Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel",
 			},
 			new RouteModel
 			{
@@ -64,9 +94,15 @@ class Routes extends BaseRoute
 			},
 			new RouteModel
 			{
-				"uri": "admin.php?page=baylang-settings",
-				"name": "baylang:project:settings",
-				"model": "BayLang.Constructor.Frontend.Settings.SettingsModel",
+				"uri": "admin.php?page=baylang-fonts",
+				"name": "baylang:project:fonts:index",
+				"model": "BayLang.Constructor.Frontend.Fonts.FontPageModel",
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-fonts&action=edit",
+				"name": "baylang:project:fonts:edit",
+				"model": "BayLang.Constructor.Frontend.Fonts.FontSaveModel",
 			},
 			new RouteModel
 			{

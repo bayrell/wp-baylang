@@ -223,9 +223,29 @@ class StylesModel extends BaseModel
 			if (this.selectors.has(selector_name)) continue;
 			
 			/* Set CSS Value */
-			string source = styles.get(selector_name);
+			string source = this.filterContent(styles.get(selector_name));
 			this.setSelectorContent(selector_name, source, op_code);
 		}
+	}
+	
+	
+	/**
+	 * Filter CSS content
+	 */
+	string filterContent(string source)
+	{
+		Collection lines = rs::split("\n", source);
+		lines = lines.map(
+			string (string line)
+			{
+				line = rs::trim(line, "\r");
+				if (rs::charAt(line, 0) == "\t") line = rs::substr(line, 1);
+				return line;
+			}
+		);
+		while (lines.count() > 0 and lines.get(0) == "") lines.remove(0);
+		while (lines.count() > 0 and lines.last() == "") lines.remove(lines.count() - 1);
+		return rs::join("\n", lines);
 	}
 	
 	

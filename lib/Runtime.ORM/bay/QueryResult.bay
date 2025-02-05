@@ -59,9 +59,9 @@ class QueryResult extends Vector<Dict>
 	 */
 	Relation getRelation(int index)
 	{
-		string table_name = this.q._table_name;
+		string class_name = this.q.getRelationName();
 		Dict item = this.get(index);
-		return Relation::newInstance(table_name, item);
+		return Relation::newInstance(class_name, item);
 	}
 	
 	
@@ -84,11 +84,11 @@ class QueryResult extends Vector<Dict>
 	 */
 	Vector<Relation> toRelation()
 	{
-		string table_name = this.q._table_name;
+		string class_name = this.q.getRelationName();
 		return this
 			.map(
-				BaseStruct (Dict item) use (table_name)
-					=> Relation::newInstance(table_name, item)
+				BaseStruct (Dict item) use (class_name)
+					=> Relation::newInstance(class_name, item)
 			)
 			.toVector()
 		;

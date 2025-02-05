@@ -76,7 +76,7 @@ class QueryField extends BaseObject
 		Collection res2 = rs::split(".", res1[0]);
 		
 		string alias_name = res1.count() > 1 ? res1.get(1) : "";
-		string field_name = res2.count() == 0 ? res2.get(0) : res2.get(1);
+		string field_name = res2.count() == 1 ? res2.get(0) : res2.get(1);
 		string table_name = res2.count() > 1 ? res2.get(0) : "";
 		
 		return new QueryField(table_name, field_name, alias_name);

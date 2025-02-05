@@ -1,0 +1,61 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.WordPress.Theme.Components.Gallery.Gallery"
+	extends="Runtime.Widget.Gallery.Gallery"
+>
+
+<style>
+.widget_gallery__item{
+	display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.widget_gallery__item_title{
+	font-weight: bold;
+	text-align: center;
+	margin-bottom: 10px;
+}
+.widget_gallery__item_image{
+	cursor: pointer;
+}
+</style>
+
+<template name="renderItem" args="int pos">
+	%set Dict item = this.model.getItem(pos);
+	<div class="widget_gallery__item"
+		@event:click={{ void () use (pos){ this.onClick(pos); } }}
+	>
+		<div class="widget_gallery__item_title">{{ item.get("name") }}</div>
+		%set string small_image = item["image", "sizes", this.model.small_size];
+		%if (small_image)
+		{
+			<div class="widget_gallery__item_image" @key="image">
+				<img src={{ small_image.get("file") }} alt={{ item.get("name") }} />
+			</div>
+		}
+		%else
+		{
+			<div class="widget_gallery_item__image" @key="no_image">
+				<div class="widget_gallery_item__no_image">No image</div>
+			</div>
+		}
+	</div>
+</template>
+
+</class>

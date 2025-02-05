@@ -27,9 +27,10 @@ class RenderList extends \Runtime\Web\Component
 		for ($i = 0; $i < $items_count; $i++)
 		{
 			$widget = $this->model->items->get($i);
+			$widget_params = $this->getWidgetParams($widget, \Runtime\Map::from(["data"=>$this->data,"render_list"=>\Runtime\Map::from(["position"=>$i,"count"=>$items_count,"first"=>$i == 0,"last"=>$i == $items_count - 1])]));
 			
 			/* Text */
-			$this->_t($__v, $this->renderWidget($widget, \Runtime\Map::from(["data"=>$this->data,"render_list"=>\Runtime\Map::from(["position"=>$i,"count"=>$items_count,"first"=>$i == 0,"last"=>$i == $items_count - 1])])));
+			$this->_t($__v, $this->renderWidget($widget, $widget_params));
 		}
 		
 		return $__v;
@@ -48,6 +49,13 @@ class RenderList extends \Runtime\Web\Component
 		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_render_list"])], $__v0);
 		
 		return $this->_flatten($__v);
+	}
+	/**
+ * Returns widget params
+ */
+	function getWidgetParams($widget, $data)
+	{
+		return $data;
 	}
 	static function css($vars)
 	{

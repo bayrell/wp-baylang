@@ -1,0 +1,133 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.ORM;
+
+use Runtime.BaseObject;
+use Runtime.Callback;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Query;
+
+
+class BaseMigration extends BaseObject
+{
+	string name = "";
+	Connection connection = null;
+	Collection<string> required = [];
+	Collection<string> migrations = [];
+	fn up = null;
+	fn down = null;
+	
+	
+	/**
+	 * Create migration
+	 */
+	void constructor(Dict params = null)
+	{
+		parent();
+		this._assign_values(params);
+	}
+	
+	
+	/**
+	 * Set connection
+	 */
+	void setConnection(Connection connection)
+	{
+		this.connection = connection;
+	}
+	
+	
+	/**
+	 * Returns name
+	 */
+	string getName() => this.name;
+	
+	
+	/**
+	 * Returns required migrations
+	 */
+	Collection<string> getRequired() => this.required.copy();
+	
+	
+	/**
+	 * Returns migrations
+	 */
+	Collection<string> getMigrations() => this.migrations.copy();
+	
+	
+	/**
+	 * Returns migrations
+	 */
+	Collection<BaseMigration> buildMigrations()
+	{
+		string current_name = this.name;
+		Collection<BaseMigration> result = [];
+		Collection<string> prev_required = this.getRequired();
+		
+		/* Add child migrations */
+		Collection<string> items = this.getMigrations();
+		for (int i=0; i<items.count(); i++)
+		{
+			string migration_name = items.get(i);
+			Callback f = new Callback(this, items.get(i));
+			if (not f.exists()) continue;
+			
+			/* Get migration */
+			BaseMigration migration = f.apply();
+			migration.name = this.name ~ "." ~ migration_name;
+			migration.required = migration.required.concat(prev_required);
+			prev_required = [migration.name];
+			
+			/* Build migrations */
+			result.appendItems(migration.buildMigrations());
+			
+			/* Add new migration */
+			result.push(migration);
+		}
+		
+		/* Change require */
+		this.required = prev_required;
+		
+		return result;
+	}
+	
+	
+	/**
+	 * Comment
+	 */
+	async void comment(string text)
+	{
+		await this.executeSQL("-- " ~ text);
+	}
+	
+	
+	/**
+	 * Execute raw SQL
+	 */
+	async void executeSQL(string sql, Dict data = null)
+	{
+		if (sql instanceof Collection)
+		{
+			sql = rs::join("\n", sql);
+		}
+		Query q = new Query();
+		q.raw(sql, data);
+		await this.connection.execute(q);
+	}
+}

@@ -16,7 +16,7 @@
  *  limitations under the License.
 -->
 
-<class name="Runtime.Widget.Select">
+<class name="Runtime.Widget.Select" extends="Runtime.Widget.Field">
 
 <use name="Runtime.Web.Messages.ValueChangeMessage" />
 

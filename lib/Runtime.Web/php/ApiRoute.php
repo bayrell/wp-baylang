@@ -40,7 +40,7 @@ class ApiRoute extends \Runtime\Web\BaseRoute
 		try
 		{
 			
-			$api_result = $bus->send(\Runtime\Map::from(["service"=>$service,"api_name"=>$api_name,"method_name"=>$method_name,"data"=>$container->request->payload->get("data"),"backend_storage"=>$container->layout->backend_storage,"container"=>$container]));
+			$api_result = $bus->send(\Runtime\Map::from(["service"=>$service,"api_name"=>$api_name,"method_name"=>$method_name,"layout"=>$container->layout,"data"=>$container->request->payload->get("data"),"container"=>$container]));
 		}
 		catch (\Exception $_ex)
 		{

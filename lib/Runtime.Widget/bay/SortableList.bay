@@ -20,6 +20,7 @@
 
 <use name="Runtime.lib" />
 <use name="Runtime.Math" />
+<use name="Runtime.Serializer" />
 <use name="Runtime.Web.Messages.ValueChangeMessage" />
 <use name="Runtime.Widget.Button" component="true" />
 <use name="Runtime.Widget.Input" component="true" />
@@ -47,7 +48,7 @@
 }
 .widget_sortable_list__item_value{
 	flex: 1;
-	%(Input)widget_input{
+	%(Input)widget_input, %(Select)widget_select{
 		padding: 0px 10px;
 		border-color: transparent;
 		border-radius: 0;
@@ -63,17 +64,20 @@
 	opacity: 0.5;
 	user-select: none;
 	z-index: 9999999;
+	.widget_sortable_list__item_drag{
+		cursor: grabbing;
+	}
 	.widget_sortable_list__item{
 		margin: 0;
 	}
 }
-.widget_sortable_list__animation-move,
-.widget_sortable_list__animation-enter-active,
-.widget_sortable_list__animation-leave-active {
+.widget_sortable_list-move,
+.widget_sortable_list-enter-active,
+.widget_sortable_list-leave-active {
 	transition: all 0.3s ease;
 }
-.widget_sortable_list__animation-enter-from,
-.widget_sortable_list__animation-leave-to {
+.widget_sortable_list-enter-from,
+.widget_sortable_list-leave-to {
 	opacity: 0;
 }
 </style>
@@ -85,7 +89,8 @@
 		@event:valueChange={{
 			void (ValueChangeMessage message) use (pos)
 			{
-				this.value.set(pos, message.value);
+				Collection items = this.getItems();
+				items.set(pos, message.value);
 				this.onValueChange();
 			}
 		}}
@@ -94,7 +99,7 @@
 
 
 <template name="renderItem" args="int pos">
-	 %set string item = this.value.get(pos);
+	%set var item = this.getItems().get(pos);
 	<div class="widget_sortable_list__item"
 		data-pos={{ pos }}
 		@key={{ item }}
@@ -118,12 +123,15 @@
 
 <template name="renderItems">
 	<div class="widget_sortable_list__items">
-		%if (this.value)
+		%set Collection items = this.getItems();
+		%if (items)
 		{
-			%for (int i=0; i<this.value.count(); i++)
+			<TransitionGroup name="widget_sortable_list">
+			%for (int i=0; i<items.count(); i++)
 			{
 				%render this.renderItem(i);
 			}
+			</TransitionGroup>
 		}
 	</div>
 </template>
@@ -168,6 +176,24 @@ int duration = 300;
 
 
 /**
+ * Returns items
+ */
+Collection getItems() => this.value;
+
+
+/**
+ * Create new item
+ */
+var createItem() => "";
+
+
+/**
+ * Create value
+ */
+void createValue() => [];
+
+
+/**
  * Swap items
  */
 void swapItems(int a, int b)
@@ -178,12 +204,13 @@ void swapItems(int a, int b)
 		a = b;
 		b = c;
 	}
-	var obj_a = this.value.get(a);
-	var obj_b = this.value.get(b);
-	this.value.remove(b);
-	this.value.insert(b, obj_a);
-	this.value.remove(a);
-	this.value.insert(a, obj_b);
+	Collection items = this.getItems();
+	var obj_a = items.get(a);
+	var obj_b = items.get(b);
+	items.remove(b);
+	items.insert(b, obj_a);
+	items.remove(a);
+	items.insert(a, obj_b);
 }
 
 
@@ -192,8 +219,9 @@ void swapItems(int a, int b)
  */
 void removeItem(int pos)
 {
-	this.old_value = this.value.slice();
-	this.value.remove(pos);
+	Collection items = this.getItems();
+	this.old_value = Serializer::copy(this.value);
+	items.remove(pos);
 	this.onValueChange();
 }
 
@@ -220,7 +248,10 @@ void getDragElementFromPoint(int x, int y)
 void getDragElement(var elem)
 {
 	if (elem.classList.contains("widget_sortable_list__item")) return elem;
-	if (elem.parentElement.classList.contains("widget_sortable_list__item")) return elem.parentElement;
+	if (elem.parentElement.classList.contains("widget_sortable_list__item"))
+	{
+		return elem.parentElement;
+	}
 	return null;
 }
 
@@ -314,7 +345,7 @@ void moveDrag(var e)
 	
 	/* Swap items with animation */
 	this.is_transition = true;
-	this.old_value = this.value.slice();
+	this.old_value = Serializer::copy(this.value);
 	this.swapItems(this.drag_item_pos, pos);
 	this.drag_item_pos = pos;
 	
@@ -344,9 +375,21 @@ void onValueChange()
  */
 void onAddItemClick()
 {
-	this.old_value = this.value.slice();
-	this.value.push("");
-	this.onValueChange();
+	Collection items = this.getItems();
+	if (items == null)
+	{
+		this.emit("valueChange", new ValueChangeMessage{
+			"value": this.createValue(),
+			"old_value": this.old_value,
+			"data": this.data,
+		});
+	}
+	this.nextTick(void(){
+		this.old_value = Serializer::copy(this.value);
+		Collection items = this.getItems();
+		items.push(this.createItem());
+		this.onValueChange();
+	})
 }
 
 

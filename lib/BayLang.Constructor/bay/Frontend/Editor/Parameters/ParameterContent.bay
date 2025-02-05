@@ -73,7 +73,13 @@ class ParameterContent extends Parameter
 		this.value = value;
 		
 		/* Set content */
-		if (text_item instanceof OpHtmlContent)
+		if (text_item == null)
+		{
+			this.widget.code.items.items.push(new OpHtmlContent{
+				"value": this.value,
+			});
+		}
+		else if (text_item instanceof OpHtmlContent)
 		{
 			text_item.value = this.value;
 		}

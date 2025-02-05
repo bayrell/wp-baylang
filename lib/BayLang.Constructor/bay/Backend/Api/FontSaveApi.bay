@@ -1,0 +1,173 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace BayLang.Constructor.Backend.Api;
+
+use Runtime.Web.Annotations.ApiMethod;
+use Runtime.Widget.Crud.CrudService;
+use Runtime.Widget.Crud.SaveApi;
+use BayLang.Constructor.Backend.Service.FontService;
+
+
+class FontSaveApi extends SaveApi
+{
+	/**
+	 * Returns api name
+	 */
+	static string getApiName() => "baylang.constructor.fonts.save";
+	
+	
+	/**
+	 * Returns service
+	 */
+	CrudService createService() => new FontService();
+	
+	
+	/**
+	 * Returns item fields
+	 */
+	Collection getItemFields() =>
+	[
+		"name",
+		"css",
+		"files",
+	];
+	
+	
+	/**
+	 * Action item
+	 */
+	@ApiMethod
+	async void actionItem()
+	{
+		/* Create service */
+		CrudService service = this.createService();
+		
+		/* Load project */
+		await service.loadProject(this.post_data.get("project_id"));
+		
+		/* Load item */
+		Dict pk = this.post_data.get("pk");
+		await service.searchItem(pk);
+		
+		/* Build result */
+		this.buildResult(service);
+	}
+	
+	
+	/**
+	 * Action save
+	 */
+	@ApiMethod
+	async void actionSave()
+	{
+		/* Create service */
+		CrudService service = this.createService();
+		
+		/* Load project */
+		await service.loadProject(this.post_data.get("project_id"));
+		
+		/* Load item */
+		await service.loadItem(this.post_data.get("pk"));
+		
+		/* Save item */
+		await service.save(this.post_data.get("item"));
+		
+		/* Build result */
+		this.buildResult(service);
+	}
+	
+	
+	/**
+	 * Upload file
+	 */
+	@ApiMethod
+	async void uploadFile()
+	{
+		/* Create service */
+		CrudService service = this.createService();
+		
+		/* Load project */
+		await service.loadProject(this.post_data.get("project_id"));
+		
+		/* Load item */
+		await service.loadItem(this.post_data.get("foreign_key"));
+		
+		/* Upload file */
+		await service.uploadFile(this.post_data.get("file"));
+		
+		/* Build result */
+		this.success();
+	}
+	
+	
+	/**
+	 * Delete file
+	 */
+	@ApiMethod
+	async void deleteFile()
+	{
+		/* Create service */
+		CrudService service = this.createService();
+		
+		/* Load project */
+		await service.loadProject(this.post_data.get("project_id"));
+		
+		/* Load item */
+		await service.loadItem(this.post_data.get("foreign_key"));
+		
+		/* Check item */
+		Dict pk = this.post_data.get("pk");
+		if (pk == null or not(pk instanceof Dict))
+		{
+			return this.fail({
+				"message": "Item not found",
+			});
+		}
+		
+		/* Delete file */
+		string file_name = this.post_data.get("pk").get("name");
+		await service.deleteFile(file_name);
+		
+		/* Build result */
+		this.success();
+	}
+	
+	
+	/**
+	 * Action delete
+	 */
+	@ApiMethod
+	async void actionDelete()
+	{
+		/* Create service */
+		CrudService service = this.createService();
+		
+		/* Load project */
+		await service.loadProject(this.post_data.get("project_id"));
+		
+		/* Load item */
+		await service.loadItem(this.post_data.get("pk"));
+		
+		/* Delete item */
+		await service.delete();
+		
+		/* Build result */
+		this.buildResult(service);
+	}
+}

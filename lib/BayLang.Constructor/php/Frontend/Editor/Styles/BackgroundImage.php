@@ -25,7 +25,7 @@ class BackgroundImage extends \BayLang\Constructor\Frontend\Editor\Styles\StyleI
 	 */
 	function buildValue()
 	{
-		return "url(\${ static::assets(\"" . \Runtime\rtl::toStr($this->value) . \Runtime\rtl::toStr("\")})");
+		return "url(\${ Component::assets(\"" . \Runtime\rtl::toStr($this->value) . \Runtime\rtl::toStr("\")})");
 	}
 	/**
 	 * Init value
@@ -43,7 +43,7 @@ class BackgroundImage extends \BayLang\Constructor\Frontend\Editor\Styles\StyleI
 			$reader->matchToken("(");
 			$reader->matchToken("\$");
 			$reader->matchToken("{");
-			$reader->matchToken("static");
+			$reader->matchToken("Component");
 			$reader->matchToken(":");
 			$reader->matchToken(":");
 			$reader->matchToken("assets");

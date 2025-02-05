@@ -173,6 +173,13 @@ class Html
 		$res = $this->translate($content);
 		\Runtime\Unit\AssertHelper::equalValue($content, $res->get(1), $content);
 	}
+	function testClick()
+	{
+		$this->reset();
+		$content = \Runtime\rs::join("\n", \Runtime\Vector::from(["<class name=\"App.Component\">","","<template>","\t<button","\t\tclass=\"widget_test\"","\t\t@event:click={{","\t\t\tvoid ()","\t\t\t{","\t\t\t\tthis.onClick();","\t\t\t}","\t\t}}","\t>","\t\tTest","\t</button>","</template>","","</class>"]));
+		$res = $this->translate($content);
+		\Runtime\Unit\AssertHelper::equalValue($content, $res->get(1), $content);
+	}
 	function testScript1()
 	{
 		$this->reset();
@@ -281,6 +288,7 @@ class Html
 			"testContent1",
 			"testContent2",
 			"testContent3",
+			"testClick",
 			"testScript1",
 			"testSlot1",
 			"testSlot2",
@@ -379,6 +387,12 @@ class Html
 				]),
 			]);
 		if ($field_name == "testContent3")
+			return \Runtime\Dict::from([
+				"annotations"=>\Runtime\Collection::from([
+					new \Runtime\Unit\Test([]),
+				]),
+			]);
+		if ($field_name == "testClick")
 			return \Runtime\Dict::from([
 				"annotations"=>\Runtime\Collection::from([
 					new \Runtime\Unit\Test([]),

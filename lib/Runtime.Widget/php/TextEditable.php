@@ -17,7 +17,7 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
-class TextEditable extends \Runtime\Web\Component
+class TextEditable extends \Runtime\Widget\Field
 {
 	public $reference;
 	public $readonly;
@@ -133,6 +133,10 @@ class TextEditable extends \Runtime\Web\Component
 		$this->old_value = $value;
 		$this->change_timer = null;
 	}
+	static function components()
+	{
+		return \Runtime\Vector::from(["Runtime.Widget.Field"]);
+	}
 	static function css($vars)
 	{
 		$res = "";
@@ -161,7 +165,7 @@ class TextEditable extends \Runtime\Web\Component
 	}
 	static function getParentClassName()
 	{
-		return "Runtime.Web.Component";
+		return "Runtime.Widget.Field";
 	}
 	static function getClassInfo()
 	{

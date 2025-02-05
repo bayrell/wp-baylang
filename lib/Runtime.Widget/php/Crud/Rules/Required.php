@@ -17,30 +17,31 @@
  *  limitations under the License.
  */
 namespace Runtime\Widget\Crud\Rules;
-class Required extends \Runtime\Widget\Crud\Rules\CrudRule
+class Required extends \Runtime\Widget\Crud\Rules\BaseRule
 {
 	public $__name;
 	public $__check_create;
 	public $__check_update;
 	/**
-	 * Validate item
+	 * Validate
 	 */
-	function validateItem($api, $data)
+	function validate($rules, $data)
 	{
-		if ($api->pk == null && !$this->check_create)
+		if ($rules->isCreate() && !$this->check_create)
 		{
-			return $data;
+			return true;
 		}
-		if ($api->pk != null && !$this->check_update)
+		if ($rules->isUpdate() && !$this->check_update)
 		{
-			return $data;
+			return true;
 		}
 		$value = \Runtime\rtl::attr($data, $this->name);
 		if (!$data->has($this->name) || $value === "" || $value === null)
 		{
-			$api->fields->addFieldError($this->name, "Field is required");
+			$rules->addFieldError($this->name, "Field is required");
+			return false;
 		}
-		return $data;
+		return true;
 	}
 	/* ======================= Class Init Functions ======================= */
 	function _init()
@@ -66,7 +67,7 @@ class Required extends \Runtime\Widget\Crud\Rules\CrudRule
 	}
 	static function getParentClassName()
 	{
-		return "Runtime.Widget.Crud.Rules.CrudRule";
+		return "Runtime.Widget.Crud.Rules.BaseRule";
 	}
 	static function getClassInfo()
 	{

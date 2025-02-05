@@ -21,6 +21,13 @@ class Environments extends \Runtime\Web\Hooks\AppHook
 {
 	public $frontend;
 	/**
+	 * Hook factory
+	 */
+	static function create($items)
+	{
+		return new \Runtime\Entity\Hook(static::getClassName(), \Runtime\Map::from(["frontend"=>$items]));
+	}
+	/**
 	 * Setup
 	 */
 	function setup($params)

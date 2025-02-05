@@ -684,7 +684,6 @@ class WidgetEditPageModel extends BasePageModel
 			iframe_page_model.widgets.remove(old_widget_name);
 			#ifcode JAVASCRIPT then
 			iframe_page_model[new_widget_name] = iframe_page_model[old_widget_name];
-			iframe_page_model[old_widget_name] = null;
 			#endif
 		}
 		

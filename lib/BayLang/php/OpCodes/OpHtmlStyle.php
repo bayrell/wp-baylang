@@ -68,16 +68,11 @@ class OpHtmlStyle extends \BayLang\OpCodes\BaseOpCode
 	{
 		$reader->matchToken("{");
 		$caret = $reader->main_caret;
-		$caret->skipSpace();
 		$level = 0;
 		$items = \Runtime\Vector::from([]);
 		while (!$caret->eof() && ($caret->nextChar() != "}" && $level == 0 || $level > 0))
 		{
 			$ch = $caret->readChar();
-			if ($ch != "\t")
-			{
-				$items->push($ch);
-			}
 			if ($ch == "{")
 			{
 				$level = $level + 1;
@@ -86,10 +81,11 @@ class OpHtmlStyle extends \BayLang\OpCodes\BaseOpCode
 			{
 				$level = $level - 1;
 			}
+			$items->push($ch);
 		}
 		$reader->init($caret);
 		$reader->matchToken("}");
-		return \Runtime\rs::trim(\Runtime\rs::join("", $items));
+		return \Runtime\rs::join("", $items);
 	}
 	/* ======================= Class Init Functions ======================= */
 	function _init()

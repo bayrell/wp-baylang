@@ -62,6 +62,11 @@ class WidgetManager extends BaseObject implements WidgetManagerInterface
 			"label": "Basic",
 			"priority": 0,
 		},
+		"html":
+		{
+			"label": "Html",
+			"priority": 100,
+		},
 		"widget":
 		{
 			"label": "Widget",

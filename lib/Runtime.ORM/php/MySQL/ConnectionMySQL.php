@@ -28,6 +28,11 @@ class ConnectionMySQL extends \Runtime\ORM\Connection
 	public $connect_error;
 	public $pdo;
 	public $is_transaction;
+	function __construct($name="")
+	{
+		parent::__construct($name);
+		$this->cursor = new \Runtime\ORM\Factory\CursorFactory("Runtime.ORM.MySQL.CursorMySQL");
+	}
 	/**
 	 * Connect
 	 */
@@ -67,18 +72,70 @@ class ConnectionMySQL extends \Runtime\ORM\Connection
 		return $this->pdo != null;
 	}
 	/**
-	 * Create new cursor
-	 */
-	function createCursor()
-	{
-		return new \Runtime\ORM\MySQL\CursorMySQL($this);
-	}
-	/**
 	 * Create SQLBuilder
 	 */
 	function createBuilder($q)
 	{
 		return new \Runtime\ORM\MySQL\SQLBuilder($this, $q);
+	}
+	/**
+	 * Fork connection
+	 */
+	function fork()
+	{
+		$connection = parent::fork();
+		$connection->host = $this->host;
+		$connection->port = $this->port;
+		$connection->login = $this->login;
+		$connection->password = $this->password;
+		$connection->database = $this->database;
+		$connection->prefix = $this->prefix;
+		$connection->connect_error = $this->connect_error;
+		$connection->pdo = $this->pdo;
+		return $connection;
+	}
+	/**
+	 * Add to query log
+	 */
+	function logQuery($params=null)
+	{
+		if ($params == null)
+		{
+			$params = \Runtime\Map::from([]);
+		}
+		$q = $params->get("query");
+		$builder = $params->get("builder", false);
+		/* Check is debug */
+		$is_debug = $params->get("debug", false);
+		if ($q != null && $q->_debug)
+		{
+			$is_debug = true;
+		}
+		/* Is debug */
+		if (!$is_debug && !$this->log)
+		{
+			return ;
+		}
+		/* Get SQL query */
+		$sql_debug = "";
+		if ($builder != null)
+		{
+			$sql_debug = $builder->formatSQL();
+		}
+		else if ($params->has($sql_debug))
+		{
+			$sql_debug = $params->get("sql_debug");
+		}
+		/* Print debug SQL */
+		if ($is_debug)
+		{
+			\Runtime\io::print($sql_debug);
+		}
+		/* Query log */
+		if ($this->log)
+		{
+			$this->log->push(\Runtime\Map::from(["query"=>$params->get("query"),"builder"=>$params->get("builder"),"sql"=>$sql_debug]));
+		}
 	}
 	/**
 	 * Execute Query
@@ -89,12 +146,6 @@ class ConnectionMySQL extends \Runtime\ORM\Connection
 		{
 			$params = \Runtime\Map::from([]);
 		}
-		/* Check is debug */
-		$is_debug = $params->get("debug", false);
-		if ($q->_debug)
-		{
-			$is_debug = true;
-		}
 		/* Build query */
 		$builder = $this->createBuilder($q)->build();
 		/* Check builder correct */
@@ -102,31 +153,40 @@ class ConnectionMySQL extends \Runtime\ORM\Connection
 		{
 			throw new \Runtime\ORM\Exceptions\OrmException("SQL builder is not correct");
 		}
-		/* Debug sql */
-		if ($is_debug)
-		{
-			$sql_debug = $builder->formatSQL();
-			\Runtime\io::print($sql_debug);
-		}
+		/* Log query */
+		$this->logQuery($params->concat(\Runtime\Map::from(["builder"=>$builder,"query"=>$q->copy()])));
 		/* Create cursor */
 		$cursor = $this->createCursor();
-		/* Execute sql */
-		$cursor = $cursor->executeSQL($builder);
 		$cursor->q = $q->copy();
+		/* Execute sql */
+		if ($cursor instanceof \Runtime\ORM\MySQL\CursorMySQL)
+		{
+			$cursor = $cursor->executeSQL($builder);
+		}
 		return $cursor;
 	}
 	/**
 	 * Execute Query
 	 */
-	function executeSQL($sql, $data=null)
+	function executeSQL($sql, $data=null, $params=null)
 	{
+		if ($params == null)
+		{
+			$params = \Runtime\Map::from([]);
+		}
 		/* Build query */
 		$builder = $this->createBuilder(null);
 		$builder->sql = $sql;
 		$builder->data = $data;
-		/* Execute */
+		/* Log query */
+		$this->logQuery($params->concat(\Runtime\Map::from(["builder"=>$builder])));
+		/* Create cursor */
 		$cursor = $this->createCursor();
-		$cursor = $cursor->executeSQL($builder);
+		/* Execute sql */
+		if ($cursor instanceof \Runtime\ORM\MySQL\CursorMySQL)
+		{
+			$cursor = $cursor->executeSQL($builder);
+		}
 		return $cursor;
 	}
 	/* ======================= Class Init Functions ======================= */

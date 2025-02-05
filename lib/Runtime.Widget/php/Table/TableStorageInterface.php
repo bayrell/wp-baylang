@@ -20,6 +20,10 @@ namespace Runtime\Widget\Table;
 interface TableStorageInterface
 {
 	/**
+	 * Returns items
+	 */
+	function getItems();
+	/**
 	 * Set table
 	 */
 	function setTable($table);

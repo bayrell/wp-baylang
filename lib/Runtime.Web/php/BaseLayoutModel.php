@@ -21,11 +21,14 @@ class BaseLayoutModel extends \Runtime\Web\BaseModel
 {
 	public $component;
 	public $title;
-	public $locale;
+	public $content_type;
 	public $layout_name;
+	public $locale;
 	public $current_page_class;
 	public $current_page_model;
-	public $content_type;
+	public $site_name;
+	public $is_full_title;
+	public $current_page_props;
 	public $route;
 	public $request_full_uri;
 	public $request_host;
@@ -34,9 +37,8 @@ class BaseLayoutModel extends \Runtime\Web\BaseModel
 	public $request_query;
 	public $components;
 	public $routes;
+	public $storage;
 	public $f_inc;
-	public $backend_storage;
-	public $teleports;
 	/**
 	 * Init widget params
 	 */
@@ -47,14 +49,18 @@ class BaseLayoutModel extends \Runtime\Web\BaseModel
 		{
 			return ;
 		}
-		if ($params->has("backend_storage"))
-		{
-			$this->backend_storage = $params->get("backend_storage");
-		}
 		if ($params->has("route"))
 		{
 			$this->route = $params->get("route");
 		}
+	}
+	/**
+	 * Init widget settings
+	 */
+	function initWidget($params)
+	{
+		parent::initWidget($params);
+		$this->storage = $this->addWidget("Runtime.Web.BaseStorage");
 	}
 	/**
 	 * Route before
@@ -76,8 +82,10 @@ class BaseLayoutModel extends \Runtime\Web\BaseModel
 		$serializer->process($this, "components", $data);
 		$serializer->process($this, "current_page_class", $data);
 		$serializer->process($this, "current_page_model", $data);
+		$serializer->process($this, "current_page_props", $data);
 		$serializer->process($this, "content_type", $data);
 		$serializer->process($this, "f_inc", $data);
+		$serializer->process($this, "is_full_title", $data);
 		$serializer->process($this, "locale", $data);
 		$serializer->process($this, "layout_name", $data);
 		$serializer->process($this, "request_full_uri", $data);
@@ -87,6 +95,7 @@ class BaseLayoutModel extends \Runtime\Web\BaseModel
 		$serializer->process($this, "request_uri", $data);
 		$serializer->process($this, "route", $data);
 		$serializer->process($this, "routes", $data);
+		$serializer->process($this, "site_name", $data);
 		$serializer->process($this, "title", $data);
 		parent::serialize($serializer, $data);
 	}
@@ -98,10 +107,22 @@ class BaseLayoutModel extends \Runtime\Web\BaseModel
 		return $this->widgets->get($this->current_page_model);
 	}
 	/**
+	 * Returns storage
+	 */
+	function getStorage()
+	{
+		return $this->widgets->get("storage");
+	}
+	/**
 	 * Returns page class name
 	 */
 	function getPageClassName()
 	{
+		$page_model = $this->getPageModel();
+		if ($page_model)
+		{
+			return $page_model->component;
+		}
 		return $this->current_page_class;
 	}
 	/**
@@ -116,8 +137,18 @@ class BaseLayoutModel extends \Runtime\Web\BaseModel
 			$page_model = $this->addWidget($class_name, \Runtime\Map::from(["widget_name"=>$class_name]));
 		}
 		/* Change current page model */
+		$this->current_page_class = "";
 		$this->current_page_model = $class_name;
+		$this->current_page_props = null;
 		return $page_model;
+	}
+	/**
+	 * Set page component
+	 */
+	function setPageComponent($component_name, $props=null)
+	{
+		$this->current_page_class = $component_name;
+		$this->current_page_props = $props;
 	}
 	/**
 	 * Set layout name
@@ -129,16 +160,28 @@ class BaseLayoutModel extends \Runtime\Web\BaseModel
 	/**
 	 * Set page title
 	 */
-	function setPageTitle($title)
+	function setPageTitle($title, $is_full_title=false)
 	{
 		$this->title = $title;
+		$this->is_full_title = $is_full_title;
 	}
 	/**
 	 * Returns full page title
 	 */
-	function getFullTitle()
+	function getFullTitle($ch="|")
 	{
-		return $this->title;
+		/* Check full title */
+		if ($this->is_full_title)
+		{
+			return $this->title;
+		}
+		/* Check site name */
+		$site_name = $this->getSiteName();
+		if ($site_name == "")
+		{
+			return $this->title;
+		}
+		return $this->title . \Runtime\rtl::toStr(" ") . \Runtime\rtl::toStr($ch) . \Runtime\rtl::toStr(" ") . \Runtime\rtl::toStr($site_name);
 	}
 	/**
 	 * Returns locale
@@ -152,30 +195,15 @@ class BaseLayoutModel extends \Runtime\Web\BaseModel
 	 */
 	function getSiteName()
 	{
-		return "";
-	}
-	/**
-	 * Returns layout component name
-	 */
-	function getLayoutComponentName()
-	{
-		$class_name = $this->component;
-		$params = \Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::LAYOUT_COMPONENT_NAME, \Runtime\Map::from(["layout"=>$this,"layout_name"=>$this->layout_name,"class_name"=>$class_name]));
-		return \Runtime\rtl::attr($params, "class_name");
-	}
-	/**
-	 * Returns Core UI
-	 */
-	function getCoreUI()
-	{
-		return "Runtime.Web.CoreUI";
+		return $this->site_name;
 	}
 	/**
 	 * Call Api
 	 */
 	function callApi($params)
 	{
-		$params->set("backend_storage", $this->backend_storage);
+		/* Set layout */
+		$params->set("layout", $this->layout);
 		/* Returns bus */
 		$bus = \Runtime\Web\Bus::getApi($params->get("service", "app"));
 		$api = $bus->send($params);
@@ -224,12 +252,12 @@ class BaseLayoutModel extends \Runtime\Web\BaseModel
 		}
 		$res = new \Runtime\Vector();
 		$cache = new \Runtime\Map();
-		$components = $components->concat($this->components);
-		$components->push($this->getLayoutComponentName());
 		/* Call hook */
 		$d = \Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::COMPONENTS, \Runtime\Map::from(["layout"=>$this,"components"=>$components]));
 		/* Get new components */
 		$components = $d->get("components");
+		$components = $components->concat($this->components);
+		$components->push($this->getPageClassName());
 		/* Extends components */
 		static::_getRequiredComponents($res, $cache, $components);
 		return $res->removeDuplicates();
@@ -347,18 +375,20 @@ class BaseLayoutModel extends \Runtime\Web\BaseModel
 		$is_domain = ($url_params) ? ($url_params->get("domain", true)) : (true);
 		return ($is_domain) ? ($res->get("url_with_domain")) : ($res->get("url"));
 	}
-	/* Backend storage */
 	/* ======================= Class Init Functions ======================= */
 	function _init()
 	{
 		parent::_init();
 		$this->component = "Runtime.Web.DefaultLayout";
 		$this->title = "";
-		$this->locale = \Runtime\rtl::getContext()->env("LOCALE");
+		$this->content_type = "UTF-8";
 		$this->layout_name = "default";
+		$this->locale = \Runtime\rtl::getContext()->env("LOCALE");
 		$this->current_page_class = "";
 		$this->current_page_model = "";
-		$this->content_type = "UTF-8";
+		$this->site_name = "";
+		$this->is_full_title = false;
+		$this->current_page_props = null;
 		$this->route = null;
 		$this->request_full_uri = "";
 		$this->request_host = "";
@@ -367,9 +397,8 @@ class BaseLayoutModel extends \Runtime\Web\BaseModel
 		$this->request_query = null;
 		$this->components = \Runtime\Vector::from([]);
 		$this->routes = \Runtime\Map::from([]);
+		$this->storage = null;
 		$this->f_inc = "1";
-		$this->backend_storage = \Runtime\Map::from([]);
-		$this->teleports = \Runtime\Vector::from([]);
 	}
 	static function getNamespace()
 	{

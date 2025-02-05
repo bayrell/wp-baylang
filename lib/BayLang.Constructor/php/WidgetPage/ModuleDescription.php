@@ -48,7 +48,7 @@ class ModuleDescription
 	 */
 	static function entities()
 	{
-		return \Runtime\Vector::from([new \Runtime\Entity\Hook("BayLang.Constructor.WidgetPage.AppHook"),new \Runtime\Entity\Provider("BayLang.Constructor.WidgetPage.EditorProvider"),new \Runtime\Entity\Hook("Runtime.Web.Hooks.Environments", \Runtime\Map::from(["frontend"=>\Runtime\Vector::from(["CONSTRUCTOR"])])),new \Runtime\Web\Annotations\Route("BayLang.Constructor.WidgetPage.Routes")]);
+		return \Runtime\Vector::from([new \Runtime\Entity\Hook("BayLang.Constructor.WidgetPage.AppHook"),new \Runtime\Entity\Provider("BayLang.Constructor.WidgetPage.EditorProvider"),new \Runtime\Web\Annotations\Route("BayLang.Constructor.WidgetPage.Routes")]);
 	}
 	/* ======================= Class Init Functions ======================= */
 	static function getNamespace()

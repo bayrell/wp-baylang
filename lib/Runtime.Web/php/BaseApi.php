@@ -21,8 +21,8 @@ class BaseApi extends \Runtime\BaseObject
 {
 	public $action;
 	public $post_data;
+	public $layout;
 	public $result;
-	public $backend_storage;
 	/**
 	 * Returns api name
 	 */
@@ -75,8 +75,8 @@ class BaseApi extends \Runtime\BaseObject
 		parent::_init();
 		$this->action = "";
 		$this->post_data = null;
+		$this->layout = null;
 		$this->result = null;
-		$this->backend_storage = null;
 	}
 	static function getNamespace()
 	{

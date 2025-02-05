@@ -44,7 +44,6 @@ class WidgetList extends \Runtime\Web\Component
 	static function css($vars)
 	{
 		$res = "";
-		$res .= \Runtime\rtl::toStr(".top_buttons.h-1ea1{margin-bottom: 10px}");
 		return $res;
 	}
 	/* ======================= Class Init Functions ======================= */

@@ -169,7 +169,7 @@
 <template name="renderBody">
 	%if (this.model)
 	{
-		%set Collection items = this.model.getItems();
+		%set Collection items = this.model.storage.getItems();
 		%if (items)
 		{
 			%for (int i=0; i<items.count(); i++)
@@ -180,6 +180,11 @@
 		}
 		%render this.renderPagination();
 	}
+</template>
+
+
+<template name="renderTopButtons">
+	%render this.renderWidget(this.model.top_buttons);
 </template>
 
 
@@ -201,8 +206,9 @@
 <template>
 	<div class="widget_table"
 		class={{ this.class }}
-		class={{ static::getStyles("widget_table", this.model.styles) }}
+		class={{ static::mergeStyles("widget_table", this.model.styles) }}
 	>
+		%render this.renderTopButtons();
 		%render this.renderTable();
 		%render this.renderWidgets();
 	</div>

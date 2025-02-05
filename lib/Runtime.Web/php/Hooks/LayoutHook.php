@@ -24,12 +24,24 @@ class LayoutHook extends \Runtime\Web\Hooks\AppHook
 	 */
 	function register_hooks()
 	{
-		$this->register(static::ROUTE_BEFORE, 0);
+		$this->register(static::CREATE_LAYOUT);
+		$this->register(static::LAYOUT_MODEL_NAME, 0);
 	}
 	/**
-	 * Route before
+	 * Layout model name
 	 */
-	function route_before($params)
+	function layout_model_name($params)
+	{
+		$layout_name = $params->get("layout_name");
+		if ($layout_name == "email")
+		{
+			$params->set("component_name", "Runtime.Web.EmailLayout");
+		}
+	}
+	/**
+	 * Create layout
+	 */
+	function create_layout($params)
 	{
 		$container = $params->get("container");
 		/* Setup client ip */
@@ -44,14 +56,26 @@ class LayoutHook extends \Runtime\Web\Hooks\AppHook
 	 */
 	function setupClientIP($container)
 	{
+		if (!$container->request)
+		{
+			return ;
+		}
 		$client_ip = $container->request->getClientIp();
-		$container->layout->backend_storage->set("client_ip", $client_ip);
+		$container->layout->storage->backend->set("client_ip", $client_ip);
 	}
 	/**
 	 * Setup layout request
 	 */
 	function setupLayoutRequest($container)
 	{
+		if (!$container->request)
+		{
+			return ;
+		}
+		if (!$container->route)
+		{
+			return ;
+		}
 		$container->layout->route = $container->route;
 		$container->layout->request_https = $container->request->is_https;
 		$container->layout->request_host = $container->request->host;

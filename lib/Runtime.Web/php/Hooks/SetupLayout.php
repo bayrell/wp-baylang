@@ -23,7 +23,7 @@ class SetupLayout extends \Runtime\Web\Hooks\AppHook
 	/**
 	 * Hook factory
 	 */
-	static function hook($params)
+	static function create($params)
 	{
 		return new \Runtime\Entity\Hook(static::getClassName(), \Runtime\Map::from(["names"=>$params]));
 	}

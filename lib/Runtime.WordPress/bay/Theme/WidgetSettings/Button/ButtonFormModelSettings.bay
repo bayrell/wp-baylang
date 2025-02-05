@@ -1,0 +1,414 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Theme.WidgetSettings.Button;
+
+use Runtime.lib;
+use Runtime.BaseObject;
+use Runtime.Web.ApiResult;
+use Runtime.Web.BaseModel;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.ButtonModel;
+use Runtime.WordPress.Theme.Components.Button.ButtonFormModel;
+use BayLang.Constructor.Frontend.Editor.Parameters.Parameter;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel;
+use BayLang.Constructor.WidgetPage.ParameterFactory;
+use BayLang.Constructor.WidgetPage.WidgetSettingsInterface;
+
+
+class ButtonFormModelSettings extends BaseObject implements WidgetSettingsInterface
+{
+	Collection options = null;
+	
+	
+	/**
+	 * Returns widget name
+	 */
+	string getWidgetName() => "";
+	
+	
+	/**
+	 * Returns alias name
+	 */
+	string getAliasName() => "WP_ButtonFormModel";
+	
+	
+	/**
+	 * Returns component name
+	 */
+	string getComponentName() => "";
+	
+	
+	/**
+	 * Returns model name
+	 */
+	string getModelName() => "Runtime.WordPress.Theme.Components.Button.ButtonFormModel";
+	
+	
+	/**
+	 * Returns selector name
+	 */
+	string getSelectorName() => "button";
+	
+	
+	/**
+	 * Returns group name
+	 */
+	string getGroupName() => "widget";
+	
+	
+	/**
+	 * Returns true if model
+	 */
+	bool isModel() => true;
+	
+	
+	/**
+	 * Returns true if is widget settings
+	 */
+	bool checkWidget(var widget)
+	{
+		if (not widget.isComponent()) return false;
+		if (widget.model_class_name != this.getModelName()) return false;
+		return true;
+	}
+	
+	
+	/**
+	 * Can insert widget
+	 */
+	bool canInsert(WidgetSettingsInterface widget)
+	{
+		return false;
+	}
+	
+	
+	/**
+	 * Load form name options
+	 */
+	async void loadOptions(var runtime, var widget)
+	{
+		if (this.options) return;
+		
+		Dict data = ParameterFactory::copy(runtime, {
+			"api_name": "admin.wordpress.forms.settings.search",
+			"method_name": "actionSearch",
+			"data": {
+				"limit": "1000",
+			},
+		});
+		ApiResult result = await widget.page_model.layout.callApi(data);
+		if (result.isSuccess())
+		{
+			Dict result_data = ParameterFactory::restore(runtime, result.data);
+			this.options = result_data.get("items").map(Dict (Dict item) => {
+				"key": item.get("api_name"),
+				"value": item.get("name"),
+			});
+		}
+		else
+		{
+			this.options = [];
+		}
+	}
+	
+	
+	/**
+	 * Setup widget
+	 */
+	async void setup(var runtime, var widget)
+	{
+		/* Load options */
+		await this.loadOptions(runtime, widget);
+		
+		/* Add options to widget */
+		if (this.options)
+		{
+			ParameterModel form_name_param = widget.params.findItem(
+				bool (Parameter param) => param.name == "form_name"
+			);
+			if (form_name_param)
+			{
+				Collection options = ParameterFactory::copy(runtime, this.options);
+				form_name_param.props.set("options", options);
+			}
+		}
+	}
+	
+	
+	/**
+	 * On change
+	 */
+	bool onChange(var runtime, ButtonFormModel model, ParameterModel param)
+	{
+		/* Change form name */
+		if (param.name == "form_name")
+		{
+			model.form.form_name = param.value;
+			model.form.loadForm();
+			return true;
+		}
+		
+		/* Change form content */
+		if (param.name == "form_content")
+		{
+			model.form.form_content = param.value;
+			return true;
+		}
+		
+		/* Change form ID */
+		if (param.name == "form_id")
+		{
+			model.form.form_id = param.value;
+			return true;
+		}
+		
+		/* Change form styles */
+		if (param.name == "form_styles")
+		{
+			model.form.styles = ParameterFactory::restore(runtime, param.value);
+			return true;
+		}
+		
+		/* Change button styles */
+		if (param.name == "styles")
+		{
+			model.styles = ParameterFactory::restore(runtime, param.value);
+			return true;
+		}
+		
+		/* Form button text */
+		if (param.name == "form_button_text")
+		{
+			ButtonModel button = model.form.bottom_buttons.getWidget("submit");
+			button.content = ParameterFactory::restore(runtime, param.value);
+			return true;
+		}
+		
+		/* Form button styles */
+		if (param.name == "form_button_styles")
+		{
+			ButtonModel button = model.form.bottom_buttons.getWidget("submit");
+			button.styles = ParameterFactory::restore(runtime, param.value);
+			return true;
+		}
+		
+		/* Form show label */
+		if (param.name == "form_show_label")
+		{
+			model.form.field_settings.set("show_label", param.value);
+			return true;
+		}
+		
+		/* Change dialog styles */
+		if (param.name == "dialog_styles")
+		{
+			model.dialog.styles = ParameterFactory::restore(runtime, param.value);
+			return true;
+		}
+		
+		/* Change dialog title */
+		if (param.name == "dialog_title")
+		{
+			model.dialog.title = param.value;
+			return true;
+		}
+		
+		/* Change redirect url */
+		if (param.name == "redirect_url")
+		{
+			model.form.redirect_url = param.value;
+			model.form.loadForm();
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	/**
+	 * Returns params
+	 */
+	Collection<ParameterFactory> getParams() =>
+	[
+		new ParameterFactory
+		(
+			classof ParameterModel,
+			{
+				"name": "styles",
+				"label": "Button styles",
+				"component": "Runtime.Widget.Tag",
+				"default": ["danger"],
+			}
+		),
+		new ParameterFactory
+		(
+			classof ParameterDictModel,
+			{
+				"name": "redirect_url",
+				"path": ["form_settings", "redirect_url"],
+				"label": "Redirect URL",
+				"component": "Runtime.Widget.Input",
+				"default": "",
+			}
+		),
+		new ParameterFactory
+		(
+			classof ParameterDictModel,
+			{
+				"name": "metrika_event",
+				"path": ["form_settings", "metrika_event"],
+				"label": "Metrika event",
+				"component": "Runtime.Widget.Input",
+				"default": "",
+			}
+		),
+		new ParameterFactory
+		(
+			classof ParameterDictModel,
+			{
+				"name": "metrika_form_id",
+				"path": ["form_settings", "metrika_form_id"],
+				"label": "Form id",
+				"component": "Runtime.Widget.Input",
+			}
+		),
+		new ParameterFactory
+		(
+			classof ParameterDictModel,
+			{
+				"name": "form_name",
+				"path": ["form_settings", "form_name"],
+				"label": "Form name",
+				"component": "Runtime.Widget.Select",
+				"default": "",
+				"props": {
+					"options": [
+					],
+				}
+			}
+		),
+		new ParameterFactory
+		(
+			classof ParameterDictModel,
+			{
+				"name": "form_content",
+				"path": ["form_settings", "form_content"],
+				"label": "Form content",
+				"component": "Runtime.Widget.TextEditable",
+			}
+		),
+		new ParameterFactory
+		(
+			classof ParameterDictModel,
+			{
+				"name": "form_styles",
+				"path": ["form_settings", "styles"],
+				"label": "Form styles",
+				"component": "Runtime.Widget.Tag",
+				"default": [],
+			}
+		),
+		new ParameterFactory
+		(
+			classof ParameterDictModel,
+			{
+				"name": "form_show_label",
+				"path": ["form_settings", "field_settings", "show_label"],
+				"label": "Form show label",
+				"component": "Runtime.Widget.Select",
+				"default": "true",
+				"props": {
+					"options": [
+						{"key": "false", "value": "False"},
+						{"key": "true", "value": "True"},
+					],
+				}
+			}
+		),
+		new ParameterFactory
+		(
+			classof ParameterDictModel,
+			{
+				"name": "dialog_styles",
+				"path": ["dialog_settings", "styles"],
+				"label": "Dialog styles",
+				"component": "Runtime.Widget.Tag",
+				"default": [],
+			}
+		),
+		new ParameterFactory
+		(
+			classof ParameterDictModel,
+			{
+				"name": "dialog_title",
+				"path": ["dialog_settings", "title"],
+				"label": "Dialog title",
+				"component": "Runtime.Widget.Input",
+				"default": "",
+			}
+		),
+		new ParameterFactory
+		(
+			classof ParameterDictModel,
+			{
+				"name": "form_button_text",
+				"path": ["form_settings", "submit_button", "text"],
+				"label": "Dialog button text",
+				"component": "Runtime.Widget.Input",
+				"default": "Send",
+			}
+		),
+		new ParameterFactory
+		(
+			classof ParameterDictModel,
+			{
+				"name": "form_button_styles",
+				"path": ["form_settings", "submit_button", "styles"],
+				"label": "Dialog button styles",
+				"component": "Runtime.Widget.Tag",
+				"default": ["danger", "large", "stretch"],
+			}
+		),
+	];
+	
+	
+	/**
+	 * Returns default template
+	 */
+	Dict<fn> getDefaultTemplate() =>
+	{
+		"default": Dict () =>
+		{
+			"modules":
+			[
+				"Runtime.Entity.Factory",
+			],
+			"model": rs::join("\n", [
+				"this.form = this.addWidget(classof WP_ButtonFormModel, {",
+				"\t'widget_name': 'button',",
+				"\t'form_name': 'default',",
+				"\t'form_settings':",
+				"\t{",
+				"\t},",
+				"});",
+			])
+		}
+	};
+}

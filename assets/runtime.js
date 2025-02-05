@@ -272,15 +272,15 @@ Object.assign(Runtime.rtl,
 	apply: function(f, args)
 	{
 		if (args == undefined) args = null;
-		if (args == null) args = [];
-		else args = Array.prototype.slice.call(args);
-		
-		if (typeof ctx != "undefined") args.unshift();
+		if (typeof ctx != "undefined") args.prepend();
 		
 		if (f instanceof Runtime.Callback)
 		{
 			return f.apply(args);
 		}
+		
+		if (args == null) args = [];
+		else args = Array.prototype.slice.call(args);
 		
 		return f.apply(null, args);
 	},
@@ -1358,6 +1358,17 @@ Object.assign(Runtime.lib,
 		return (m) =>
 		{
 			return m.concat(arr);
+		};
+	},
+	/**
+	 * Comparator
+	 */
+	comparator: function(compare, f)
+	{
+		if (f == undefined) f = null;
+		return (a, b) =>
+		{
+			return compare(f(a), f(b));
 		};
 	},
 	/**
@@ -6148,10 +6159,10 @@ Object.assign(Runtime.Chain.prototype,
 	/**
 	 * Apply chain
 	 */
-	apply: function(value)
+	apply: function(args)
 	{
-		if (value == undefined) value = null;
-		var monada = new Runtime.Monad(value);
+		if (args == undefined) args = null;
+		var monada = new Runtime.Monad(args.get(0));
 		if (!this.is_async)
 		{
 			this.applyChain(monada);
@@ -6170,9 +6181,10 @@ Object.assign(Runtime.Chain.prototype,
 	/**
 	 * Apply async chain
 	 */
-	applyAsync: async function(value)
+	applyAsync: async function(args)
 	{
-		var monada = new Runtime.Monad(value);
+		if (args == undefined) args = null;
+		var monada = new Runtime.Monad(args.get(0));
 		await this.applyChainAsync(monada);
 		return Promise.resolve(monada.value());
 	},
@@ -9970,7 +9982,9 @@ Object.assign(Runtime.Web.ApiResult.prototype,
 		this.error_name = content.get("error_name", "");
 		this.error_file = content.get("error_file", "");
 		this.error_line = content.get("error_line", "");
+		this.error_trace = content.get("error_trace", Runtime.Vector.from([]));
 		this.error_pos = content.get("error_pos", "");
+		this.is_exception = this.error_file != "";
 	},
 	/**
 	 * Set data
@@ -10472,7 +10486,7 @@ Object.assign(Runtime.Web.BaseModel.prototype,
 			return ;
 		}
 		var chain = this.listeners.get(message_name);
-		chain.apply(message);
+		chain.apply(Runtime.Vector.from([message]));
 	},
 	/**
 	 * Async emit message
@@ -10496,7 +10510,7 @@ Object.assign(Runtime.Web.BaseModel.prototype,
 			return Promise.resolve();
 		}
 		var chain = this.listeners.get(message_name);
-		await chain.applyAsync(message);
+		await chain.applyAsync(Runtime.Vector.from([message]));
 	},
 	/**
 	 * Load data
@@ -10653,14 +10667,18 @@ Object.assign(Runtime.Web.BaseLayoutModel.prototype,
 		{
 			return ;
 		}
-		if (params.has("backend_storage"))
-		{
-			this.backend_storage = params.get("backend_storage");
-		}
 		if (params.has("route"))
 		{
 			this.route = params.get("route");
 		}
+	},
+	/**
+	 * Init widget settings
+	 */
+	initWidget: function(params)
+	{
+		Runtime.Web.BaseModel.prototype.initWidget.call(this, params);
+		this.storage = this.addWidget("Runtime.Web.BaseStorage");
 	},
 	/**
 	 * Route before
@@ -10682,8 +10700,10 @@ Object.assign(Runtime.Web.BaseLayoutModel.prototype,
 		serializer.process(this, "components", data);
 		serializer.process(this, "current_page_class", data);
 		serializer.process(this, "current_page_model", data);
+		serializer.process(this, "current_page_props", data);
 		serializer.process(this, "content_type", data);
 		serializer.process(this, "f_inc", data);
+		serializer.process(this, "is_full_title", data);
 		serializer.process(this, "locale", data);
 		serializer.process(this, "layout_name", data);
 		serializer.process(this, "request_full_uri", data);
@@ -10693,6 +10713,7 @@ Object.assign(Runtime.Web.BaseLayoutModel.prototype,
 		serializer.process(this, "request_uri", data);
 		serializer.process(this, "route", data);
 		serializer.process(this, "routes", data);
+		serializer.process(this, "site_name", data);
 		serializer.process(this, "title", data);
 		Runtime.Web.BaseModel.prototype.serialize.call(this, serializer, data);
 	},
@@ -10704,10 +10725,22 @@ Object.assign(Runtime.Web.BaseLayoutModel.prototype,
 		return this.widgets.get(this.current_page_model);
 	},
 	/**
+	 * Returns storage
+	 */
+	getStorage: function()
+	{
+		return this.widgets.get("storage");
+	},
+	/**
 	 * Returns page class name
 	 */
 	getPageClassName: function()
 	{
+		var page_model = this.getPageModel();
+		if (page_model)
+		{
+			return page_model.component;
+		}
 		return this.current_page_class;
 	},
 	/**
@@ -10722,8 +10755,19 @@ Object.assign(Runtime.Web.BaseLayoutModel.prototype,
 			page_model = this.addWidget(class_name, Runtime.Map.from({"widget_name":class_name}));
 		}
 		/* Change current page model */
+		this.current_page_class = "";
 		this.current_page_model = class_name;
+		this.current_page_props = null;
 		return page_model;
+	},
+	/**
+	 * Set page component
+	 */
+	setPageComponent: function(component_name, props)
+	{
+		if (props == undefined) props = null;
+		this.current_page_class = component_name;
+		this.current_page_props = props;
 	},
 	/**
 	 * Set layout name
@@ -10735,16 +10779,30 @@ Object.assign(Runtime.Web.BaseLayoutModel.prototype,
 	/**
 	 * Set page title
 	 */
-	setPageTitle: function(title)
+	setPageTitle: function(title, is_full_title)
 	{
+		if (is_full_title == undefined) is_full_title = false;
 		this.title = title;
+		this.is_full_title = is_full_title;
 	},
 	/**
 	 * Returns full page title
 	 */
-	getFullTitle: function()
+	getFullTitle: function(ch)
 	{
-		return this.title;
+		if (ch == undefined) ch = "|";
+		/* Check full title */
+		if (this.is_full_title)
+		{
+			return this.title;
+		}
+		/* Check site name */
+		var site_name = this.getSiteName();
+		if (site_name == "")
+		{
+			return this.title;
+		}
+		return this.title + Runtime.rtl.toStr(" ") + Runtime.rtl.toStr(ch) + Runtime.rtl.toStr(" ") + Runtime.rtl.toStr(site_name);
 	},
 	/**
 	 * Returns locale
@@ -10758,29 +10816,15 @@ Object.assign(Runtime.Web.BaseLayoutModel.prototype,
 	 */
 	getSiteName: function()
 	{
-		return "";
-	},
-	/**
-	 * Returns layout component name
-	 */
-	getLayoutComponentName: function()
-	{
-		var class_name = this.component;
-		var params = Runtime.rtl.getContext().callHook(Runtime.Web.Hooks.AppHook.LAYOUT_COMPONENT_NAME, Runtime.Map.from({"layout":this,"layout_name":this.layout_name,"class_name":class_name}));
-		return Runtime.rtl.attr(params, "class_name");
-	},
-	/**
-	 * Returns Core UI
-	 */
-	getCoreUI: function()
-	{
-		return "Runtime.Web.CoreUI";
+		return this.site_name;
 	},
 	/**
 	 * Call Api
 	 */
 	callApi: async function(params)
 	{
+		/* Set layout */
+		params.set("layout", this.layout);
 		/* Returns bus */
 		var bus = Runtime.Web.Bus.getApi(params.get("service", "app"));
 		var api = await bus.send(params);
@@ -10830,12 +10874,12 @@ Object.assign(Runtime.Web.BaseLayoutModel.prototype,
 		}
 		var res = new Runtime.Vector();
 		var cache = new Runtime.Map();
-		components = components.concat(this.components);
-		components.push(this.getLayoutComponentName());
 		/* Call hook */
 		var d = Runtime.rtl.getContext().callHook(Runtime.Web.Hooks.AppHook.COMPONENTS, Runtime.Map.from({"layout":this,"components":components}));
 		/* Get new components */
 		components = d.get("components");
+		components = components.concat(this.components);
+		components.push(this.getPageClassName());
 		/* Extends components */
 		this.constructor._getRequiredComponents(res, cache, components);
 		return res.removeDuplicates();
@@ -10897,11 +10941,14 @@ Object.assign(Runtime.Web.BaseLayoutModel.prototype,
 		Runtime.Web.BaseModel.prototype._init.call(this);
 		this.component = "Runtime.Web.DefaultLayout";
 		this.title = "";
-		this.locale = Runtime.rtl.getContext().env("LOCALE");
+		this.content_type = "UTF-8";
 		this.layout_name = "default";
+		this.locale = Runtime.rtl.getContext().env("LOCALE");
 		this.current_page_class = "";
 		this.current_page_model = "";
-		this.content_type = "UTF-8";
+		this.site_name = "";
+		this.is_full_title = false;
+		this.current_page_props = null;
 		this.route = null;
 		this.request_full_uri = "";
 		this.request_host = "";
@@ -10910,6 +10957,7 @@ Object.assign(Runtime.Web.BaseLayoutModel.prototype,
 		this.request_query = null;
 		this.components = Runtime.Vector.from([]);
 		this.routes = Runtime.Map.from({});
+		this.storage = null;
 		this.f_inc = "1";
 	},
 });
@@ -11027,6 +11075,99 @@ Object.assign(Runtime.Web.BaseLayoutModel,
 Runtime.rtl.defClass(Runtime.Web.BaseLayoutModel);
 window["Runtime.Web.BaseLayoutModel"] = Runtime.Web.BaseLayoutModel;
 if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Web.BaseLayoutModel;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.Web == 'undefined') Runtime.Web = {};
+Runtime.Web.BaseStorage = function()
+{
+	Runtime.Web.BaseModel.apply(this, arguments);
+};
+Runtime.Web.BaseStorage.prototype = Object.create(Runtime.Web.BaseModel.prototype);
+Runtime.Web.BaseStorage.prototype.constructor = Runtime.Web.BaseStorage;
+Object.assign(Runtime.Web.BaseStorage.prototype,
+{
+	/**
+	 * Process frontend data
+	 */
+	serialize: function(serializer, data)
+	{
+		serializer.process(this, "params", data);
+		Runtime.Web.BaseModel.prototype.serialize.call(this, serializer, data);
+	},
+	_init: function()
+	{
+		Runtime.Web.BaseModel.prototype._init.call(this);
+		this.widget_name = "storage";
+		this.params = Runtime.Map.from({});
+	},
+});
+Object.assign(Runtime.Web.BaseStorage, Runtime.Web.BaseModel);
+Object.assign(Runtime.Web.BaseStorage,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.Web";
+	},
+	getClassName: function()
+	{
+		return "Runtime.Web.BaseStorage";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.BaseModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.Web.BaseStorage);
+window["Runtime.Web.BaseStorage"] = Runtime.Web.BaseStorage;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Web.BaseStorage;
 "use strict;"
 /*!
  *  BayLang Technology
@@ -11174,6 +11315,17 @@ Object.assign(Runtime.Web.BusHttp.prototype,
 			else
 			{
 				res.exception(new Runtime.Exceptions.AbstractException("Api response error"));
+			}
+			/* Print exception */
+			if (Runtime.rtl.getContext().env("DEBUG") && res.isException() && answer)
+			{
+				var arr = Runtime.Vector.from([]);
+				arr.push(res.error_name + Runtime.rtl.toStr(" ") + Runtime.rtl.toStr("in file ") + Runtime.rtl.toStr(res.error_file) + Runtime.rtl.toStr(":") + Runtime.rtl.toStr(res.error_line));
+				arr.appendItems(res.error_trace.map((value, pos) =>
+				{
+					return pos + 1 + Runtime.rtl.toStr(") ") + Runtime.rtl.toStr(value);
+				}));
+				Runtime.io.print_error(Runtime.rs.join("\n", arr));
 			}
 		}
 		catch (_ex)
@@ -11362,12 +11514,20 @@ Runtime.Web.Component = {
 			
 			if (widget)
 			{
-				let component = widget.component;
-				
-				if (component)
+				if (widget instanceof Runtime.Web.BaseModel)
 				{
-					/* Component '{component}' */
-					let __v0 = this._c(__v, component, this._merge_attrs({"model":this._model(widget)}, props));
+					let component = widget.component;
+					
+					if (component)
+					{
+						/* Component '{component}' */
+						let __v0 = this._c(__v, component, this._merge_attrs({"model":this._model(widget)}, props));
+					}
+				}
+				else
+				{
+					/* Component '{widget}' */
+					let __v1 = this._c(__v, widget, {"model":this._model(Runtime.Vector.from([]))});
 				}
 			}
 			
@@ -11775,9 +11935,9 @@ Object.assign(Runtime.Web.Component,
 	{
 	},
 	/**
- * Returns styles
+ * Merge styles
  */
-	getStyles: function(class_name, styles)
+	mergeStyles: function(class_name, styles)
 	{
 		return styles.map((item) =>
 		{
@@ -11922,25 +12082,125 @@ if (typeof Runtime.Web == 'undefined') Runtime.Web = {};
 Runtime.Web.DefaultLayout = {
 	name: "Runtime.Web.DefaultLayout",
 	extends: Runtime.Web.Component,
+	props: {
+		"container": {
+			default: null,
+		},
+	},
 	methods:
 	{
+		renderHeadComponents: function()
+		{
+			let __v = [];
+			let d = Runtime.rtl.getContext().callHook(Runtime.Web.Hooks.AppHook.RENDER_HEAD, Runtime.Map.from({"components":this.layout.getHeaderComponents(),"layout":this.layout}));
+			let components = Runtime.rtl.attr(d, "components");
+			
+			for (let i = 0; i < components.count(); i++)
+			{
+				let widget = components.get(i);
+				
+				/* Render */
+				this._t(__v, this.renderWidget(widget));
+			}
+			
+			return this._flatten(__v);
+		},
+		renderCSS: function()
+		{
+			let __v = [];
+			let components = this.layout.getComponents();
+			let css = this.layout.constructor.getCss(components);
+			
+			/* Element 'style' */
+			let __v0 = this._e(__v, "style", {"id":"core-css","class":this._class_name(["components"])});
+			
+			/* Raw */
+			this._t(__v0, new Runtime.RawString(css));
+			
+			return this._flatten(__v);
+		},
+		renderHead: function()
+		{
+			let __v = [];
+			
+			/* Render */
+			this._t(__v, this.$options.renderHeadComponents());
+			
+			/* Render */
+			this._t(__v, this.$options.renderCSS());
+			
+			return this._flatten(__v);
+		},
+		renderBodyComponents: function()
+		{
+			let __v = [];
+			let d = Runtime.rtl.getContext().callHook(Runtime.Web.Hooks.AppHook.RENDER_BODY, Runtime.Map.from({"components":this.layout.getBodyComponents(),"layout":this.layout}));
+			let components = Runtime.rtl.attr(d, "components");
+			
+			for (let i = 0; i < components.count(); i++)
+			{
+				let widget = components.get(i);
+				
+				/* Render */
+				this._t(__v, this.renderWidget(widget));
+			}
+			
+			return this._flatten(__v);
+		},
+		renderBody: function()
+		{
+			let __v = [];
+			
+			/* Render */
+			this._t(__v, this.$options.renderBodyComponents());
+			
+			return this._flatten(__v);
+		},
+		renderFooterComponents: function()
+		{
+			let __v = [];
+			let d = Runtime.rtl.getContext().callHook(Runtime.Web.Hooks.AppHook.RENDER_FOOTER, Runtime.Map.from({"components":this.layout.getFooterComponents(),"layout":this.layout}));
+			let components = Runtime.rtl.attr(d, "components");
+			
+			for (let i = 0; i < components.count(); i++)
+			{
+				let widget = components.get(i);
+				
+				/* Render */
+				this._t(__v, this.renderWidget(widget));
+			}
+			
+			return this._flatten(__v);
+		},
+		renderFooter: function()
+		{
+			let __v = [];
+			
+			/* Render */
+			this._t(__v, this.$options.renderFooterComponents());
+			
+			return this._flatten(__v);
+		},
 		renderCurrentPage: function()
 		{
 			let __v = [];
-			let current_page = this.layout.getPageClassName();
-			let current_page_model = this.layout.current_page_model;
+			let current_page_model = this.layout.getPageModel();
 			
-			if (current_page)
+			if (current_page_model)
 			{
-				if (current_page_model)
+				/* Render */
+				this._t(__v, this.renderWidget(current_page_model, this.layout.current_page_props));
+			}
+			else
+			{
+				let current_page = this.layout.getPageClassName();
+				
+				if (current_page)
 				{
+					let props = this.layout.current_page_props;
+					
 					/* Component '{current_page}' */
-					let __v0 = this._c(__v, current_page, {"model":this._model(Runtime.Vector.from(["widgets",current_page_model]))});
-				}
-				else
-				{
-					/* Component '{current_page}' */
-					let __v1 = this._c(__v, current_page, {});
+					let __v0 = this._c(__v, current_page, this._merge_attrs({}, props));
 				}
 			}
 			
@@ -11952,6 +12212,88 @@ Runtime.Web.DefaultLayout = {
 			
 			/* Render */
 			this._t(__v, this.renderCurrentPage());
+			
+			return this._flatten(__v);
+		},
+		renderApp: function()
+		{
+			let __v = [];
+			let render_provider = Runtime.rtl.getContext().provider("Runtime.Web.RenderProvider");
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name([render_provider.selector])});
+			
+			/* Render */
+			this._t(__v0, this.render());
+			
+			/* Element 'script' */
+			let __v1 = this._e(__v, "script", {});
+			
+			/* Text */
+			this._t(__v1, "window[\"app_data\"] = ");
+			
+			/* Raw */
+			this._t(__v1, new Runtime.RawString(Runtime.rtl.json_encode(this.container.exportData(), Runtime.rtl.ALLOW_OBJECTS)));
+			
+			/* Text */
+			this._t(__v1, ";");
+			
+			/* Element 'script' */
+			let __v2 = this._e(__v, "script", {});
+			
+			/* Text */
+			this._t(__v2, "onReady(function(){\n\t\t\tRuntime.rtl.runApp(\n\t\t\t\tapp_data[\"entry_point\"],\n\t\t\t\tapp_data[\"modules\"],\n\t\t\t\tRuntime.Map.from({\n\t\t\t\t\t\"environments\": Runtime.Map.from(app_data[\"environments\"]),\n\t\t\t\t\t\"tz\": ");
+			
+			/* Text */
+			this._t(__v2, Runtime.rtl.json_encode(Runtime.rtl.getContext().tz));
+			
+			/* Text */
+			this._t(__v2, ",\n\t\t\t\t\t\"tz_offset\": ");
+			
+			/* Text */
+			this._t(__v2, Runtime.rtl.json_encode(0));
+			
+			/* Text */
+			this._t(__v2, "})\n\t\t\t);\n\t\t});");
+			
+			return this._flatten(__v);
+		},
+		renderCoreUI: function()
+		{
+			let __v = [];
+			
+			/* Element 'html' */
+			let __v0 = this._e(__v, "html", {"lang":this.layout.getLocale()});
+			
+			/* Element 'head' */
+			let __v1 = this._e(__v0, "head", {});
+			
+			/* Render */
+			this._t(__v1, this.$options.renderHead());
+			
+			/* Element 'script' */
+			let __v2 = this._e(__v1, "script", {});
+			
+			/* Text */
+			this._t(__v2, "window.$onReady=[];function onReady(f){ window.$onReady.push(f) };");
+			
+			/* Element 'body' */
+			let __v3 = this._e(__v0, "body", {});
+			
+			/* Render */
+			this._t(__v3, this.$options.renderBody());
+			
+			/* Render */
+			this._t(__v3, this.$options.renderApp());
+			
+			/* Render */
+			this._t(__v3, this.$options.renderFooter());
+			
+			/* Element 'script' */
+			let __v4 = this._e(__v3, "script", {});
+			
+			/* Text */
+			this._t(__v4, "window.addEventListener('load', function() {\n\t\t\t\twindow.$onReady.forEach( function(f){ f(); } );\n\t\t\t});");
 			
 			return this._flatten(__v);
 		},
@@ -12287,11 +12629,17 @@ Object.assign(Runtime.Web.RenderContainer.prototype,
 	 */
 	createLayout: function(layout_name)
 	{
-		/* Get layout class name */
-		var params = Runtime.rtl.getContext().callHook(Runtime.Web.Hooks.AppHook.LAYOUT_MODEL_NAME, Runtime.Map.from({"class_name":"Runtime.Web.BaseLayoutModel","layout_name":layout_name}));
+		/* Get layout params */
+		var params = Runtime.rtl.getContext().callHook(Runtime.Web.Hooks.AppHook.LAYOUT_MODEL_NAME, Runtime.Map.from({"class_name":"Runtime.Web.BaseLayoutModel","layout_name":layout_name,"component_name":""}));
 		/* Create layout */
 		this.layout = Runtime.rtl.newInstance(params.get("class_name"));
 		this.layout.setLayoutName(layout_name);
+		this.layout.route = this.route;
+		/* Set component name */
+		if (params.get("component_name") != "")
+		{
+			this.layout.component = params.get("component_name");
+		}
 		/* Call create layout */
 		Runtime.rtl.getContext().callHookAsync(Runtime.Web.Hooks.AppHook.CREATE_LAYOUT, Runtime.Map.from({"container":this}));
 	},
@@ -12326,15 +12674,17 @@ Object.assign(Runtime.Web.RenderContainer.prototype,
 	 */
 	resolve: async function()
 	{
-		/* Resolve request */
-		await this.resolveRequest();
+		/* Find route */
+		await this.findRoute();
+		/* Call middleware */
+		await this.callRouteMiddleware(this);
 		/* Resolve route */
 		await this.resolveRoute();
 	},
 	/**
-	 * Resolve request and find route
+	 * Find route
 	 */
-	resolveRequest: async function()
+	findRoute: async function()
 	{
 		/* Call hook find route */
 		await Runtime.rtl.getContext().callHook(Runtime.Web.Hooks.AppHook.FIND_ROUTE_BEFORE, Runtime.Map.from({"container":this}));
@@ -12352,8 +12702,6 @@ Object.assign(Runtime.Web.RenderContainer.prototype,
 		this.route = routes.findRoute(this);
 		/* Call hook found route */
 		await Runtime.rtl.getContext().callHook(Runtime.Web.Hooks.AppHook.FIND_ROUTE_AFTER, Runtime.Map.from({"container":this}));
-		/* Call middleware */
-		await this.callRouteMiddleware(this);
 	},
 	/**
 	 * Resolve route
@@ -12367,9 +12715,6 @@ Object.assign(Runtime.Web.RenderContainer.prototype,
 		/* Create layout */
 		var layout_name = this.getLayoutName();
 		this.createLayout(layout_name);
-		/* Set layout params */
-		this.layout.backend_storage = this.backend_storage;
-		this.layout.route = this.route;
 		/* Call route before */
 		await Runtime.rtl.getContext().callHookAsync(Runtime.Web.Hooks.AppHook.ROUTE_BEFORE, Runtime.Map.from({"container":this}));
 		/* Call layout route before */
@@ -12385,6 +12730,11 @@ Object.assign(Runtime.Web.RenderContainer.prototype,
 		await this.layout.onActionAfter(this);
 		/* Call route after */
 		await Runtime.rtl.getContext().callHookAsync(Runtime.Web.Hooks.AppHook.ROUTE_AFTER, Runtime.Map.from({"container":this}));
+		/* Set response */
+		if (this.response == null)
+		{
+			this.setResponse(new Runtime.Web.RenderResponse(this));
+		}
 	},
 	/**
 	 * Call route middleware
@@ -12403,18 +12753,15 @@ Object.assign(Runtime.Web.RenderContainer.prototype,
 		await Runtime.rtl.getContext().callHook(Runtime.Web.Hooks.AppHook.ROUTE_MIDDLEWARE, Runtime.Map.from({"container":this}));
 	},
 	/**
-	 * Set response
-	 */
-	setResponse: function(response)
-	{
-		this.response = response;
-	},
-	/**
 	 * Render page model
 	 */
 	renderPageModel: async function(model_name)
 	{
+		/* Create response */
+		this.setResponse(new Runtime.Web.RenderResponse(this));
+		/* Set page model */
 		this.layout.setPageModel(model_name);
+		/* Action index */
 		var page_model = this.layout.getPageModel();
 		if (page_model)
 		{
@@ -12422,17 +12769,11 @@ Object.assign(Runtime.Web.RenderContainer.prototype,
 		}
 	},
 	/**
-	 * Render page and setup response
+	 * Set response
 	 */
-	renderPage: function(page_class_name)
+	setResponse: function(response)
 	{
-		if (page_class_name == undefined) page_class_name = "";
-		this.response = new Runtime.Web.RenderResponse();
-		this.layout.current_page_class = page_class_name;
-		if (page_class_name != "")
-		{
-			this.layout.addComponent(page_class_name);
-		}
+		this.response = response;
 	},
 	/**
 	 * Cancel route
@@ -12516,7 +12857,6 @@ Object.assign(Runtime.Web.RenderContainer.prototype,
 		this.route = null;
 		this.layout = null;
 		this.cookies = Runtime.Map.from({});
-		this.backend_storage = Runtime.Map.from({});
 	},
 });
 Object.assign(Runtime.Web.RenderContainer, Runtime.BaseObject);
@@ -12875,37 +13215,35 @@ Object.assign(Runtime.Web.RenderProvider.prototype,
 	 */
 	startApp: function(options)
 	{
-		var vue_app = null;
 		var Vue = Runtime.rtl.attr(window, "Vue");
 		var registerLayout = null;
-		registerLayout = (layout) =>
+		registerLayout = (app, layout) =>
 		{
 			return {
 				install: () => {
-					vue_app.config.globalProperties.$layout = layout;
+					app.config.globalProperties.$layout = layout;
 				},
 			};
 		};
 		/* Get props */
-		var component = Runtime.rtl.find_class(options.get("component"));
-		var props = options.get("props");
+		var component = Runtime.rtl.find_class(this.layout.component);
+		var props = Runtime.Map.from({"key":"root","model":this.layout});
 		/* Create vue app */
-		var enable_ssr = options.get("enable_ssr", false);
+		var enable_ssr = this.enable_ssr;
 		if (enable_ssr)
 		{
-			vue_app = Vue.createSSRApp(component, props.toObject());
+			this.vue = Vue.createSSRApp(component, props.toObject());
 		}
 		else
 		{
-			vue_app = Vue.createApp(component, props.toObject());
+			this.vue = Vue.createApp(component, props.toObject());
 		}
 		/* Register layout  */
-		vue_app.use(registerLayout(this.layout));
+		this.vue.use(registerLayout(this.vue, this.layout));
 		/* Register other modules */
-		Runtime.rtl.getContext().callHookAsync(Runtime.Web.Hooks.AppHook.VUE_MODULES, Runtime.Map.from({"render_provider":this,"vue":vue_app}));
+		Runtime.rtl.getContext().callHookAsync(Runtime.Web.Hooks.AppHook.VUE_MODULES, Runtime.Map.from({"render_provider":this,"vue":this.vue,"layout":this.layout}));
 		/* Mount app */
-		vue_app.mount(options.get("element"), true);
-		return vue_app;
+		this.vue.mount(this.getRootElement(), true);
 	},
 	/**
 	 * Start provider
@@ -12920,7 +13258,7 @@ Object.assign(Runtime.Web.RenderProvider.prototype,
 			return Promise.resolve();
 		}
 		/* Start App */
-		this.vue = this.startApp(Runtime.Map.from({"element":this.getRootElement(),"component":"Runtime.Web.AppComponent","enable_ssr":this.enable_ssr,"props":Runtime.Map.from({"key":"root","model":this.layout})}));
+		this.startApp();
 	},
 	_init: function()
 	{
@@ -13398,11 +13736,12 @@ Object.assign(Runtime.Web.RoutePage.prototype,
 	 */
 	render: async function(container)
 	{
-		container.renderPage(this.page);
+		container.layout.setPageComponent(this.page);
 		if (this.data)
 		{
 			var title = this.data.get("title");
-			container.layout.setPageTitle(title);
+			var is_full_title = this.data.get("full_title", false);
+			container.layout.setPageTitle(title, is_full_title);
 		}
 	},
 	_init: function()
@@ -14545,7 +14884,7 @@ Object.assign(Runtime.Web.Hooks.Components,
 	/**
 	 * Hook factory
 	 */
-	hook: function(items)
+	create: function(items)
 	{
 		return new Runtime.Entity.Hook(this.getClassName(), Runtime.Map.from({"components":items}));
 	},
@@ -14849,7 +15188,7 @@ Object.assign(Runtime.Web.Hooks.SetupLayout,
 	/**
 	 * Hook factory
 	 */
-	hook: function(params)
+	create: function(params)
 	{
 		return new Runtime.Entity.Hook(this.getClassName(), Runtime.Map.from({"names":params}));
 	},
@@ -15137,12 +15476,9 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.Web == 'undefined') Runtime.Web = {};
 if (typeof Runtime.Web.Messages == 'undefined') Runtime.Web.Messages = {};
-Runtime.Web.Messages.ValueChangeMessage = function(params)
+Runtime.Web.Messages.ValueChangeMessage = function()
 {
-	if (params == undefined) params = null;
-	Runtime.Web.Messages.Message.call(this, params);
-	/* Set message name */
-	this.name = "valueChange";
+	Runtime.Web.Messages.Message.apply(this, arguments);
 };
 Runtime.Web.Messages.ValueChangeMessage.prototype = Object.create(Runtime.Web.Messages.Message.prototype);
 Runtime.Web.Messages.ValueChangeMessage.prototype.constructor = Runtime.Web.Messages.ValueChangeMessage;
@@ -15151,6 +15487,7 @@ Object.assign(Runtime.Web.Messages.ValueChangeMessage.prototype,
 	_init: function()
 	{
 		Runtime.Web.Messages.Message.prototype._init.call(this);
+		this.name = "valueChange";
 		this.value = null;
 		this.old_value = null;
 	},
@@ -15308,99 +15645,6 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
 */
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.Web == 'undefined') Runtime.Web = {};
-Runtime.Web.AppComponent = {
-	name: "Runtime.Web.AppComponent",
-	extends: Runtime.Web.Component,
-	methods:
-	{
-		render: function()
-		{
-			let __v = [];
-			let class_name = this.layout.getLayoutComponentName();
-			
-			if (class_name)
-			{
-				/* Component '{class_name}' */
-				let __v0 = this._c(__v, class_name, {"model":this._model(Runtime.Vector.from([])),"key":"app"});
-			}
-			
-			return this._flatten(__v);
-		},
-	},
-};
-Object.assign(Runtime.Web.AppComponent,
-{
-	css: function(vars)
-	{
-		var res = "";
-		return res;
-	},
-	getNamespace: function()
-	{
-		return "Runtime.Web";
-	},
-	getClassName: function()
-	{
-		return "Runtime.Web.AppComponent";
-	},
-	getParentClassName: function()
-	{
-		return "Runtime.Web.Component";
-	},
-	getClassInfo: function()
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return Map.from({
-			"annotations": Vector.from([
-			]),
-		});
-	},
-	getFieldsList: function()
-	{
-		var a = [];
-		return Runtime.Vector.from(a);
-	},
-	getFieldInfoByName: function(field_name)
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return null;
-	},
-	getMethodsList: function()
-	{
-		var a=[
-		];
-		return Runtime.Vector.from(a);
-	},
-	getMethodInfoByName: function(field_name)
-	{
-		return null;
-	},
-});
-Runtime.rtl.defClass(Runtime.Web.AppComponent);
-window["Runtime.Web.AppComponent"] = Runtime.Web.AppComponent;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Web.AppComponent;
-"use strict;"
-/*
- *  BayLang Technology
- *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
-*/
-if (typeof Runtime == 'undefined') Runtime = {};
-if (typeof Runtime.Web == 'undefined') Runtime.Web = {};
 Runtime.Web.BasePage = {
 	name: "Runtime.Web.BasePage",
 	extends: Runtime.Web.Component,
@@ -15505,8 +15749,8 @@ Object.assign(Runtime.Web.BasePageModel.prototype,
 	{
 		/* Load page data */
 		await this.loadData(container);
-		/* Create response */
-		container.renderPage(this.component);
+		/* Set page component */
+		this.layout.setPageComponent(this.component);
 		/* Build title */
 		this.buildTitle(container);
 	},
@@ -15821,16 +16065,18 @@ Runtime.Widget.Button = {
 		render: function()
 		{
 			let __v = [];
+			let data = this.getData();
 			
-			if (this.href == null)
+			if (data.get("href") == null)
 			{
 				/* Element 'button' */
-				let __v0 = this._e(__v, "button", {"type":this.type,"ref":"widget","class":this._class_name(["widget_button", this.$options.getStyles("widget_button", this.styles), this.renderListClass(), this.class])});
+				let __v0 = this._e(__v, "button", {"type":this.type,"onClick":this.onClick,"ref":"widget","class":this._class_name(["widget_button", this.$options.mergeStyles("widget_button", data.get("styles")), this.renderListClass(), this.class])});
+				let content = data.get("content");
 				
-				if (this.content)
+				if (content)
 				{
 					/* Render */
-					this._t(__v0, this.content);
+					this._t(__v0, content);
 				}
 				else
 				{
@@ -15841,15 +16087,16 @@ Runtime.Widget.Button = {
 			else
 			{
 				/* Element 'a' */
-				let __v1 = this._e(__v, "a", {"href":this.href,"target":this.target,"ref":"widget","class":this._class_name(["nolink", this.class])});
+				let __v1 = this._e(__v, "a", {"href":data.get("href"),"target":data.get("target"),"ref":"widget","class":this._class_name(["nolink", this.class, "widget_button__link"])});
 				
 				/* Element 'button' */
-				let __v2 = this._e(__v1, "button", {"type":this.type,"class":this._class_name(["widget_button", this.$options.getStyles("widget_button", this.styles), this.renderListClass()])});
+				let __v2 = this._e(__v1, "button", {"type":this.type,"onClick":this.onClick,"class":this._class_name(["widget_button", this.$options.mergeStyles("widget_button", data.get("styles")), this.renderListClass()])});
+				let content = data.get("content");
 				
-				if (!this.checkSlot("default"))
+				if (content)
 				{
 					/* Render */
-					this._t(__v2, this.content);
+					this._t(__v2, content);
 				}
 				else
 				{
@@ -15860,6 +16107,31 @@ Runtime.Widget.Button = {
 			
 			return this._flatten(__v);
 		},
+		/**
+ * Returns props
+ */
+		getData: function()
+		{
+			if (this.model)
+			{
+				var props = this.model.getProps(this.data);
+				props.set("styles", this.styles.concat(this.model.styles).removeDuplicates());
+				return props;
+			}
+			return Runtime.Map.from({"content":this.content,"href":this.href,"styles":this.styles,"target":this.target});
+		},
+		/**
+ * Button click
+ */
+		onClick: function(e)
+		{
+			e.stopPropagation();
+			var data = this.getData();
+			if (this.model && data.get("href") == null)
+			{
+				this.model.onClick(this.data);
+			}
+		},
 	},
 };
 Object.assign(Runtime.Widget.Button,
@@ -15867,7 +16139,7 @@ Object.assign(Runtime.Widget.Button,
 	css: function(vars)
 	{
 		var res = "";
-		res += Runtime.rtl.toStr(".widget_button.h-8dd7{color: var(--widget-color-text);font-family: var(--widget-font-family);font-size: var(--widget-font-size);line-height: var(--widget-line-height);background-color: var(--widget-color-default);border: var(--widget-border-width) var(--widget-color-border) solid;padding: var(--widget-button-padding-y) var(--widget-button-padding-x);outline: 0;cursor: pointer;border-radius: 4px}.widget_button.h-8dd7:active{box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25)}.widget_button--small.h-8dd7{padding: var(--widget-button-padding-small-y) var(--widget-button-padding-small-x);line-height: 1.2em}.widget_button--large.h-8dd7{padding: var(--widget-button-padding-large-y) var(--widget-button-padding-large-x)}.widget_button--primary.h-8dd7{color: var(--widget-color-primary-text);background-color: var(--widget-color-primary);border-color: var(--widget-color-primary)}.widget_button--danger.h-8dd7{color: var(--widget-color-danger-text);background-color: var(--widget-color-danger);border-color: var(--widget-color-danger)}.widget_button--success.h-8dd7{color: var(--widget-color-success-text);background-color: var(--widget-color-success);border-color: var(--widget-color-success)}.widget_button--stretch.h-8dd7{width: 100%}");
+		res += Runtime.rtl.toStr(".widget_button.h-8dd7{color: var(--widget-color-text);font-family: var(--widget-font-family);font-size: var(--widget-font-size);line-height: var(--widget-line-height);background-color: var(--widget-color-default);border: var(--widget-border-width) var(--widget-color-border) solid;padding: var(--widget-button-padding-y) var(--widget-button-padding-x);outline: 0;cursor: pointer;border-radius: 4px}.widget_button.h-8dd7:active{box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25)}.widget_button--bold.h-8dd7{font-weight: bold}.widget_button--small.h-8dd7{padding: var(--widget-button-padding-small-y) var(--widget-button-padding-small-x);line-height: 1.2em}.widget_button--large.h-8dd7{padding: var(--widget-button-padding-large-y) var(--widget-button-padding-large-x)}.widget_button--primary.h-8dd7{color: var(--widget-color-primary-text);background-color: var(--widget-color-primary);border-color: var(--widget-color-primary)}.widget_button--danger.h-8dd7{color: var(--widget-color-danger-text);background-color: var(--widget-color-danger);border-color: var(--widget-color-danger)}.widget_button--success.h-8dd7{color: var(--widget-color-success-text);background-color: var(--widget-color-success);border-color: var(--widget-color-success)}.widget_button--stretch.h-8dd7{width: 100%}");
 		return res;
 	},
 	getNamespace: function()
@@ -16006,7 +16278,7 @@ Object.assign(Runtime.Widget.ButtonModel.prototype,
 	{
 		Runtime.Web.BaseModel.prototype._init.call(this);
 		this.styles = Runtime.Vector.from([]);
-		this.component = "Runtime.Widget.ButtonWrap";
+		this.component = "Runtime.Widget.Button";
 		this.content = null;
 		this.target = "_self";
 		this.href = null;
@@ -16172,6 +16444,90 @@ Runtime.rtl.defClass(Runtime.Widget.ButtonWrap);
 window["Runtime.Widget.ButtonWrap"] = Runtime.Widget.ButtonWrap;
 if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.ButtonWrap;
 "use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
+Runtime.Widget.BackButtonModel = function()
+{
+	Runtime.Widget.ButtonModel.apply(this, arguments);
+};
+Runtime.Widget.BackButtonModel.prototype = Object.create(Runtime.Widget.ButtonModel.prototype);
+Runtime.Widget.BackButtonModel.prototype.constructor = Runtime.Widget.BackButtonModel;
+Object.assign(Runtime.Widget.BackButtonModel.prototype,
+{
+	_init: function()
+	{
+		Runtime.Widget.ButtonModel.prototype._init.call(this);
+		this.content = "Back";
+	},
+});
+Object.assign(Runtime.Widget.BackButtonModel, Runtime.Widget.ButtonModel);
+Object.assign(Runtime.Widget.BackButtonModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.Widget";
+	},
+	getClassName: function()
+	{
+		return "Runtime.Widget.BackButtonModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Widget.ButtonModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.Widget.BackButtonModel);
+window["Runtime.Widget.BackButtonModel"] = Runtime.Widget.BackButtonModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.BackButtonModel;
+"use strict;"
 /*
  *  BayLang Technology
  *
@@ -16203,7 +16559,7 @@ Object.assign(Runtime.Widget.CSS,
 	css: function(vars)
 	{
 		var res = "";
-		res += Runtime.rtl.toStr(":root{--widget-font-family: 'Ubuntu', sans-serif;--widget-font-size: 14px;--widget-font-size-h1: 1.8em;--widget-font-size-h2: 1.5em;--widget-font-size-h3: 1.2em;--widget-font-size-h4: 1em;--widget-font-size-h5: 1em;--widget-font-size-h6: 1em;--widget-line-height: normal;--widget-space: 0.5em;--widget-color-border: #e0e1e6;--widget-color-success: #198754;--widget-color-success-text: #fff;--widget-color-danger-text: #fff;--widget-color-danger: #dc3545;--widget-color-default: #fff;--widget-color-hover: rgba(0, 0, 0, 0.075);--widget-color-link: #337ab7;--widget-color-primary-text: #fff;--widget-color-primary: #337ab7;--widget-color-selected-text: #fff;--widget-color-selected: #337ab7;--widget-color-text: #000;--widget-color-table-background: #fff;--widget-border-width: 1px;--widget-button-padding-x: 12.6px;--widget-button-padding-y: 7px;--widget-button-padding-small-x: 10px;--widget-button-padding-small-y: 5.6px;--widget-button-padding-large-x: 17.5px;--widget-button-padding-large-y: 9.8px;--widget-input-padding-x: 10px;--widget-input-padding-y: 7px;--widget-margin-h1: 1.8em 0px;--widget-margin-h2: 1.5em 0px;--widget-margin-h3: 1.2em 0px;--widget-margin-h4: 1em 0px;--widget-margin-h5: 1em 0px;--widget-margin-h6: 1em 0px}.core_ui_root{font-family: var(--widget-font-family);font-size: var(--widget-font-size);line-height: var(--widget-line-height);box-sizing: border-box;width: 100%;padding: 0;margin: 0}.core_ui_root *{box-sizing: border-box}.link{text-decoration: none;color: var(--widget-color-link);cursor: pointer}.link:hover,.link:visited:hover{text-decoration: underline;color: red}.link:visited{text-decoration: none;color: var(--widget-color-link)}.nolink{text-decoration: inherit;color: inherit}.nolink:hover,.nolink:visited,.nolink:visited:hover{text-decoration: inherit;color: inherit}.cursor{cursor:pointer}.nowrap{white-space: nowrap}.bold{font-weight:bold}.nobold{font-weight:normal}.underline{text-decoration: underline}.center{text-align: center}.left{text-align: left}.right{text-align: right}.clear{clear: both}.hidden{display: none}.inline-block{display: inline-block}.scroll-lock{overflow: hidden;padding-right: 12px}");
+		res += Runtime.rtl.toStr(":root{--widget-font-family: 'Ubuntu', sans-serif;--widget-font-size: 14px;--widget-font-size-h1: 1.8em;--widget-font-size-h2: 1.5em;--widget-font-size-h3: 1.2em;--widget-font-size-h4: 1em;--widget-font-size-h5: 1em;--widget-font-size-h6: 1em;--widget-line-height: normal;--widget-space: 0.5em;--widget-color-border: #e0e1e6;--widget-color-success: #198754;--widget-color-success-text: #fff;--widget-color-danger-text: #fff;--widget-color-danger: #dc3545;--widget-color-default: #fff;--widget-color-hover: rgba(0, 0, 0, 0.075);--widget-color-link: #337ab7;--widget-color-primary-text: #fff;--widget-color-primary: #337ab7;--widget-color-selected-text: #fff;--widget-color-selected: #337ab7;--widget-color-text: #000;--widget-color-table-background: #fff;--widget-border-width: 1px;--widget-button-padding-x: 12.6px;--widget-button-padding-y: 7px;--widget-button-padding-small-x: 10px;--widget-button-padding-small-y: 5.6px;--widget-button-padding-large-x: 17.5px;--widget-button-padding-large-y: 9.8px;--widget-input-padding-x: 10px;--widget-input-padding-y: 7px;--widget-margin-h1: 1.8em 0px;--widget-margin-h2: 1.5em 0px;--widget-margin-h3: 1.2em 0px;--widget-margin-h4: 1em 0px;--widget-margin-h5: 1em 0px;--widget-margin-h6: 1em 0px}.core_ui_root{font-family: var(--widget-font-family);font-size: var(--widget-font-size);line-height: var(--widget-line-height);box-sizing: border-box;width: 100%;padding: 0;margin: 0}.core_ui_root *{box-sizing: border-box}.link{text-decoration: none;color: var(--widget-color-link);cursor: pointer}.link:hover,.link:visited:hover{text-decoration: underline;color: red}.link:visited{text-decoration: none;color: var(--widget-color-link)}.nolink{text-decoration: inherit;color: inherit}.nolink:hover,.nolink:visited,.nolink:visited:hover{text-decoration: inherit;color: inherit}.cursor{cursor:pointer}.nowrap{white-space: nowrap}.bold{font-weight:bold}.nobold{font-weight:normal}.underline{text-decoration: underline}.center{text-align: center}.left{text-align: left}.right{text-align: right}.clear{clear: both}.hidden{display: none}.inline-block{display: inline-block}.scroll-lock{overflow: hidden}.scroll-lock .core_ui_root{padding-right: 15px}");
 		return res;
 	},
 	getNamespace: function()
@@ -16252,6 +16608,115 @@ Object.assign(Runtime.Widget.CSS,
 Runtime.rtl.defClass(Runtime.Widget.CSS);
 window["Runtime.Widget.CSS"] = Runtime.Widget.CSS;
 if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.CSS;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
+Runtime.Widget.Field = {
+	name: "Runtime.Widget.Field",
+	extends: Runtime.Web.Component,
+	props: {
+		"readonly": {
+			default: false,
+		},
+		"name": {
+			default: "",
+		},
+		"value": {
+			default: "",
+		},
+		"default": {
+			default: "",
+		},
+		"placeholder": {
+			default: "",
+		},
+		"type": {
+			default: "text",
+		},
+	},
+	methods:
+	{
+		render: function()
+		{
+			let __v = [];
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["field"])});
+			
+			return this._flatten(__v);
+		},
+	},
+};
+Object.assign(Runtime.Widget.Field,
+{
+	css: function(vars)
+	{
+		var res = "";
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.Widget";
+	},
+	getClassName: function()
+	{
+		return "Runtime.Widget.Field";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.Component";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.Widget.Field);
+window["Runtime.Widget.Field"] = Runtime.Widget.Field;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.Field;
 "use strict;"
 /*
  *  BayLang Technology
@@ -16383,7 +16848,7 @@ if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
 Runtime.Widget.Input = {
 	name: "Runtime.Widget.Input",
-	extends: Runtime.Web.Component,
+	extends: Runtime.Widget.Field,
 	props: {
 		"direct_update": {
 			default: false,
@@ -16479,6 +16944,10 @@ Runtime.Widget.Input = {
 };
 Object.assign(Runtime.Widget.Input,
 {
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.Field"]);
+	},
 	css: function(vars)
 	{
 		var res = "";
@@ -16495,7 +16964,7 @@ Object.assign(Runtime.Widget.Input,
 	},
 	getParentClassName: function()
 	{
-		return "Runtime.Web.Component";
+		return "Runtime.Widget.Field";
 	},
 	getClassInfo: function()
 	{
@@ -17213,9 +17682,10 @@ Runtime.Widget.RenderList = {
 			for (let i = 0; i < items_count; i++)
 			{
 				let widget = this.model.items.get(i);
+				let widget_params = this.getWidgetParams(widget, Runtime.Map.from({"data":this.data,"render_list":Runtime.Map.from({"position":i,"count":items_count,"first":i == 0,"last":i == items_count - 1})}));
 				
 				/* Render */
-				this._t(__v, this.renderWidget(widget, Runtime.Map.from({"data":this.data,"render_list":Runtime.Map.from({"position":i,"count":items_count,"first":i == 0,"last":i == items_count - 1})})));
+				this._t(__v, this.renderWidget(widget, widget_params));
 			}
 			
 			return this._flatten(__v);
@@ -17231,6 +17701,13 @@ Runtime.Widget.RenderList = {
 			this._t(__v0, this.renderItems());
 			
 			return this._flatten(__v);
+		},
+		/**
+ * Returns widget params
+ */
+		getWidgetParams: function(widget, data)
+		{
+			return data;
 		},
 	},
 };
@@ -17497,7 +17974,7 @@ Runtime.Widget.RowButtons = {
 			if (this.model)
 			{
 				/* Element 'div' */
-				let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_row_buttons", this.class, this.$options.getStyles("widget_row_buttons", this.model.styles)])});
+				let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_row_buttons", this.class, this.$options.mergeStyles("widget_row_buttons", this.model.styles)])});
 				
 				/* Render */
 				this._t(__v0, this.renderItems());
@@ -17505,7 +17982,7 @@ Runtime.Widget.RowButtons = {
 			else
 			{
 				/* Element 'div' */
-				let __v1 = this._e(__v, "div", {"class":this._class_name(["widget_row_buttons", this.class, this.$options.getStyles("widget_row_buttons", this.styles)])});
+				let __v1 = this._e(__v, "div", {"class":this._class_name(["widget_row_buttons", this.class, this.$options.mergeStyles("widget_row_buttons", this.styles)])});
 				
 				/* Render */
 				this._t(__v1, this.renderSlot("default"));
@@ -17524,7 +18001,7 @@ Object.assign(Runtime.Widget.RowButtons,
 	css: function(vars)
 	{
 		var res = "";
-		res += Runtime.rtl.toStr(".widget_row_buttons.h-a598{display: flex;gap: var(--widget-space)}.widget_row_buttons--align-end.h-a598{justify-content: end}.widget_row_buttons--no-gap.h-a598{gap: 0}.widget_row_buttons--no-gap.h-a598 .widget_button.h-8dd7{border-right-width: 0;border-radius: 0}.widget_row_buttons--no-gap.h-a598 .widget_button.item--first.h-8dd7{border-top-left-radius: 4px;border-bottom-left-radius: 4px}.widget_row_buttons--no-gap.h-a598 .widget_button.item--last.h-8dd7{border-top-right-radius: 4px;border-bottom-right-radius: 4px;border-right-width: var(--widget-border-width) !important}.widget_row_buttons--top_buttons.h-a598{margin-bottom: 10px}");
+		res += Runtime.rtl.toStr(".widget_row_buttons.h-a598{display: flex;gap: var(--widget-space)}.widget_row_buttons--align-end.h-a598{justify-content: end}.widget_row_buttons--center.h-a598{justify-content: center}.widget_row_buttons--bottom_buttons.h-a598{margin-top: 10px}.widget_row_buttons--top_buttons.h-a598{margin-bottom: 10px}.widget_row_buttons--no_gap.h-a598{gap: 0}.widget_row_buttons--no_gap.h-a598 .widget_button.h-8dd7{border-right-width: 0;border-radius: 0}.widget_row_buttons--no_gap.h-a598 .widget_button.item--first.h-8dd7{border-top-left-radius: 4px;border-bottom-left-radius: 4px}.widget_row_buttons--no_gap.h-a598 .widget_button.item--last.h-8dd7{border-top-right-radius: 4px;border-bottom-right-radius: 4px;border-right-width: var(--widget-border-width) !important}.widget_row_buttons--top_buttons.h-a598{margin-bottom: 10px}");
 		return res;
 	},
 	getNamespace: function()
@@ -17919,7 +18396,7 @@ if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
 Runtime.Widget.Select = {
 	name: "Runtime.Widget.Select",
-	extends: Runtime.Web.Component,
+	extends: Runtime.Widget.Field,
 	props: {
 		"name": {
 			default: "",
@@ -18019,6 +18496,10 @@ Runtime.Widget.Select = {
 };
 Object.assign(Runtime.Widget.Select,
 {
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.Field"]);
+	},
 	css: function(vars)
 	{
 		var res = "";
@@ -18035,7 +18516,7 @@ Object.assign(Runtime.Widget.Select,
 	},
 	getParentClassName: function()
 	{
-		return "Runtime.Web.Component";
+		return "Runtime.Widget.Field";
 	},
 	getClassInfo: function()
 	{
@@ -18537,7 +19018,8 @@ Runtime.Widget.SortableList = {
 			/* Component 'Input' */
 			let __v0 = this._c(__v, "Runtime.Widget.Input", {"value":item,"onValueChange":(message) =>
 			{
-				this.value.set(pos, message.value);
+				var items = this.getItems();
+				items.set(pos, message.value);
 				this.onValueChange();
 			},"key":item});
 			
@@ -18546,7 +19028,7 @@ Runtime.Widget.SortableList = {
 		renderItem: function(pos)
 		{
 			let __v = [];
-			let item = this.value.get(pos);
+			let item = this.getItems().get(pos);
 			
 			/* Element 'div' */
 			let __v0 = this._e(__v, "div", {"data-pos":pos,"class":this._class_name(["widget_sortable_list__item"]),"key":item});
@@ -18583,14 +19065,22 @@ Runtime.Widget.SortableList = {
 			
 			/* Element 'div' */
 			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_sortable_list__items"])});
+			let items = this.getItems();
 			
-			if (this.value)
+			if (items)
 			{
-				for (let i = 0; i < this.value.count(); i++)
-				{
-					/* Render */
-					this._t(__v0, this.renderItem(i));
-				}
+				/* Component 'TransitionGroup' */
+				let __v1 = this._c(__v0, "TransitionGroup", {"name":"widget_sortable_list"}, () => {
+					let __v = [];
+					
+					for (let i = 0; i < items.count(); i++)
+					{
+						/* Render */
+						this._t(__v, this.renderItem(i));
+					}
+					
+					return this._flatten(__v);
+				});
 			}
 			
 			return this._flatten(__v);
@@ -18636,6 +19126,27 @@ Runtime.Widget.SortableList = {
 			return this._flatten(__v);
 		},
 		/**
+ * Returns items
+ */
+		getItems: function()
+		{
+			return this.value;
+		},
+		/**
+ * Create new item
+ */
+		createItem: function()
+		{
+			return "";
+		},
+		/**
+ * Create value
+ */
+		createValue: function()
+		{
+			return Runtime.Vector.from([]);
+		},
+		/**
  * Swap items
  */
 		swapItems: function(a, b)
@@ -18646,20 +19157,22 @@ Runtime.Widget.SortableList = {
 				a = b;
 				b = c;
 			}
-			var obj_a = this.value.get(a);
-			var obj_b = this.value.get(b);
-			this.value.remove(b);
-			this.value.insert(b, obj_a);
-			this.value.remove(a);
-			this.value.insert(a, obj_b);
+			var items = this.getItems();
+			var obj_a = items.get(a);
+			var obj_b = items.get(b);
+			items.remove(b);
+			items.insert(b, obj_a);
+			items.remove(a);
+			items.insert(a, obj_b);
 		},
 		/**
  * Remove item
  */
 		removeItem: function(pos)
 		{
-			this.old_value = this.value.slice();
-			this.value.remove(pos);
+			var items = this.getItems();
+			this.old_value = Runtime.Serializer.copy(this.value);
+			items.remove(pos);
 			this.onValueChange();
 		},
 		/**
@@ -18800,7 +19313,7 @@ Runtime.Widget.SortableList = {
 			}
 			/* Swap items with animation */
 			this.is_transition = true;
-			this.old_value = this.value.slice();
+			this.old_value = Runtime.Serializer.copy(this.value);
 			this.swapItems(this.drag_item_pos, pos);
 			this.drag_item_pos = pos;
 			/* Stop animation */
@@ -18823,9 +19336,18 @@ Runtime.Widget.SortableList = {
  */
 		onAddItemClick: function()
 		{
-			this.old_value = this.value.slice();
-			this.value.push("");
-			this.onValueChange();
+			var items = this.getItems();
+			if (items == null)
+			{
+				this.emit("valueChange", new Runtime.Web.Messages.ValueChangeMessage(Runtime.Map.from({"value":this.createValue(),"old_value":this.old_value,"data":this.data})));
+			}
+			this.nextTick(() =>
+			{
+				this.old_value = Runtime.Serializer.copy(this.value);
+				var items = this.getItems();
+				items.push(this.createItem());
+				this.onValueChange();
+			});
 		},
 		/**
  * Mouse down
@@ -18894,7 +19416,7 @@ Object.assign(Runtime.Widget.SortableList,
 	css: function(vars)
 	{
 		var res = "";
-		res += Runtime.rtl.toStr(".widget_sortable_list.h-2647{position: relative}.widget_sortable_list__item.h-2647{display: flex;align-items: center;justify-content: flex-start;border-width: var(--widget-border-width);border-color: var(--widget-color-border);border-style: solid;border-radius: 4px;margin: 5px}.widget_sortable_list__item_drag.h-2647,.widget_sortable_list__item_remove.h-2647{cursor: pointer;padding: 0px 5px}.widget_sortable_list__item_value.h-2647{flex: 1}.widget_sortable_list__item_value.h-2647 .widget_input.h-f2df{padding: 0px 10px;border-color: transparent;border-radius: 0;border-width: 0}.widget_sortable_list__buttons.h-2647{text-align: center;margin-top: var(--widget-space)}.widget_sortable_list__shadow_elem.h-2647{position: absolute;opacity: 0.5;user-select: none;z-index: 9999999}.widget_sortable_list__shadow_elem.h-2647 .widget_sortable_list__item.h-2647{margin: 0}.widget_sortable_list__animation-move.h-2647,.widget_sortable_list__animation-enter-active.h-2647,.widget_sortable_list__animation-leave-active.h-2647{transition: all 0.3s ease}.widget_sortable_list__animation-enter-from.h-2647,.widget_sortable_list__animation-leave-to.h-2647{opacity: 0}");
+		res += Runtime.rtl.toStr(".widget_sortable_list.h-2647{position: relative}.widget_sortable_list__item.h-2647{display: flex;align-items: center;justify-content: flex-start;border-width: var(--widget-border-width);border-color: var(--widget-color-border);border-style: solid;border-radius: 4px;margin: 5px}.widget_sortable_list__item_drag.h-2647,.widget_sortable_list__item_remove.h-2647{cursor: pointer;padding: 0px 5px}.widget_sortable_list__item_value.h-2647{flex: 1}.widget_sortable_list__item_value.h-2647 .widget_input.h-f2df,.widget_sortable_list__item_value.h-2647 .widget_select.h-d72d{padding: 0px 10px;border-color: transparent;border-radius: 0;border-width: 0}.widget_sortable_list__buttons.h-2647{text-align: center;margin-top: var(--widget-space)}.widget_sortable_list__shadow_elem.h-2647{position: absolute;opacity: 0.5;user-select: none;z-index: 9999999}.widget_sortable_list__shadow_elem.h-2647 .widget_sortable_list__item_drag.h-2647{cursor: grabbing}.widget_sortable_list__shadow_elem.h-2647 .widget_sortable_list__item.h-2647{margin: 0}.widget_sortable_list-move.h-2647,.widget_sortable_list-enter-active.h-2647,.widget_sortable_list-leave-active.h-2647{transition: all 0.3s ease}.widget_sortable_list-enter-from.h-2647,.widget_sortable_list-leave-to.h-2647{opacity: 0}");
 		return res;
 	},
 	getNamespace: function()
@@ -18943,6 +19465,209 @@ Object.assign(Runtime.Widget.SortableList,
 Runtime.rtl.defClass(Runtime.Widget.SortableList);
 window["Runtime.Widget.SortableList"] = Runtime.Widget.SortableList;
 if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.SortableList;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
+Runtime.Widget.SortableFieldList = {
+	name: "Runtime.Widget.SortableFieldList",
+	extends: Runtime.Widget.SortableList,
+	data: function ()
+	{
+		return {
+			fields: Runtime.Vector.from([]),
+		};
+	},
+	methods:
+	{
+		renderValueItem: function(field, pos, item)
+		{
+			let __v = [];
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_sortable_list__item_value_row"])});
+			
+			/* Element 'div' */
+			let __v1 = this._e(__v0, "div", {"class":this._class_name(["widget_sortable_list__item_value_label"])});
+			
+			/* Render */
+			this._t(__v1, field.get("label"));
+			
+			/* Element 'div' */
+			let __v2 = this._e(__v0, "div", {"class":this._class_name(["widget_sortable_list__item_value_item"])});
+			
+			if (item)
+			{
+				let field_name = field.get("name");
+				let field_component = field.get("component");
+				let field_props = field.get("props");
+				
+				/* Component '{field_component}' */
+				let __v3 = this._c(__v2, field_component, this._merge_attrs({"name":field_name,"value":item.get(field_name),"onValueChange":(message) =>
+				{
+					item.set(field_name, message.value);
+					this.onValueChange();
+				}}, field_props));
+			}
+			
+			return this._flatten(__v);
+		},
+		renderValue: function(pos, item)
+		{
+			let __v = [];
+			
+			for (let i = 0; i < this.fields.count(); i++)
+			{
+				let field = this.fields.get(i);
+				
+				/* Render */
+				this._t(__v, this.renderValueItem(field, pos, item));
+			}
+			
+			return this._flatten(__v);
+		},
+		renderItem: function(pos)
+		{
+			let __v = [];
+			let item = this.getItems().get(pos);
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"data-pos":pos,"class":this._class_name(["widget_sortable_list__item"]),"key":item});
+			
+			/* Element 'div' */
+			let __v1 = this._e(__v0, "div", {"class":this._class_name(["widget_sortable_list__item_element widget_sortable_list__item_element--drag"])});
+			
+			/* Element 'div' */
+			let __v2 = this._e(__v1, "div", {"onMousedown":(e) =>
+			{
+				this.onMouseDown(e, item);
+			},"class":this._class_name(["widget_sortable_list__item_drag"])});
+			
+			/* Raw */
+			this._t(__v2, new Runtime.RawString("&#9776;"));
+			
+			/* Element 'div' */
+			let __v3 = this._e(__v0, "div", {"class":this._class_name(["widget_sortable_list__item_value"])});
+			
+			/* Render */
+			this._t(__v3, this.renderValue(pos, item));
+			
+			/* Element 'div' */
+			let __v4 = this._e(__v0, "div", {"class":this._class_name(["widget_sortable_list__item_element widget_sortable_list__item_element--remove"])});
+			
+			/* Element 'div' */
+			let __v5 = this._e(__v4, "div", {"onClick":(e) =>
+			{
+				this.removeItem(pos);
+			},"class":this._class_name(["widget_sortable_list__item_remove"])});
+			
+			/* Raw */
+			this._t(__v5, new Runtime.RawString("&#10005;"));
+			
+			return this._flatten(__v);
+		},
+		/**
+ * Create new item
+ */
+		createItem: function()
+		{
+			return Runtime.Map.from({});
+		},
+		/**
+ * Returns drag & drop element
+ */
+		getDragElement: function(elem)
+		{
+			if (elem.classList.contains("widget_sortable_list__item"))
+			{
+				return elem;
+			}
+			if (elem.parentElement.classList.contains("widget_sortable_list__item"))
+			{
+				return elem.parentElement;
+			}
+			if (elem.parentElement.parentElement.classList.contains("widget_sortable_list__item"))
+			{
+				return elem.parentElement.parentElement;
+			}
+			return null;
+		},
+	},
+};
+Object.assign(Runtime.Widget.SortableFieldList,
+{
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.SortableList","Runtime.Widget.Input","Runtime.Widget.Select"]);
+	},
+	css: function(vars)
+	{
+		var res = "";
+		res += Runtime.rtl.toStr(".widget_sortable_list__item.h-a549{align-items: stretch;margin: 10px 0px}.widget_sortable_list__item_element.h-a549{display: flex}.widget_sortable_list__item_element--drag.h-a549{align-items: center}.widget_sortable_list__item_element--remove.h-a549{align-items: start}.widget_sortable_list__item_value.h-a549{padding: 5px}.widget_sortable_list__item_value.h-a549 .widget_input.h-f2df,.widget_sortable_list__item_value.h-a549 .widget_select.h-d72d{border-bottom: 1px var(--widget-color-border) solid;box-shadow: none;outline: none}.widget_sortable_list__item_value_row.h-a549{display: flex;align-items: center;margin-bottom: 1px}.widget_sortable_list__item_value_label.h-a549{width: 80px}.widget_sortable_list__item_value_item.h-a549{flex: 1}");
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.Widget";
+	},
+	getClassName: function()
+	{
+		return "Runtime.Widget.SortableFieldList";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Widget.SortableList";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.Widget.SortableFieldList);
+window["Runtime.Widget.SortableFieldList"] = Runtime.Widget.SortableFieldList;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.SortableFieldList;
 "use strict;"
 /*
  *  BayLang Technology
@@ -19383,7 +20108,7 @@ if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
 Runtime.Widget.TextArea = {
 	name: "Runtime.Widget.TextArea",
-	extends: Runtime.Web.Component,
+	extends: Runtime.Widget.Field,
 	props: {
 		"direct_update": {
 			default: false,
@@ -19488,6 +20213,10 @@ Runtime.Widget.TextArea = {
 };
 Object.assign(Runtime.Widget.TextArea,
 {
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.Field"]);
+	},
 	css: function(vars)
 	{
 		var res = "";
@@ -19504,7 +20233,7 @@ Object.assign(Runtime.Widget.TextArea,
 	},
 	getParentClassName: function()
 	{
-		return "Runtime.Web.Component";
+		return "Runtime.Widget.Field";
 	},
 	getClassInfo: function()
 	{
@@ -19562,7 +20291,7 @@ if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
 Runtime.Widget.TextEditable = {
 	name: "Runtime.Widget.TextEditable",
-	extends: Runtime.Web.Component,
+	extends: Runtime.Widget.Field,
 	props: {
 		"reference": {
 			default: null,
@@ -19700,6 +20429,10 @@ Runtime.Widget.TextEditable = {
 };
 Object.assign(Runtime.Widget.TextEditable,
 {
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.Field"]);
+	},
 	css: function(vars)
 	{
 		var res = "";
@@ -19716,7 +20449,7 @@ Object.assign(Runtime.Widget.TextEditable,
 	},
 	getParentClassName: function()
 	{
-		return "Runtime.Web.Component";
+		return "Runtime.Widget.Field";
 	},
 	getClassInfo: function()
 	{
@@ -19941,6 +20674,140 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
 */
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
+Runtime.Widget.UploadFileButton = {
+	name: "Runtime.Widget.UploadFileButton",
+	extends: Runtime.Widget.Button,
+	methods:
+	{
+		render: function()
+		{
+			let __v = [];
+			
+			/* Text */
+			this._t(__v, "    ");
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["upload_file_button"])});
+			
+			/* Render */
+			this._t(__v0, Runtime.Widget.Button.methods.render.call(this));
+			
+			/* Text */
+			this._t(__v0, "        ");
+			
+			/* Element 'input' */
+			let __v1 = this._e(__v0, "input", {"type":"file","ref":"upload_file","onChange":this.onFileUploadChange});
+			
+			/* Text */
+			this._t(__v0, "    ");
+			
+			return this._flatten(__v);
+		},
+		/**
+ * Button click
+ */
+		onClick: function(e)
+		{
+			var upload_file = this.getRef("upload_file");
+			upload_file.click();
+		},
+		/**
+ * File upload change event
+ */
+		onFileUploadChange: function(e)
+		{
+			var upload_file = this.getRef("upload_file");
+			var file = Runtime.rtl.attr(upload_file.files, 0);
+			if (file)
+			{
+				var message = new Runtime.Web.Messages.ValueChangeMessage(Runtime.Map.from({"name":"file","value":file,"data":this.data}));
+				this.emit("file", message);
+				if (this.model)
+				{
+					this.model.emit(message);
+				}
+			}
+		},
+	},
+};
+Object.assign(Runtime.Widget.UploadFileButton,
+{
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.Button"]);
+	},
+	css: function(vars)
+	{
+		var res = "";
+		res += Runtime.rtl.toStr(".upload_file_button.h-a4c7 input{display: none}");
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.Widget";
+	},
+	getClassName: function()
+	{
+		return "Runtime.Widget.UploadFileButton";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Widget.Button";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.Widget.UploadFileButton);
+window["Runtime.Widget.UploadFileButton"] = Runtime.Widget.UploadFileButton;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.UploadFileButton;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
 Runtime.Widget.WidgetResult = {
 	name: "Runtime.Widget.WidgetResult",
 	extends: Runtime.Web.Component,
@@ -19951,7 +20818,7 @@ Runtime.Widget.WidgetResult = {
 			let __v = [];
 			
 			/* Element 'div' */
-			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_result", this.getErrorClass(), this.$options.getStyles("widget_result", this.model.styles)])});
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_result", this.getErrorClass(), this.$options.mergeStyles("widget_result", this.model.styles)])});
 			
 			/* Render */
 			this._t(__v0, this.model.message);
@@ -20923,7 +21790,7 @@ Runtime.Widget.Dialog.Dialog = {
 			let __v = [];
 			
 			/* Element 'div' */
-			let __v0 = this._e(__v, "div", {"onClick":this.onDialogClick,"class":this._class_name(["widget_dialog", ((this.model.is_open) ? ("widget_dialog--open") : ("widget_dialog--hide")), this.$options.getStyles("widget_dialog", this.model.styles)])});
+			let __v0 = this._e(__v, "div", {"onClick":this.onDialogClick,"class":this._class_name(["widget_dialog", ((this.model.is_open) ? ("widget_dialog--open") : ("widget_dialog--hide")), this.$options.mergeStyles("widget_dialog", this.model.styles)])});
 			
 			/* Element 'div' */
 			let __v1 = this._e(__v0, "div", {"class":this._class_name(["widget_dialog__shadow"])});
@@ -21015,7 +21882,7 @@ Object.assign(Runtime.Widget.Dialog.Dialog,
 	css: function(vars)
 	{
 		var res = "";
-		res += Runtime.rtl.toStr(".widget_dialog__box.h-a5bc,.widget_dialog__shadow.h-a5bc{position: fixed;top: 0;left: 0;width: 100%;height: 100%;z-index: 1001}.widget_dialog__box.h-a5bc{overflow: auto;overflow-y: scroll;display: none}.widget_dialog--open.h-a5bc .widget_dialog__box{display: block}.widget_dialog__shadow.h-a5bc{background-color: #000;opacity: 0.2;overflow: hidden;display: none}.widget_dialog--open.h-a5bc .widget_dialog__shadow{display: block}.widget_dialog__wrap.h-a5bc{width: 100%;min-height: 100%}.widget_dialog__wrap.h-a5bc > tr > td{padding: 20px}.widget_dialog__container.h-a5bc{position: relative;padding: calc(var(--widget-space) * 3);background-color: white;border-radius: 4px;max-width: 600px;margin: calc(var(--widget-space) * 5) auto;width: auto;z-index: 1002;box-shadow: 2px 4px 10px 0px rgba(0,0,0,0.5);font-size: var(--widget-font-size)}.widget_dialog__title.h-a5bc{font-weight: bold;font-size: var(--widget-font-size-h2);text-align: left;margin: var(--widget-margin-h2);margin-top: 0}.widget_dialog__buttons.h-a598{margin: var(--widget-margin-h2);margin-bottom: 0}.widget_dialog__buttons.h-a598 .widget_button.h-8dd7{min-width: 70px}");
+		res += Runtime.rtl.toStr(".widget_dialog.h-a5bc{text-align: left}.widget_dialog__box.h-a5bc,.widget_dialog__shadow.h-a5bc{position: fixed;top: 0;left: 0;width: 100%;height: 100%;z-index: 1001}.widget_dialog__box.h-a5bc{overflow: auto;overflow-y: scroll;display: none}.widget_dialog--open.h-a5bc .widget_dialog__box{display: block}.widget_dialog__shadow.h-a5bc{background-color: #000;opacity: 0.2;overflow: hidden;display: none}.widget_dialog--open.h-a5bc .widget_dialog__shadow{display: block}.widget_dialog__wrap.h-a5bc{width: 100%;min-height: 100%}.widget_dialog__wrap.h-a5bc > tr > td{padding: 20px}.widget_dialog__container.h-a5bc{position: relative;padding: calc(var(--widget-space) * 3);background-color: white;border-radius: 4px;max-width: 600px;margin: calc(var(--widget-space) * 5) auto;width: auto;z-index: 1002;box-shadow: 2px 4px 10px 0px rgba(0,0,0,0.5);font-size: var(--widget-font-size)}.widget_dialog__title.h-a5bc{font-weight: bold;font-size: var(--widget-font-size-h2);text-align: left;margin: var(--widget-margin-h2);margin-top: 0}.widget_dialog__buttons.h-a598{margin: var(--widget-margin-h2);margin-bottom: 0}.widget_dialog__buttons.h-a598 .widget_button.h-8dd7{min-width: 70px}");
 		return res;
 	},
 	getNamespace: function()
@@ -21815,18 +22682,552 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
 */
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
+if (typeof Runtime.Widget.Editor == 'undefined') Runtime.Widget.Editor = {};
+Runtime.Widget.Editor.Editor = {
+	name: "Runtime.Widget.Editor.Editor",
+	extends: Runtime.Widget.Field,
+	props: {
+		"reference": {
+			default: null,
+		},
+		"readonly": {
+			default: false,
+		},
+		"timeout": {
+			default: 500,
+		},
+		"name": {
+			default: "",
+		},
+		"value": {
+			default: "",
+		},
+	},
+	data: function ()
+	{
+		return {
+			lines: Runtime.Vector.from([]),
+			change_timer: null,
+			old_value: null,
+		};
+	},
+	methods:
+	{
+		render: function()
+		{
+			let __v = [];
+			let props = this.getProps();
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_text"])});
+			
+			/* Element 'div' */
+			let __v1 = this._e(__v0, "div", {"class":this._class_name(["widget_text__lines"])});
+			
+			/* Element 'div' */
+			let __v2 = this._e(__v1, "div", {"class":this._class_name(["widget_text__wrap"])});
+			
+			for (let i = 0; i < this.lines.count(); i++)
+			{
+				/* Element 'div' */
+				let __v3 = this._e(__v2, "div", {"style":"height: " + Runtime.rtl.toStr(this.lines.get(i)) + Runtime.rtl.toStr("px"),"class":this._class_name(["line"]),"key":i});
+				
+				/* Render */
+				this._t(__v3, i + 1);
+			}
+			
+			/* Element 'div' */
+			let __v4 = this._e(__v0, "div", this._merge_attrs({"name":this.name,"contenteditable":"plaintext-only","onKeydown":this.onKeyDown,"onInput":this.onInput,"onPaste":this.onPaste,"ref":"text","class":this._class_name(["widget_text__editable", this.class])}, props));
+			
+			return this._flatten(__v);
+		},
+		/**
+ * Returns value
+ */
+		getValue: function()
+		{
+			var nodes = this.getRef("text").childNodes;
+			var content = Runtime.Vector.from([]);
+			for (var i = 0; i < nodes.length; i++)
+			{
+				var item = nodes.item(i).innerText.trimRight();
+				content.push(item);
+			}
+			return Runtime.rs.join("\n", content);
+		},
+		/**
+ * Set value
+ */
+		setValue: function(content)
+		{
+			var text = this.getRef("text");
+			this.old_value = content;
+			/* Add lines */
+			text.innerHTML = "";
+			var lines = Runtime.rs.split("\n", (content) ? (content) : (""));
+			for (var i = 0; i < lines.count(); i++)
+			{
+				var line_text = lines.get(i).trimRight();
+				var line_elem = this.createNewLine(line_text);
+				text.append(line_elem);
+			}
+			/* Update lines */
+			this.updateLinesCount();
+		},
+		/**
+ * Returns textarea props
+ */
+		getProps: function()
+		{
+			if (this.readonly)
+			{
+				return Runtime.Map.from({"readonly":true});
+			}
+			return Runtime.Map.from({});
+		},
+		/**
+ * Returns new line
+ */
+		createNewLine: function(text)
+		{
+			if (text == undefined) text = "";
+			var div = document.createElement("div");
+			div.classList.add("line");
+			div.innerText = text;
+			return div;
+		},
+		/**
+ * Returns line
+ */
+		findLine: function(node)
+		{
+			while (node && (node.nodeType == 3 || !node.classList.contains("line")))
+			{
+				node = node.parentElement;
+			}
+			return node;
+		},
+		/**
+ * Returns line element
+ */
+		getLineElement: function(pos)
+		{
+			return this.getRef("text").childNodes.item(pos);
+		},
+		/**
+ * Returns line element
+ */
+		getLinePosition: function(line)
+		{
+			var nodes = this.getRef("text").childNodes;
+			for (var i = 0; i < nodes.length; i++)
+			{
+				if (nodes.item(i) == line)
+				{
+					return i;
+				}
+			}
+			return -1;
+		},
+		/**
+ * Returns node offset
+ */
+		getNodeOffset: function(line, node, offset)
+		{
+			var pos = 0;
+			var is_line = line == node;
+			var current = line.firstChild;
+			while (current)
+			{
+				if (is_line && offset == 0)
+				{
+					break;
+				}
+				if (current.nodeType == 3)
+				{
+					if (is_line)
+					{
+						offset = offset - 1;
+					}
+					else
+					{
+						if (current == node)
+						{
+							return pos + offset;
+						}
+					}
+					pos = pos + current.textContent.length;
+				}
+				current = current.nextSibling;
+			}
+			return pos;
+		},
+		/**
+ * Returns selection
+ */
+		getSelection: function()
+		{
+			return this.getRef("text").ownerDocument.defaultView.getSelection();
+		},
+		/**
+ * Returns cursor position
+ */
+		getCursorPos: function()
+		{
+			var selection = this.getSelection();
+			var range = selection.getRangeAt(0);
+			/* Get range start */
+			var start_line = this.findLine(range.startContainer);
+			var start_y = this.getLinePosition(start_line);
+			var start_x = this.getNodeOffset(start_line, range.startContainer, range.startOffset);
+			/* Get range end */
+			var end_line = this.findLine(range.endContainer);
+			var end_y = this.getLinePosition(end_line);
+			var end_x = this.getNodeOffset(end_line, range.endContainer, range.endOffset);
+			return Runtime.Map.from({"start_y":start_y,"start_x":start_x,"end_y":end_y,"end_x":end_x});
+		},
+		/**
+ * Set cursor position
+ */
+		setCursorPos: function(x, y)
+		{
+			var selection = this.getSelection();
+			var range = document.createRange();
+			/* Get first node of line */
+			var line_elem = this.getLineElement(y);
+			var current = line_elem.firstChild;
+			/* Find node contains x */
+			var pos = 0;
+			var offset = 0;
+			while (current)
+			{
+				if (current.nodeType == 3)
+				{
+					var node_size = current.textContent.length;
+					if (pos + node_size >= x)
+					{
+						offset = x - pos;
+						break;
+					}
+					pos = pos + node_size;
+				}
+				current = current.nextSibling;
+			}
+			/* If node not found */
+			if (current == null)
+			{
+				current = line_elem;
+				offset = line_elem.childNodes.length;
+			}
+			/* Set cursor */
+			range.setStart(current, offset);
+			range.setEnd(current, offset);
+			selection.removeAllRanges();
+			selection.addRange(range);
+			return range;
+		},
+		/**
+ * Update lines count
+ */
+		updateLinesCount: function()
+		{
+			this.lines = Runtime.Vector.from([]);
+			var nodes = this.getRef("text").childNodes;
+			for (var i = 0; i < nodes.length; i++)
+			{
+				var item = nodes.item(i);
+				this.lines.push(item.getBoundingClientRect().height);
+			}
+		},
+		/**
+ * Mounted event
+ */
+		onMounted: function()
+		{
+			if (this.reference)
+			{
+				this.reference.setValue(this);
+			}
+			this.setValue(this.value);
+		},
+		/**
+ * Updated event
+ */
+		onUpdated: function()
+		{
+			if (this.old_value == this.value)
+			{
+				return ;
+			}
+			if (this.change_timer)
+			{
+				return ;
+			}
+			this.setValue(this.value);
+		},
+		/**
+ * Paste text to current position
+ */
+		pasteText: function(text)
+		{
+			var cursor = this.getCursorPos();
+			var line_pos = cursor.get("end_y");
+			var line_offset = cursor.get("end_x");
+			var line_offset_new = 0;
+			var line_elem = this.getLineElement(line_pos);
+			var line_text = line_elem.innerText;
+			var lines = Runtime.rs.split("\n", text);
+			if (lines.count() > 1)
+			{
+				/* Change first line */
+				var first_line = lines.shift();
+				line_elem.innerText = line_text.slice(0, line_offset) + Runtime.rtl.toStr(first_line);
+				/* Change last line */
+				var lines_last_pos = lines.count() - 1;
+				line_offset_new = Runtime.rs.strlen(lines.get(lines_last_pos));
+				lines.set(lines_last_pos, lines.get(lines_last_pos) + Runtime.rtl.toStr(line_text.slice(line_offset)));
+			}
+			else
+			{
+				var first_line = line_text.slice(0, line_offset) + Runtime.rtl.toStr(lines.pop());
+				line_elem.innerText = first_line + Runtime.rtl.toStr(line_text.slice(line_offset));
+				line_offset_new = Runtime.rs.strlen(first_line);
+			}
+			/* Insert lines after line_elem */
+			var lines_count = lines.count();
+			for (var i = 0; i < lines_count; i++)
+			{
+				var line_content = lines.get(i);
+				var line_new = this.createNewLine(line_content);
+				line_elem = line_elem.insertAdjacentElement("afterend", line_new);
+			}
+			this.setCursorPos(line_offset_new, line_pos + lines.count());
+			this.updateLinesCount();
+		},
+		/**
+ * Key down event
+ */
+		onKeyDown: function(e)
+		{
+			if (e.key == "Enter")
+			{
+				e.preventDefault();
+				e.stopPropagation();
+				this.pasteText("\n");
+			}
+			else if (e.key == "Backspace")
+			{
+				var cursor = this.getCursorPos();
+				if (cursor.get("start_x") == 0)
+				{
+					window.setTimeout(() =>
+					{
+						this.updateLinesCount();
+					}, 10);
+				}
+			}
+			else if (e.key == "Delete")
+			{
+				var cursor = this.getCursorPos();
+				var line = this.getLineElement(cursor.get("start_y"));
+				if (cursor.get("start_x") == line.innerText.length)
+				{
+					window.setTimeout(() =>
+					{
+						this.updateLinesCount();
+					}, 10);
+				}
+			}
+			else if (e.key == "Tab")
+			{
+				e.preventDefault();
+				e.stopPropagation();
+				/* Shift + Tab */
+				if (e.shiftKey)
+				{
+					var cursor = this.getCursorPos();
+					var line = this.getLineElement(cursor.get("start_y"));
+					var offset = cursor.get("start_x");
+					if (offset == 0)
+					{
+						return ;
+					}
+					var text = line.innerText;
+					var last_char = Runtime.rs.charAt(text, offset - 1);
+					if (last_char != "\t")
+					{
+						return ;
+					}
+					line.innerText = text.slice(0, offset - 1) + Runtime.rtl.toStr(text.slice(offset));
+					this.setCursorPos(offset - 1, cursor.get("start_y"));
+				}
+				else
+				{
+					var node = document.createTextNode("\t");
+					var selection = this.getSelection();
+					var range = selection.getRangeAt(0);
+					range.insertNode(node);
+					range.setStartAfter(node);
+					range.setEndAfter(node);
+				}
+			}
+			this.sendChangeMessage();
+		},
+		/**
+ * Paste event
+ */
+		onPaste: function(e)
+		{
+			e.preventDefault();
+			e.stopPropagation();
+			var text = e.clipboardData.getData("text");
+			this.pasteText(text);
+			this.sendChangeMessage();
+		},
+		/**
+ * Input event
+ */
+		onInput: function(e)
+		{
+			this.sendChangeMessage();
+		},
+		/**
+ * Send change message
+ */
+		sendChangeMessage: function()
+		{
+			if (this.change_timer != null)
+			{
+				window.clearTimeout(this.change_timer);
+				this.change_timer = null;
+			}
+			this.change_timer = window.setTimeout(() =>
+			{
+				this.onChange();
+			}, this.timeout);
+		},
+		/**
+ * Change event
+ */
+		onChange: function(e)
+		{
+			/* Clear timer */
+			if (this.change_timer != null)
+			{
+				window.clearTimeout(this.change_timer);
+				this.change_timer = null;
+			}
+			/* Get value */
+			var value = this.getValue();
+			/* Send value change */
+			this.emit("valueChange", new Runtime.Web.Messages.ValueChangeMessage(Runtime.Map.from({"value":value,"old_value":this.old_value,"data":this.data})));
+			/* Set old value */
+			this.old_value = value;
+			this.change_timer = null;
+		},
+	},
+};
+Object.assign(Runtime.Widget.Editor.Editor,
+{
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.Field"]);
+	},
+	css: function(vars)
+	{
+		var res = "";
+		res += Runtime.rtl.toStr(".widget_text.h-7a02{display: flex;align-items: flex-start;width: 100%;max-width: 100%;border-width: var(--widget-border-width);border-color: var(--widget-color-border);border-style: solid;border-radius: 4px;overflow: auto}.widget_text__lines.h-7a02{display: flex;align-items: center;flex-direction: column;width: 20px;min-height: 100%;padding-top: var(--widget-button-padding-y);border-right-width: var(--widget-border-width);border-right-color: var(--widget-color-border);border-right-style: solid}.widget_text__lines.h-7a02 .line{text-align: right;min-height: 21px}.widget_text__editable.h-7a02{width: calc(100% - 20px);min-height: 100%;font-family: monospace;font-size: var(--widget-font-size);padding: var(--widget-button-padding-y) var(--widget-button-padding-x);margin: 0;background-color: var(--widget-color-default);box-shadow: none;outline: transparent;line-height: 1.5;tab-size: 4;text-wrap: balance;white-space: pre}.widget_text__editable.h-7a02 .line{min-height: 21px}.widget_text__editable.wrap.h-7a02{overflow-wrap: break-word;text-wrap: wrap}.widget_text__editable.overflow.h-7a02{overflow: auto;text-wrap: nowrap}");
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.Widget.Editor";
+	},
+	getClassName: function()
+	{
+		return "Runtime.Widget.Editor.Editor";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Widget.Field";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.Widget.Editor.Editor);
+window["Runtime.Widget.Editor.Editor"] = Runtime.Widget.Editor.Editor;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.Editor.Editor;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
 if (typeof Runtime.Widget.Form == 'undefined') Runtime.Widget.Form = {};
 Runtime.Widget.Form.Form = {
 	name: "Runtime.Widget.Form.Form",
 	extends: Runtime.Web.Component,
 	methods:
 	{
-		renderTitle: function()
+		renderContent: function()
 		{
 			let __v = [];
 			
-			/* Render */
-			this._t(__v, this.renderSlot("title"));
+			if (this.model.form_content != "")
+			{
+				/* Element 'div' */
+				let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_form__content"])});
+				
+				/* Render */
+				this._t(__v0, this.model.form_content);
+			}
+			else
+			{
+				/* Render */
+				this._t(__v, this.renderSlot("content"));
+			}
 			
 			return this._flatten(__v);
 		},
@@ -21918,23 +23319,31 @@ Runtime.Widget.Form.Form = {
 			{
 				let buttons = field.get("buttons");
 				
-				/* Element 'div' */
-				let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_form__field_buttons"])});
-				
-				for (let i = 0; i < buttons.count(); i++)
+				if (buttons instanceof Runtime.Widget.RowButtonsModel)
 				{
-					let settings = buttons.get(i);
-					let props = settings.get("props");
-					let content = settings.get("content");
+					/* Render */
+					this._t(__v, this.renderWidget(buttons));
+				}
+				else
+				{
+					/* Element 'div' */
+					let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_form__field_buttons"])});
 					
-					/* Component 'Button' */
-					let __v1 = this._c(__v0, "Runtime.Widget.Button", this._merge_attrs({"onClick":(e) =>
+					for (let i = 0; i < buttons.count(); i++)
 					{
-						var event_name = settings.get("event");
-						var component = this.getRef("field_" + Runtime.rtl.toStr(field.get("name")));
-						var callback = new Runtime.Callback(component, event_name);
-						callback.apply();
-					}}, props));
+						let settings = buttons.get(i);
+						let props = settings.get("props");
+						let content = settings.get("content");
+						
+						/* Component 'Button' */
+						let __v1 = this._c(__v0, "Runtime.Widget.Button", this._merge_attrs({"onClick":(e) =>
+						{
+							var event_name = settings.get("event");
+							var component = this.getRef("field_" + Runtime.rtl.toStr(field.get("name")));
+							var callback = new Runtime.Callback(component, event_name);
+							callback.apply();
+						}}, props));
+					}
 				}
 			}
 			
@@ -21943,28 +23352,41 @@ Runtime.Widget.Form.Form = {
 		renderFieldRow: function(field)
 		{
 			let __v = [];
+			let is_show = true;
 			let field_name = field.get("name");
+			let field_show = field.get("show", null);
 			
-			/* Element 'div' */
-			let __v0 = this._e(__v, "div", {"data-name":field_name,"class":this._class_name(["widget_form__field_row"]),"key":field_name});
-			
-			if (field.has("label"))
+			if (field_show)
 			{
-				/* Element 'div' */
-				let __v1 = this._e(__v0, "div", {"class":this._class_name(["widget_form__field_label"])});
-				
-				/* Render */
-				this._t(__v1, this.renderFieldLabel(field));
-				
-				/* Render */
-				this._t(__v1, this.renderFieldButtons(field));
+				let data = Runtime.Map.from({"item":this.model.item,"field_name":field_name,"form":this.model});
+				is_show = Runtime.rtl.apply(field_show, Runtime.Vector.from([data]));
 			}
 			
-			/* Render */
-			this._t(__v0, this.renderField(field));
-			
-			/* Render */
-			this._t(__v0, this.renderFieldResult(field));
+			if (is_show)
+			{
+				let show_label = this.model.field_settings.get("show_label", true);
+				
+				/* Element 'div' */
+				let __v0 = this._e(__v, "div", {"data-name":field_name,"class":this._class_name(["widget_form__field_row"]),"key":field_name});
+				
+				if (field.has("label") && (show_label === true || show_label == "true"))
+				{
+					/* Element 'div' */
+					let __v1 = this._e(__v0, "div", {"class":this._class_name(["widget_form__field_label"])});
+					
+					/* Render */
+					this._t(__v1, this.renderFieldLabel(field));
+					
+					/* Render */
+					this._t(__v1, this.renderFieldButtons(field));
+				}
+				
+				/* Render */
+				this._t(__v0, this.renderField(field));
+				
+				/* Render */
+				this._t(__v0, this.renderFieldResult(field));
+			}
 			
 			return this._flatten(__v);
 		},
@@ -22015,10 +23437,10 @@ Runtime.Widget.Form.Form = {
 			let __v = [];
 			
 			/* Element 'div' */
-			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_form", this.class])});
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_form", this.class, this.$options.mergeStyles("widget_form", this.model.styles)])});
 			
 			/* Render */
-			this._t(__v0, this.renderTitle());
+			this._t(__v0, this.renderContent());
 			
 			/* Render */
 			this._t(__v0, this.renderFields());
@@ -22042,7 +23464,7 @@ Object.assign(Runtime.Widget.Form.Form,
 	css: function(vars)
 	{
 		var res = "";
-		res += Runtime.rtl.toStr(".widget_form.h-b6a8 .widget_form__field_row.h-b6a8{margin-bottom: 10px}.widget_form.h-b6a8 .widget_form__field_label.h-b6a8{display: flex;align-items: center;padding-bottom: 5px;gap: 5px}.widget_form.h-b6a8 .widget_form__field_error.h-b6a8{color: var(--widget-color-danger);margin-top: var(--widget-space)}.widget_form.h-b6a8 .widget_form__field_error--hide.h-b6a8{display: none}.widget_form.h-b6a8 .widget_form__bottom_buttons.h-a598{justify-content: center}.widget_form.fixed.h-b6a8{max-width: 600px;margin-left: auto;margin-right: auto}");
+		res += Runtime.rtl.toStr(".widget_form.h-b6a8 .widget_form__content.h-b6a8{text-align: center;font-size: 16px;margin-bottom: 10px}.widget_form.h-b6a8 .widget_form__field_row.h-b6a8{margin-bottom: 10px}.widget_form.h-b6a8 .widget_form__field_label.h-b6a8{display: flex;align-items: center;padding-bottom: 10px}.widget_form.h-b6a8 .widget_form__field_error.h-b6a8{color: var(--widget-color-danger);margin-top: 5px}.widget_form.h-b6a8 .widget_form__field_error--hide.h-b6a8{display: none}.widget_form.h-b6a8 .widget_form__bottom_buttons.h-a598{justify-content: center}.widget_form.fixed.h-b6a8{max-width: 600px;margin-left: auto;margin-right: auto}");
 		return res;
 	},
 	getNamespace: function()
@@ -22232,9 +23654,21 @@ Object.assign(Runtime.Widget.Form.FormModel.prototype,
 		{
 			return ;
 		}
+		if (params.has("field_settings"))
+		{
+			this.field_settings = params.get("field_settings");
+		}
 		if (params.has("foreign_key"))
 		{
 			this.foreign_key = params.get("foreign_key");
+		}
+		if (params.has("form_content"))
+		{
+			this.form_content = params.get("form_content");
+		}
+		if (params.has("form_title"))
+		{
+			this.form_title = params.get("form_title");
 		}
 		if (params.has("post_data"))
 		{
@@ -22243,6 +23677,10 @@ Object.assign(Runtime.Widget.Form.FormModel.prototype,
 		if (params.has("show_result"))
 		{
 			this.show_result = params.get("show_result");
+		}
+		if (params.has("styles"))
+		{
+			this.styles = params.get("styles");
 		}
 		/* Setup params */
 		if (params.has("fields"))
@@ -22297,7 +23735,7 @@ Object.assign(Runtime.Widget.Form.FormModel.prototype,
 		/* Result */
 		this.result = this.addWidget("Runtime.Widget.WidgetResultModel", Runtime.Map.from({"widget_name":"result","styles":Runtime.Vector.from(["margin_top"])}));
 		/* Buttons */
-		this.bottom_buttons = this.addWidget("Runtime.Widget.RowButtonsModel", Runtime.Map.from({"widget_name":"bottom_buttons","styles":Runtime.Vector.from(["@widget_form__bottom_buttons"])}));
+		this.bottom_buttons = this.addWidget("Runtime.Widget.RowButtonsModel", Runtime.Map.from({"widget_name":"bottom_buttons","styles":Runtime.Vector.from(["bottom_buttons","center"])}));
 	},
 	/**
 	 * Add field
@@ -22366,9 +23804,16 @@ Object.assign(Runtime.Widget.Form.FormModel.prototype,
 	clear: function()
 	{
 		this.pk = null;
-		this.fields_error = Runtime.Map.from({});
 		this.row_number = -1;
+		this.clearError();
 		this.clearItem();
+	},
+	/**
+	 * Clear form error
+	 */
+	clearError: function()
+	{
+		this.fields_error = Runtime.Map.from({});
 		this.result.clear();
 	},
 	/**
@@ -22382,7 +23827,7 @@ Object.assign(Runtime.Widget.Form.FormModel.prototype,
 			var field = this.fields.get(i);
 			var field_name = field.get("name");
 			var default_value = field.get("default", "");
-			this.item.set(field_name, default_value);
+			this.item.set(field_name, Runtime.Serializer.copy(default_value));
 		}
 	},
 	/**
@@ -22450,26 +23895,27 @@ Object.assign(Runtime.Widget.Form.FormModel.prototype,
 		{
 			return ;
 		}
+		/* Set data */
+		if (res.data.has("item") && res.data.has("item") != null)
+		{
+			this.item = res.data.get("item");
+		}
+		if (res.data.has("pk") && res.data.get("pk") != null)
+		{
+			this.pk = res.data.get("pk");
+		}
+		if (res.data.has("fields"))
+		{
+			this.fields_error = res.data.get("fields");
+		}
 		/* Load */
 		if (action == "load")
 		{
-			if (res.data.has("item"))
-			{
-				this.item = res.data.get("item");
-			}
 			this.load.setApiResult(res);
 		}
 		/* Submit */
 		if (action == "submit")
 		{
-			if (res.data.has("item"))
-			{
-				this.item = res.data.get("item");
-			}
-			if (res.data.has("fields"))
-			{
-				this.fields_error = res.data.get("fields");
-			}
 			this.result.setApiResult(res);
 		}
 	},
@@ -22478,7 +23924,7 @@ Object.assign(Runtime.Widget.Form.FormModel.prototype,
 	 */
 	getPostItem: function()
 	{
-		return this.item;
+		return Runtime.Serializer.copy(this.item);
 	},
 	/**
 	 * Merge post data
@@ -22550,10 +23996,14 @@ Object.assign(Runtime.Widget.Form.FormModel.prototype,
 		Runtime.Web.BaseModel.prototype._init.call(this);
 		this.component = "Runtime.Widget.Form.Form";
 		this.widget_name = "form";
+		this.form_title = "";
+		this.form_content = "";
+		this.styles = Runtime.Vector.from([]);
 		this.foreign_key = null;
 		this.post_data = null;
 		this.fields = Runtime.Vector.from([]);
 		this.fields_error = Runtime.Map.from({});
+		this.field_settings = Runtime.Map.from({});
 		this.row_number = -1;
 		this.pk = null;
 		this.item = Runtime.Map.from({});
@@ -22654,7 +24104,7 @@ Runtime.Widget.Form.FormRow = {
 			let __v = [];
 			
 			/* Element 'div' */
-			let __v0 = this._e(__v, "div", {"class":this._class_name(["form_row", this.class, this.$options.getStyles("form_row", this.styles)])});
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["form_row", this.class, this.$options.mergeStyles("form_row", this.styles)])});
 			
 			if (this.checkSlot("label"))
 			{
@@ -23235,7 +24685,7 @@ Object.assign(Runtime.Widget.Form.FormSubmitStorage.prototype,
 	{
 		if (name == "submit")
 		{
-			return this.action;
+			return this.method_name;
 		}
 		return "";
 	},
@@ -23249,7 +24699,7 @@ Object.assign(Runtime.Widget.Form.FormSubmitStorage.prototype,
 	_init: function()
 	{
 		Runtime.Widget.Form.FormSaveStorage.prototype._init.call(this);
-		this.action = "actionSave";
+		this.method_name = "actionSave";
 	},
 });
 Object.assign(Runtime.Widget.Form.FormSubmitStorage, Runtime.Widget.Form.FormSaveStorage);
@@ -23467,8 +24917,13 @@ Object.assign(Runtime.Widget.Form.FormDeleteStorage.prototype,
 	{
 		var post_data = Runtime.Map.from({"pk":this.form.pk});
 		post_data = this.form.mergePostData(post_data, "submit");
-		var res = await this.form.layout.callApi(Runtime.Map.from({"api_name":this.getApiName(),"method_name":"actionDelete","data":post_data}));
+		var res = await this.form.layout.callApi(Runtime.Map.from({"api_name":this.getApiName(),"method_name":this.method_name,"data":post_data}));
 		return Promise.resolve(res);
+	},
+	_init: function()
+	{
+		Runtime.Widget.Form.FormSaveStorage.prototype._init.call(this);
+		this.method_name = "actionDelete";
 	},
 });
 Object.assign(Runtime.Widget.Form.FormDeleteStorage, Runtime.Widget.Form.FormSaveStorage);
@@ -23521,6 +24976,566 @@ Object.assign(Runtime.Widget.Form.FormDeleteStorage,
 Runtime.rtl.defClass(Runtime.Widget.Form.FormDeleteStorage);
 window["Runtime.Widget.Form.FormDeleteStorage"] = Runtime.Widget.Form.FormDeleteStorage;
 if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.Form.FormDeleteStorage;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
+if (typeof Runtime.Widget.Gallery == 'undefined') Runtime.Widget.Gallery = {};
+Runtime.Widget.Gallery.Gallery = {
+	name: "Runtime.Widget.Gallery.Gallery",
+	extends: Runtime.Web.Component,
+	methods:
+	{
+		renderItem: function(pos)
+		{
+			let __v = [];
+			
+			/* Render */
+			this._t(__v, this.renderSlot("default", Runtime.Map.from({"pos":pos,"item":this.model.items.get(pos),"onClick":() =>
+			{
+				this.onClick(pos);
+			}})));
+			
+			return this._flatten(__v);
+		},
+		render: function()
+		{
+			let __v = [];
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_gallery", this.class])});
+			
+			/* Element 'div' */
+			let __v1 = this._e(__v0, "div", {"class":this._class_name(["widget_gallery__items"])});
+			
+			for (let i = 0; i < this.model.items.count(); i++)
+			{
+				/* Render */
+				this._t(__v1, this.renderItem(i));
+			}
+			
+			/* Render */
+			this._t(__v0, this.renderWidget(this.model.dialog));
+			
+			return this._flatten(__v);
+		},
+		/**
+ * On click
+ */
+		onClick: function(pos)
+		{
+			this.model.dialog.select(pos);
+			this.model.dialog.show();
+		},
+	},
+};
+Object.assign(Runtime.Widget.Gallery.Gallery,
+{
+	css: function(vars)
+	{
+		var res = "";
+		res += Runtime.rtl.toStr(".widget_gallery__items.h-9a68{display: flex;align-items: center;justify-content: space-around;flex-wrap: wrap}");
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.Widget.Gallery";
+	},
+	getClassName: function()
+	{
+		return "Runtime.Widget.Gallery.Gallery";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.Component";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.Widget.Gallery.Gallery);
+window["Runtime.Widget.Gallery.Gallery"] = Runtime.Widget.Gallery.Gallery;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.Gallery.Gallery;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
+if (typeof Runtime.Widget.Gallery == 'undefined') Runtime.Widget.Gallery = {};
+Runtime.Widget.Gallery.GalleryDialog = {
+	name: "Runtime.Widget.Gallery.GalleryDialog",
+	extends: Runtime.Widget.Dialog.Dialog,
+	methods:
+	{
+		renderDialogContainer: function()
+		{
+			let __v = [];
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"onClick":this.onContainerClick,"class":this._class_name(["widget_dialog__container--photo", ((this.model.getImageContains()) ? ("widget_dialog__container--photo_contain") : (""))])});
+			
+			/* Element 'div' */
+			let __v1 = this._e(__v0, "div", {"class":this._class_name(["widget_dialog__image"])});
+			
+			/* Component 'Button' */
+			let __v2 = this._c(__v1, "Runtime.Widget.Button", {"onClick":() =>
+			{
+				this.model.hide();
+			},"class":this._class_name(["widget_dialog__close"])}, () => {
+				let __v = [];
+				
+				/* Text */
+				this._t(__v, "x");
+				
+				return this._flatten(__v);
+			});
+			
+			/* Element 'img' */
+			let __v3 = this._e(__v1, "img", {"src":this.model.getCurrentImage(),"unselectable":"on"});
+			
+			/* Element 'div' */
+			let __v4 = this._e(__v0, "div", {"class":this._class_name(["widget_dialog__clear"])});
+			
+			/* Element 'div' */
+			let __v5 = this._e(__v0, "div", {"onClick":() =>
+			{
+				this.model.prev();
+			},"class":this._class_name(["widget_dialog__arrow widget_dialog__arrow--left"])});
+			
+			/* Element 'div' */
+			let __v6 = this._e(__v0, "div", {"onClick":() =>
+			{
+				this.model.next();
+			},"class":this._class_name(["widget_dialog__arrow widget_dialog__arrow--right"])});
+			
+			return this._flatten(__v);
+		},
+		/**
+ * On container click
+ */
+		onContainerClick: function(e)
+		{
+			if (e.target.classList.contains("widget_dialog__arrow") || e.target.classList.contains("widget_dialog__clear") || e.target.classList.contains("widget_dialog__close") || e.target.tagName == "IMG")
+			{
+				return ;
+			}
+			this.onShadowClick();
+		},
+	},
+};
+Object.assign(Runtime.Widget.Gallery.GalleryDialog,
+{
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.Dialog.Dialog","Runtime.Widget.Button"]);
+	},
+	css: function(vars)
+	{
+		var res = "";
+		res += Runtime.rtl.toStr(".widget_dialog__container--photo.h-ebbd{max-width: 1000px;background: transparent;border: 0px transparent solid;padding: 0px;margin: calc(var(--widget-space) * 5) auto;text-align: center}.widget_dialog__arrow.h-ebbd{position: fixed;top: calc(50% - 15px);cursor: pointer;opacity: 0.7}.widget_dialog__arrow.h-ebbd:before,.widget_dialog__arrow.h-ebbd:after{position: absolute;display: block;content: '';width: 0;height: 0;left: 0;top: 0}.widget_dialog__arrow.h-ebbd:hover{opacity: 0.8}.widget_dialog__arrow.h-ebbd:focus{outline: 0}.widget_dialog__arrow.h-ebbd:active{outline: 0;top: calc(50% - 14px)}.widget_dialog__arrow--left.h-ebbd{left: 10px}.widget_dialog__arrow--left.h-ebbd:before{border-top: 40px solid transparent;border-bottom: 40px solid transparent;border-right: 45px solid #3F3F3F}.widget_dialog__arrow--left.h-ebbd:after{left: 6px;top: 10px;border-top: 30px solid transparent;border-bottom: 30px solid transparent;border-right: 35px solid #FFF}.widget_dialog__arrow--right.h-ebbd{right: 70px}.widget_dialog__arrow--right.h-ebbd:before{border-top: 40px solid transparent;border-bottom: 40px solid transparent;border-left: 45px solid #3F3F3F}.widget_dialog__arrow--right.h-ebbd:after{left: 4px;top: 10px;border-top: 30px solid transparent;border-bottom: 30px solid transparent;border-left: 35px solid #FFF}.widget_dialog__image.h-ebbd{position: relative;display: inline-block}.widget_dialog__image.h-ebbd img{max-width: 100%;user-select: none}.widget_dialog__close.h-ebbd{position: absolute;display: flex;align-items: center;justify-content: center;margin: 10px;width: 42px;height: 34px;top: 0;right: 0;font-size: 20px;font-weight: bold;text-transform: uppercase;background-color: #fff;border: 1px #d9d9d9 solid;cursor: pointer;border-radius: 5px}.widget_dialog__shadow.h-ebbd{opacity: 0.5}.widget_dialog__clear.h-ebbd{clear: both}.widget_dialog__container--photo_contain.h-ebbd{text-align: center}.widget_dialog__container--photo_contain.h-ebbd .widget_dialog__image.h-ebbd img{max-width: 100%;max-height: calc(100vh - 50px);user-select: none}");
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.Widget.Gallery";
+	},
+	getClassName: function()
+	{
+		return "Runtime.Widget.Gallery.GalleryDialog";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Widget.Dialog.Dialog";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.Widget.Gallery.GalleryDialog);
+window["Runtime.Widget.Gallery.GalleryDialog"] = Runtime.Widget.Gallery.GalleryDialog;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.Gallery.GalleryDialog;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
+if (typeof Runtime.Widget.Gallery == 'undefined') Runtime.Widget.Gallery = {};
+Runtime.Widget.Gallery.GalleryDialogModel = function()
+{
+	Runtime.Widget.Dialog.DialogModel.apply(this, arguments);
+};
+Runtime.Widget.Gallery.GalleryDialogModel.prototype = Object.create(Runtime.Widget.Dialog.DialogModel.prototype);
+Runtime.Widget.Gallery.GalleryDialogModel.prototype.constructor = Runtime.Widget.Gallery.GalleryDialogModel;
+Object.assign(Runtime.Widget.Gallery.GalleryDialogModel.prototype,
+{
+	/**
+	 * Returns items
+	 */
+	getItems: function()
+	{
+		return this.parent_widget.getItems();
+	},
+	/**
+	 * Returns item
+	 */
+	getItem: function(pos)
+	{
+		return this.parent_widget.getItem(pos);
+	},
+	/**
+	 * Returns image
+	 */
+	getImage: function(pos)
+	{
+		return this.parent_widget.getBigImage(pos);
+	},
+	/**
+	 * Returns true if image is contains
+	 */
+	getImageContains: function()
+	{
+		return this.parent_widget.dialog_image_contains === true || this.parent_widget.dialog_image_contains == "1" || this.parent_widget.dialog_image_contains == "true";
+	},
+	/**
+	 * Returns current image
+	 */
+	getCurrentImage: function()
+	{
+		return this.getImage(this.current);
+	},
+	/**
+	 * Select image
+	 */
+	select: function(pos)
+	{
+		var count = this.getItems().count();
+		if (count == 0)
+		{
+			this.current = 0;
+			return ;
+		}
+		this.current = pos % count;
+		if (this.current < 0)
+		{
+			this.current = (this.current + count) % count;
+		}
+	},
+	/**
+	 * Show prev image
+	 */
+	prev: function()
+	{
+		this.select(this.current - 1);
+	},
+	/**
+	 * Show next image
+	 */
+	next: function()
+	{
+		this.select(this.current + 1);
+	},
+	_init: function()
+	{
+		Runtime.Widget.Dialog.DialogModel.prototype._init.call(this);
+		this.component = "Runtime.Widget.Gallery.GalleryDialog";
+		this.current = 0;
+	},
+});
+Object.assign(Runtime.Widget.Gallery.GalleryDialogModel, Runtime.Widget.Dialog.DialogModel);
+Object.assign(Runtime.Widget.Gallery.GalleryDialogModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.Widget.Gallery";
+	},
+	getClassName: function()
+	{
+		return "Runtime.Widget.Gallery.GalleryDialogModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Widget.Dialog.DialogModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.Widget.Gallery.GalleryDialogModel);
+window["Runtime.Widget.Gallery.GalleryDialogModel"] = Runtime.Widget.Gallery.GalleryDialogModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.Gallery.GalleryDialogModel;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.Widget == 'undefined') Runtime.Widget = {};
+if (typeof Runtime.Widget.Gallery == 'undefined') Runtime.Widget.Gallery = {};
+Runtime.Widget.Gallery.GalleryModel = function()
+{
+	Runtime.Web.BaseModel.apply(this, arguments);
+};
+Runtime.Widget.Gallery.GalleryModel.prototype = Object.create(Runtime.Web.BaseModel.prototype);
+Runtime.Widget.Gallery.GalleryModel.prototype.constructor = Runtime.Widget.Gallery.GalleryModel;
+Object.assign(Runtime.Widget.Gallery.GalleryModel.prototype,
+{
+	/**
+	 * Returns items
+	 */
+	getItems: function()
+	{
+		return this.items;
+	},
+	/**
+	 * Returns item
+	 */
+	getItem: function(pos)
+	{
+		return this.items.get(pos);
+	},
+	/**
+	 * Returns small image
+	 */
+	getSmallImage: function(pos)
+	{
+		return this.getItem(pos);
+	},
+	/**
+	 * Returns big image
+	 */
+	getBigImage: function(pos)
+	{
+		return this.getItem(pos);
+	},
+	/**
+	 * Init widget params
+	 */
+	initParams: function(params)
+	{
+		Runtime.Web.BaseModel.prototype.initParams.call(this, params);
+		if (params == null)
+		{
+			return ;
+		}
+		if (params.has("dialog_image_contains"))
+		{
+			this.dialog_image_contains = params.get("dialog_image_contains");
+		}
+		if (params.has("items"))
+		{
+			this.items = params.get("items");
+		}
+	},
+	/**
+	 * Init widget settings
+	 */
+	initWidget: function(params)
+	{
+		Runtime.Web.BaseModel.prototype.initWidget.call(this, params);
+		/* Add dialog */
+		this.dialog = this.addWidget("Runtime.Widget.Gallery.GalleryDialogModel", Runtime.Map.from({"modal":false}));
+	},
+	_init: function()
+	{
+		Runtime.Web.BaseModel.prototype._init.call(this);
+		this.component = "Runtime.Widget.Gallery.Gallery";
+		this.widget_name = "gallery";
+		this.dialog_image_contains = false;
+		this.items = Runtime.Vector.from([]);
+		this.dialog = null;
+	},
+});
+Object.assign(Runtime.Widget.Gallery.GalleryModel, Runtime.Web.BaseModel);
+Object.assign(Runtime.Widget.Gallery.GalleryModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.Widget.Gallery";
+	},
+	getClassName: function()
+	{
+		return "Runtime.Widget.Gallery.GalleryModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.BaseModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.Widget.Gallery.GalleryModel);
+window["Runtime.Widget.Gallery.GalleryModel"] = Runtime.Widget.Gallery.GalleryModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.Gallery.GalleryModel;
 "use strict;"
 /*!
  *  BayLang Technology
@@ -25118,6 +27133,21 @@ Object.assign(Runtime.Widget.Table.SaveDialogModel.prototype,
 	{
 		Runtime.Widget.Dialog.ConfirmDialogModel.prototype.initWidget.call(this, params);
 	},
+	/**
+	 * Add close button click
+	 */
+	onCloseButtonClick: function(message)
+	{
+		Runtime.Widget.Dialog.ConfirmDialogModel.prototype.onCloseButtonClick.call(this);
+		if (this.action == "add" && this.add_form)
+		{
+			this.add_form.setItem(null);
+		}
+		if (this.action == "edit" && this.edit_form)
+		{
+			this.edit_form.setItem(null);
+		}
+	},
 	_init: function()
 	{
 		Runtime.Widget.Dialog.ConfirmDialogModel.prototype._init.call(this);
@@ -25334,7 +27364,7 @@ Runtime.Widget.Table.Table = {
 			
 			if (this.model)
 			{
-				let items = this.model.getItems();
+				let items = this.model.storage.getItems();
 				
 				if (items)
 				{
@@ -25350,6 +27380,15 @@ Runtime.Widget.Table.Table = {
 				/* Render */
 				this._t(__v, this.renderPagination());
 			}
+			
+			return this._flatten(__v);
+		},
+		renderTopButtons: function()
+		{
+			let __v = [];
+			
+			/* Render */
+			this._t(__v, this.renderWidget(this.model.top_buttons));
 			
 			return this._flatten(__v);
 		},
@@ -25385,7 +27424,10 @@ Runtime.Widget.Table.Table = {
 			let __v = [];
 			
 			/* Element 'div' */
-			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_table", this.class, this.$options.getStyles("widget_table", this.model.styles)])});
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_table", this.class, this.$options.mergeStyles("widget_table", this.model.styles)])});
+			
+			/* Render */
+			this._t(__v0, this.renderTopButtons());
 			
 			/* Render */
 			this._t(__v0, this.renderTable());
@@ -25589,6 +27631,12 @@ Object.assign(Runtime.Widget.Table.TableModel.prototype,
 		this.render_list = this.addWidget("Runtime.Widget.RenderListModel", Runtime.Map.from({"widget_name":"render_list"}));
 		/* Result */
 		this.result = this.addWidget("Runtime.Widget.WidgetResultModel", Runtime.Map.from({"widget_name":"result"}));
+		/* Top buttons*/
+		if (params.has("top_buttons"))
+		{
+			var top_buttons = params.get("top_buttons");
+			this.top_buttons = this.addWidget("Runtime.Widget.RowButtonsModel", Runtime.Map.from({"widget_name":"top_buttons","styles":Runtime.Vector.from(["@top_buttons"]),"buttons":(top_buttons instanceof Runtime.Collection) ? (top_buttons) : (Runtime.Vector.from([]))}));
+		}
 		/* Add layout */
 		this.layout.addComponent(this.pagination_class_name);
 	},
@@ -25629,13 +27677,6 @@ Object.assign(Runtime.Widget.Table.TableModel.prototype,
 		{
 			return field.get("name") != field_name;
 		});
-	},
-	/**
-	 * Returns items
-	 */
-	getItems: function()
-	{
-		return this.items;
 	},
 	/**
 	 * Returns item by row number
@@ -25762,6 +27803,7 @@ Object.assign(Runtime.Widget.Table.TableModel.prototype,
 		this.pagination_class_name = "Runtime.Widget.Pagination";
 		this.pagination_props = Runtime.Map.from({"name":"page"});
 		this.storage = null;
+		this.top_buttons = null;
 		this.limit = 10;
 		this.page = 0;
 		this.pages = 0;
@@ -26370,29 +28412,47 @@ Runtime.Widget.Table.TableRowButtonsModel.prototype.constructor = Runtime.Widget
 Object.assign(Runtime.Widget.Table.TableRowButtonsModel.prototype,
 {
 	/**
+	 * Return params
+	 */
+	getButtonParams: function(params, action)
+	{
+		if (!params.has(action))
+		{
+			return Runtime.Map.from({"show":true,"button":Runtime.Map.from({})});
+		}
+		var show_button = true;
+		var params_button = (params.has(action)) ? (params.get(action)) : (null);
+		if (params_button instanceof Runtime.Dict)
+		{
+			if (params_button.has("show"))
+			{
+				show_button = params_button.get("show");
+			}
+		}
+		else if (params.has(action))
+		{
+			show_button = params.get(action);
+		}
+		return Runtime.Map.from({"show":show_button,"params":params_button});
+	},
+	/**
 	 * Init widget settings
 	 */
 	initWidget: function(params)
 	{
-		var show_edit = true;
-		var show_delete = true;
-		if (params.has("edit"))
-		{
-			show_edit = params.get("edit");
-		}
-		if (params.has("delete"))
-		{
-			show_delete = params.get("delete");
-		}
+		var params_edit_button = this.getButtonParams(params, "edit");
+		var params_delete_button = this.getButtonParams(params, "delete");
 		/* Edit button */
-		if (show_edit)
+		if (params_edit_button.get("show"))
 		{
-			this.addButton(Runtime.Map.from({"content":"Edit","widget_name":"edit_button","styles":Runtime.Vector.from(["default","small"])}));
+			var button = Runtime.Map.from({"content":"Edit","widget_name":"edit_button","styles":Runtime.Vector.from(["default","small"])});
+			this.addButton(button.concat(params_edit_button.get("params")));
 		}
 		/* Delete button */
-		if (show_delete)
+		if (params_delete_button.get("show"))
 		{
-			this.addButton(Runtime.Map.from({"content":"Delete","widget_name":"delete_button","styles":Runtime.Vector.from(["danger","small"])}));
+			var button = Runtime.Map.from({"content":"Delete","widget_name":"delete_button","styles":Runtime.Vector.from(["danger","small"])});
+			this.addButton(button.concat(params_delete_button.get("params")));
 		}
 		Runtime.Widget.RowButtonsModel.prototype.initWidget.call(this, params);
 	},
@@ -26499,6 +28559,13 @@ Object.assign(Runtime.Widget.Table.TableStorage.prototype,
 		return this.api_name;
 	},
 	/**
+	 * Returns items
+	 */
+	getItems: function()
+	{
+		return this.table.items;
+	},
+	/**
 	 * Set table
 	 */
 	setTable: function(table)
@@ -26602,6 +28669,12 @@ Runtime.Widget.Table.TableStorageInterface = function()
 };
 Object.assign(Runtime.Widget.Table.TableStorageInterface.prototype,
 {
+	/**
+	 * Returns items
+	 */
+	getItems: function()
+	{
+	},
 	/**
 	 * Set table
 	 */
@@ -27689,6 +29762,85 @@ Runtime.rtl.defClass(Runtime.Widget.Tree.TreeWidget);
 window["Runtime.Widget.Tree.TreeWidget"] = Runtime.Widget.Tree.TreeWidget;
 if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.Widget.Tree.TreeWidget;
 "use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+Runtime.WordPress.WP_App = function()
+{
+	Runtime.Web.BaseApp.apply(this, arguments);
+};
+Runtime.WordPress.WP_App.prototype = Object.create(Runtime.Web.BaseApp.prototype);
+Runtime.WordPress.WP_App.prototype.constructor = Runtime.WordPress.WP_App;
+Object.assign(Runtime.WordPress.WP_App.prototype,
+{
+});
+Object.assign(Runtime.WordPress.WP_App, Runtime.Web.BaseApp);
+Object.assign(Runtime.WordPress.WP_App,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.WP_App";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.BaseApp";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.WP_App);
+window["Runtime.WordPress.WP_App"] = Runtime.WordPress.WP_App;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.WP_App;
+"use strict;"
 /*
  *  BayLang Technology
  *
@@ -27708,27 +29860,12 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
 */
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
-if (typeof Runtime.WordPress.Components == 'undefined') Runtime.WordPress.Components = {};
-Runtime.WordPress.Components.CKEditor = {
-	name: "Runtime.WordPress.Components.CKEditor",
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.Components == 'undefined') Runtime.WordPress.Theme.Components = {};
+if (typeof Runtime.WordPress.Theme.Components.Button == 'undefined') Runtime.WordPress.Theme.Components.Button = {};
+Runtime.WordPress.Theme.Components.Button.ButtonForm = {
+	name: "Runtime.WordPress.Theme.Components.Button.ButtonForm",
 	extends: Runtime.Web.Component,
-	props: {
-		"name": {
-			default: "",
-		},
-		"value": {
-			default: "",
-		},
-	},
-	data: function ()
-	{
-		return {
-			change_timer: null,
-			old_value: null,
-			instance: null,
-			is_instance_created: false,
-		};
-	},
 	methods:
 	{
 		render: function()
@@ -27736,78 +29873,54 @@ Runtime.WordPress.Components.CKEditor = {
 			let __v = [];
 			
 			/* Element 'div' */
-			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_ckeditor"])});
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_button__wrap", this.class, this.renderListClass()])});
 			
-			/* Element 'textarea' */
-			let __v1 = this._e(__v0, "textarea", {"style":"display: none;","ref":"textarea","name":this.name});
+			/* Component 'Button' */
+			let __v1 = this._c(__v0, "Runtime.Widget.Button", {"styles":this.model.styles,"onClick":() =>
+			{
+				this.model.onClick();
+			}}, () => {
+				let __v = [];
+				
+				if (this.model.content)
+				{
+					/* Render */
+					this._t(__v, this.model.content);
+				}
+				else
+				{
+					/* Render */
+					this._t(__v, this.renderSlot("default"));
+				}
+				
+				return this._flatten(__v);
+			});
+			
+			/* Render */
+			this._t(__v, this.renderWidget(this.model.dialog));
 			
 			return this._flatten(__v);
 		},
-		/**
- * Component mounted
- */
-		onMounted: function()
-		{
-			this.nextTick(() => {
-		
-		var conf = JSON.parse(JSON.stringify( ckeditorSettings.configuration ));
-		conf["customConfig"] = "/wp-content/plugins/ckeditor-for-wordpress/ckeditor.config.small.js";
-		
-		this.instance = CKEDITOR.replace(this.getRef("textarea"), conf);
-		this.instance.on('change', ()=>{ 
-			if (this.change_timer == null)
-			{
-				this.change_timer = setTimeout(this.onContentChange.bind(this), 200);
-			}
-		});
-		
-		/* Set data */
-		this.instance.setData(this.value);
-		this.old_value = this.value;
-		
-		/* Set created */
-		this.is_instance_created = true;
-	});
-		},
-		/**
- * On code changed
- */
-		onContentChange: function()
-		{
-			this.change_timer = null;
-			var value = this.instance.getData();
-			this.old_value = value;
-			this.value = value;
-			/* Send value change */
-			this.emit("valueChange", new Runtime.Web.Messages.ValueChangeMessage(Runtime.Map.from({"value":value,"old_value":this.value,"data":this.data})));
-		},
-		/**
- * On updated
- */
-		onUpdated: function()
-		{
-			if (this.is_instance_created && this.old_value != this.value)
-			{
-				this.instance.setData(this.value);
-			}
-		},
 	},
 };
-Object.assign(Runtime.WordPress.Components.CKEditor,
+Object.assign(Runtime.WordPress.Theme.Components.Button.ButtonForm,
 {
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.Button","Runtime.Widget.Dialog.Dialog"]);
+	},
 	css: function(vars)
 	{
 		var res = "";
-		res += Runtime.rtl.toStr(".widget_ckeditor.h-2122{min-height: 430px}.widget_ckeditor.h-2122 *{box-sizing: content-box !important}");
 		return res;
 	},
 	getNamespace: function()
 	{
-		return "Runtime.WordPress.Components";
+		return "Runtime.WordPress.Theme.Components.Button";
 	},
 	getClassName: function()
 	{
-		return "Runtime.WordPress.Components.CKEditor";
+		return "Runtime.WordPress.Theme.Components.Button.ButtonForm";
 	},
 	getParentClassName: function()
 	{
@@ -27844,9 +29957,148 @@ Object.assign(Runtime.WordPress.Components.CKEditor,
 		return null;
 	},
 });
-Runtime.rtl.defClass(Runtime.WordPress.Components.CKEditor);
-window["Runtime.WordPress.Components.CKEditor"] = Runtime.WordPress.Components.CKEditor;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Components.CKEditor;
+Runtime.rtl.defClass(Runtime.WordPress.Theme.Components.Button.ButtonForm);
+window["Runtime.WordPress.Theme.Components.Button.ButtonForm"] = Runtime.WordPress.Theme.Components.Button.ButtonForm;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.Components.Button.ButtonForm;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.Components == 'undefined') Runtime.WordPress.Theme.Components = {};
+if (typeof Runtime.WordPress.Theme.Components.Button == 'undefined') Runtime.WordPress.Theme.Components.Button = {};
+Runtime.WordPress.Theme.Components.Button.ButtonFormModel = function()
+{
+	Runtime.Widget.ButtonModel.apply(this, arguments);
+};
+Runtime.WordPress.Theme.Components.Button.ButtonFormModel.prototype = Object.create(Runtime.Widget.ButtonModel.prototype);
+Runtime.WordPress.Theme.Components.Button.ButtonFormModel.prototype.constructor = Runtime.WordPress.Theme.Components.Button.ButtonFormModel;
+Object.assign(Runtime.WordPress.Theme.Components.Button.ButtonFormModel.prototype,
+{
+	/**
+	 * Init widget params
+	 */
+	initParams: function(params)
+	{
+		Runtime.Widget.ButtonModel.prototype.initParams.call(this, params);
+		if (params == null)
+		{
+			return ;
+		}
+		if (params.has("dialog_settings"))
+		{
+			this.dialog_settings = params.get("dialog_settings");
+		}
+		if (params.has("form_settings"))
+		{
+			this.form_settings = params.get("form_settings");
+		}
+	},
+	/**
+	 * Init widget params
+	 */
+	initWidget: function(params)
+	{
+		Runtime.Widget.ButtonModel.prototype.initWidget.call(this, params);
+		/* Add form */
+		this.form = this.addWidget("Runtime.WordPress.Theme.Components.Form.FormModel", this.form_settings.concat(Runtime.Map.from({"widget_name":"form"})));
+		/* Add dialog */
+		this.dialog = this.addWidget("Runtime.WordPress.Theme.Components.Form.FormDialogModel", this.dialog_settings.concat(Runtime.Map.from({"widget_name":"dialog","form":this.form})));
+		/* Set form title */
+		this.form.form_title = this.dialog.title;
+	},
+	/**
+	 * Set title
+	 */
+	setTitle: function(title)
+	{
+		this.dialog.title = title;
+		this.form.form_title = title;
+	},
+	/**
+	 * On click
+	 */
+	onClick: function(data)
+	{
+		if (data == undefined) data = null;
+		this.dialog.show();
+		Runtime.Widget.ButtonModel.prototype.onClick.call(this, data);
+	},
+	_init: function()
+	{
+		Runtime.Widget.ButtonModel.prototype._init.call(this);
+		this.dialog = null;
+		this.form = null;
+		this.dialog_settings = Runtime.Map.from({});
+		this.form_settings = Runtime.Map.from({});
+	},
+});
+Object.assign(Runtime.WordPress.Theme.Components.Button.ButtonFormModel, Runtime.Widget.ButtonModel);
+Object.assign(Runtime.WordPress.Theme.Components.Button.ButtonFormModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Button";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Button.ButtonFormModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Widget.ButtonModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Theme.Components.Button.ButtonFormModel);
+window["Runtime.WordPress.Theme.Components.Button.ButtonFormModel"] = Runtime.WordPress.Theme.Components.Button.ButtonFormModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.Components.Button.ButtonFormModel;
 "use strict;"
 /*
  *  BayLang Technology
@@ -27867,15 +30119,17 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
 */
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
-if (typeof Runtime.WordPress.Components == 'undefined') Runtime.WordPress.Components = {};
-Runtime.WordPress.Components.Form = {
-	name: "Runtime.WordPress.Components.Form",
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.Components == 'undefined') Runtime.WordPress.Theme.Components = {};
+if (typeof Runtime.WordPress.Theme.Components.Form == 'undefined') Runtime.WordPress.Theme.Components.Form = {};
+Runtime.WordPress.Theme.Components.Form.Form = {
+	name: "Runtime.WordPress.Theme.Components.Form.Form",
 	extends: Runtime.Widget.Form.Form,
 	methods:
 	{
 	},
 };
-Object.assign(Runtime.WordPress.Components.Form,
+Object.assign(Runtime.WordPress.Theme.Components.Form.Form,
 {
 	components: function()
 	{
@@ -27888,11 +30142,11 @@ Object.assign(Runtime.WordPress.Components.Form,
 	},
 	getNamespace: function()
 	{
-		return "Runtime.WordPress.Components";
+		return "Runtime.WordPress.Theme.Components.Form";
 	},
 	getClassName: function()
 	{
-		return "Runtime.WordPress.Components.Form";
+		return "Runtime.WordPress.Theme.Components.Form.Form";
 	},
 	getParentClassName: function()
 	{
@@ -27929,9 +30183,150 @@ Object.assign(Runtime.WordPress.Components.Form,
 		return null;
 	},
 });
-Runtime.rtl.defClass(Runtime.WordPress.Components.Form);
-window["Runtime.WordPress.Components.Form"] = Runtime.WordPress.Components.Form;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Components.Form;
+Runtime.rtl.defClass(Runtime.WordPress.Theme.Components.Form.Form);
+window["Runtime.WordPress.Theme.Components.Form.Form"] = Runtime.WordPress.Theme.Components.Form.Form;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.Components.Form.Form;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.Components == 'undefined') Runtime.WordPress.Theme.Components = {};
+if (typeof Runtime.WordPress.Theme.Components.Form == 'undefined') Runtime.WordPress.Theme.Components.Form = {};
+Runtime.WordPress.Theme.Components.Form.FormDialog = {
+	name: "Runtime.WordPress.Theme.Components.Form.FormDialog",
+	extends: Runtime.Widget.Dialog.Dialog,
+	methods:
+	{
+		renderTitle: function()
+		{
+			let __v = [];
+			
+			if (this.model.title != "")
+			{
+				/* Element 'div' */
+				let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_dialog__title"])});
+				
+				/* Element 'span' */
+				let __v1 = this._e(__v0, "span", {"class":this._class_name(["widget_dialog__title__text"])});
+				
+				/* Render */
+				this._t(__v1, this.model.title);
+				
+				/* Component 'Button' */
+				let __v2 = this._c(__v0, "Runtime.Widget.Button", {"onClick":() =>
+				{
+					this.model.hide();
+				},"class":this._class_name(["widget_dialog__title__close"])}, () => {
+					let __v = [];
+					
+					/* Text */
+					this._t(__v, "x");
+					
+					return this._flatten(__v);
+				});
+			}
+			
+			return this._flatten(__v);
+		},
+		renderContent: function()
+		{
+			let __v = [];
+			
+			/* Render */
+			this._t(__v, this.renderWidget(this.model.form));
+			
+			return this._flatten(__v);
+		},
+		renderButtons: function()
+		{
+			let __v = [];
+			
+			return this._flatten(__v);
+		},
+		/**
+ * On shadow click
+ */
+		onShadowClick: function()
+		{
+			this.model.hide();
+		},
+	},
+};
+Object.assign(Runtime.WordPress.Theme.Components.Form.FormDialog,
+{
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.Dialog.Dialog","Runtime.Widget.Button"]);
+	},
+	css: function(vars)
+	{
+		var res = "";
+		res += Runtime.rtl.toStr(".widget_dialog__shadow.h-d2d5{opacity: 0.5}.widget_dialog__title.h-d2d5{display: flex;align-items: center}.widget_dialog__title.h-d2d5 span{flex: 1}.widget_dialog__title.h-d2d5 .widget_button.h-8dd7{display: flex;align-items: center;justify-content: center;width: 42px;height: 34px;font-size: 20px;font-weight: bold;text-transform: uppercase;background-color: #fff;border: 1px #d9d9d9 solid;cursor: pointer;border-radius: 5px}.widget_dialog.h-d2d5 .widget_form__button.h-e7fd .widget_button.h-8dd7{width: 100%}.widget_dialog.h-d2d5 .widget_input.h-60a2,.widget_dialog.h-d2d5 .widget_textarea.h-5654{padding: 10px;font-size: 16px;border-radius: 5px}.widget_dialog.h-d2d5 .widget_textarea.h-5654{min-height: 150px}");
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Form";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Form.FormDialog";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Widget.Dialog.Dialog";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Theme.Components.Form.FormDialog);
+window["Runtime.WordPress.Theme.Components.Form.FormDialog"] = Runtime.WordPress.Theme.Components.Form.FormDialog;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.Components.Form.FormDialog;
 "use strict;"
 /*!
  *  BayLang Technology
@@ -27952,14 +30347,137 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
  */
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
-if (typeof Runtime.WordPress.Components == 'undefined') Runtime.WordPress.Components = {};
-Runtime.WordPress.Components.FormModel = function()
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.Components == 'undefined') Runtime.WordPress.Theme.Components = {};
+if (typeof Runtime.WordPress.Theme.Components.Form == 'undefined') Runtime.WordPress.Theme.Components.Form = {};
+Runtime.WordPress.Theme.Components.Form.FormDialogModel = function()
+{
+	Runtime.Widget.Dialog.DialogModel.apply(this, arguments);
+};
+Runtime.WordPress.Theme.Components.Form.FormDialogModel.prototype = Object.create(Runtime.Widget.Dialog.DialogModel.prototype);
+Runtime.WordPress.Theme.Components.Form.FormDialogModel.prototype.constructor = Runtime.WordPress.Theme.Components.Form.FormDialogModel;
+Object.assign(Runtime.WordPress.Theme.Components.Form.FormDialogModel.prototype,
+{
+	/**
+	 * Init widget params
+	 */
+	initParams: function(params)
+	{
+		Runtime.Widget.Dialog.DialogModel.prototype.initParams.call(this, params);
+		if (params == null)
+		{
+			return ;
+		}
+		if (params.has("form"))
+		{
+			this.form = params.get("form");
+		}
+		if (params.has("form_settings"))
+		{
+			this.form_settings = params.get("form_settings");
+		}
+	},
+	/**
+	 * Init widget settings
+	 */
+	initWidget: function(params)
+	{
+		Runtime.Widget.Dialog.DialogModel.prototype.initWidget.call(this, params);
+		/* Add form */
+		if (!this.form)
+		{
+			this.form = this.addWidget("Runtime.WordPress.Theme.Components.Form.FormModel", this.form_settings.concat(Runtime.Map.from({"widget_name":"form"})));
+		}
+	},
+	_init: function()
+	{
+		Runtime.Widget.Dialog.DialogModel.prototype._init.call(this);
+		this.component = "Runtime.WordPress.Theme.Components.Form.FormDialog";
+		this.widget_name = "form_dialog";
+		this.form = null;
+		this.form_settings = Runtime.Map.from({});
+	},
+});
+Object.assign(Runtime.WordPress.Theme.Components.Form.FormDialogModel, Runtime.Widget.Dialog.DialogModel);
+Object.assign(Runtime.WordPress.Theme.Components.Form.FormDialogModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Form";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Form.FormDialogModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Widget.Dialog.DialogModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Theme.Components.Form.FormDialogModel);
+window["Runtime.WordPress.Theme.Components.Form.FormDialogModel"] = Runtime.WordPress.Theme.Components.Form.FormDialogModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.Components.Form.FormDialogModel;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.Components == 'undefined') Runtime.WordPress.Theme.Components = {};
+if (typeof Runtime.WordPress.Theme.Components.Form == 'undefined') Runtime.WordPress.Theme.Components.Form = {};
+Runtime.WordPress.Theme.Components.Form.FormModel = function()
 {
 	Runtime.Widget.Form.FormSubmitModel.apply(this, arguments);
 };
-Runtime.WordPress.Components.FormModel.prototype = Object.create(Runtime.Widget.Form.FormSubmitModel.prototype);
-Runtime.WordPress.Components.FormModel.prototype.constructor = Runtime.WordPress.Components.FormModel;
-Object.assign(Runtime.WordPress.Components.FormModel.prototype,
+Runtime.WordPress.Theme.Components.Form.FormModel.prototype = Object.create(Runtime.Widget.Form.FormSubmitModel.prototype);
+Runtime.WordPress.Theme.Components.Form.FormModel.prototype.constructor = Runtime.WordPress.Theme.Components.Form.FormModel;
+Object.assign(Runtime.WordPress.Theme.Components.Form.FormModel.prototype,
 {
 	/**
 	 * Process frontend data
@@ -27967,8 +30485,38 @@ Object.assign(Runtime.WordPress.Components.FormModel.prototype,
 	serialize: function(serializer, data)
 	{
 		serializer.process(this, "fields", data);
-		serializer.process(this, "form_name", data);
 		Runtime.Widget.Form.FormSubmitModel.prototype.serialize.call(this, serializer, data);
+	},
+	/**
+	 * Init widget params
+	 */
+	initParams: function(params)
+	{
+		Runtime.Widget.Form.FormSubmitModel.prototype.initParams.call(this, params);
+		if (params == null)
+		{
+			return ;
+		}
+		if (params.has("form_name"))
+		{
+			this.form_name = params.get("form_name");
+		}
+		if (params.has("form_title"))
+		{
+			this.form_title = params.get("form_title");
+		}
+		if (params.has("metrika_event"))
+		{
+			this.metrika_event = params.get("metrika_event");
+		}
+		if (params.has("metrika_form_id"))
+		{
+			this.metrika_form_id = params.get("metrika_form_id");
+		}
+		if (params.has("redirect_url"))
+		{
+			this.redirect_url = params.get("redirect_url");
+		}
 	},
 	/**
 	 * Init widget settings
@@ -27976,11 +30524,6 @@ Object.assign(Runtime.WordPress.Components.FormModel.prototype,
 	initWidget: function(params)
 	{
 		Runtime.Widget.Form.FormSubmitModel.prototype.initWidget.call(this, params);
-		/* Set form name */
-		if (params.has("form_name"))
-		{
-			this.form_name = params.get("form_name");
-		}
 		/* Setup storage */
 		if (this.storage == null)
 		{
@@ -27995,6 +30538,8 @@ Object.assign(Runtime.WordPress.Components.FormModel.prototype,
 	{
 		post_data = Runtime.Widget.Form.FormSubmitModel.prototype.mergePostData.call(this, post_data, action);
 		post_data.set("form_name", this.form_name);
+		post_data.set("form_title", this.form_title);
+		post_data.set("metrika_form_id", this.metrika_form_id);
 		return post_data;
 	},
 	/**
@@ -28013,7 +30558,7 @@ Object.assign(Runtime.WordPress.Components.FormModel.prototype,
 	 */
 	loadForm: async function()
 	{
-		var result = await this.layout.callApi(Runtime.Map.from({"api_name":"runtime.wordpress.form.submit","method_name":"actionItem","data":Runtime.Map.from({"form_name":this.form_name})}));
+		var result = await this.layout.callApi(Runtime.Map.from({"api_name":"runtime.wordpress.form.submit","method_name":"actionSettings","data":Runtime.Map.from({"form_name":this.form_name})}));
 		if (result.isSuccess())
 		{
 			/* Clear fields */
@@ -28025,28 +30570,47 @@ Object.assign(Runtime.WordPress.Components.FormModel.prototype,
 				for (var i = 0; i < fields.count(); i++)
 				{
 					var field = fields.get(i);
-					this.addField(Runtime.Map.from({"name":field.get("name"),"label":field.get("title"),"component":this.getFieldComponent(field.get("type"))}));
+					this.addField(Runtime.Map.from({"name":field.get("name"),"label":field.get("title"),"component":this.getFieldComponent(field.get("type")),"props":Runtime.Map.from({"placeholder":field.get("placeholder")})}));
 				}
 			}
 		}
+	},
+	/**
+	 * Submit form
+	 */
+	submit: async function()
+	{
+		var res = await Runtime.Widget.Form.FormSubmitModel.prototype.submit.call(this);
+		/* Send event */
+		await Runtime.rtl.getContext().callHook("runtime.wordpress::form_submit", Runtime.Map.from({"form":this,"res":res}));
+		/* Redirect */
+		if (res.isSuccess() && this.redirect_url != "")
+		{
+			document.location = this.redirect_url;
+		}
+		return Promise.resolve(res);
 	},
 	_init: function()
 	{
 		Runtime.Widget.Form.FormSubmitModel.prototype._init.call(this);
 		this.form_name = "";
+		this.form_title = "";
+		this.metrika_event = "";
+		this.metrika_form_id = "";
+		this.redirect_url = "";
 	},
 });
-Object.assign(Runtime.WordPress.Components.FormModel, Runtime.Widget.Form.FormSubmitModel);
-Object.assign(Runtime.WordPress.Components.FormModel,
+Object.assign(Runtime.WordPress.Theme.Components.Form.FormModel, Runtime.Widget.Form.FormSubmitModel);
+Object.assign(Runtime.WordPress.Theme.Components.Form.FormModel,
 {
 	/* ======================= Class Init Functions ======================= */
 	getNamespace: function()
 	{
-		return "Runtime.WordPress.Components";
+		return "Runtime.WordPress.Theme.Components.Form";
 	},
 	getClassName: function()
 	{
-		return "Runtime.WordPress.Components.FormModel";
+		return "Runtime.WordPress.Theme.Components.Form.FormModel";
 	},
 	getParentClassName: function()
 	{
@@ -28083,9 +30647,9 @@ Object.assign(Runtime.WordPress.Components.FormModel,
 		return null;
 	},
 });
-Runtime.rtl.defClass(Runtime.WordPress.Components.FormModel);
-window["Runtime.WordPress.Components.FormModel"] = Runtime.WordPress.Components.FormModel;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Components.FormModel;
+Runtime.rtl.defClass(Runtime.WordPress.Theme.Components.Form.FormModel);
+window["Runtime.WordPress.Theme.Components.Form.FormModel"] = Runtime.WordPress.Theme.Components.Form.FormModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.Components.Form.FormModel;
 "use strict;"
 /*
  *  BayLang Technology
@@ -28106,163 +30670,79 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
 */
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
-if (typeof Runtime.WordPress.Components == 'undefined') Runtime.WordPress.Components = {};
-Runtime.WordPress.Components.Image = {
-	name: "Runtime.WordPress.Components.Image",
-	extends: Runtime.Web.Component,
-	props: {
-		"styles": {
-			default: Runtime.Vector.from([]),
-		},
-		"name": {
-			default: "",
-		},
-		"value": {
-			default: "",
-		},
-		"size": {
-			default: "default",
-		},
-		"upload": {
-			default: false,
-		},
-	},
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.Components == 'undefined') Runtime.WordPress.Theme.Components = {};
+if (typeof Runtime.WordPress.Theme.Components.Gallery == 'undefined') Runtime.WordPress.Theme.Components.Gallery = {};
+Runtime.WordPress.Theme.Components.Gallery.Gallery = {
+	name: "Runtime.WordPress.Theme.Components.Gallery.Gallery",
+	extends: Runtime.Widget.Gallery.Gallery,
 	methods:
 	{
-		render: function()
+		renderItem: function(pos)
 		{
 			let __v = [];
+			let item = this.model.getItem(pos);
 			
 			/* Element 'div' */
-			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_image", this.getStyles()]),"key":"widget_image_" + Runtime.rtl.toStr(this.name)});
+			let __v0 = this._e(__v, "div", {"onClick":() =>
+			{
+				this.onClick(pos);
+			},"class":this._class_name(["widget_gallery__item"])});
 			
-			if (this.upload)
+			/* Element 'div' */
+			let __v1 = this._e(__v0, "div", {"class":this._class_name(["widget_gallery__item_title"])});
+			
+			/* Render */
+			this._t(__v1, item.get("name"));
+			let small_image = Runtime.rtl.attr(item, ["image", "sizes", this.model.small_size]);
+			
+			if (small_image)
 			{
 				/* Element 'div' */
-				let __v1 = this._e(__v0, "div", {"class":this._class_name(["widget_image__upload_button"])});
+				let __v2 = this._e(__v0, "div", {"class":this._class_name(["widget_gallery__item_image"]),"key":"image"});
 				
-				/* Component 'Button' */
-				let __v2 = this._c(__v1, "Runtime.Widget.Button", {"type":"small","onClick":this.onUploadImage}, () => {
-					let __v = [];
-					
-					/* Text */
-					this._t(__v, "Upload image");
-					
-					return this._flatten(__v);
-				});
-			}
-			let image = this.getImage();
-			
-			if (image)
-			{
 				/* Element 'img' */
-				let __v3 = this._e(__v0, "img", {"src":image});
+				let __v3 = this._e(__v2, "img", {"src":small_image.get("file"),"alt":item.get("name")});
+			}
+			else
+			{
+				/* Element 'div' */
+				let __v4 = this._e(__v0, "div", {"class":this._class_name(["widget_gallery_item__image"]),"key":"no_image"});
+				
+				/* Element 'div' */
+				let __v5 = this._e(__v4, "div", {"class":this._class_name(["widget_gallery_item__no_image"])});
+				
+				/* Text */
+				this._t(__v5, "No image");
 			}
 			
 			return this._flatten(__v);
 		},
-		/**
- * Returns styles
- */
-		getStyles: function()
-		{
-			if (this.styles == null)
-			{
-				return "";
-			}
-			var styles = this.styles.map((name) =>
-			{
-				return "widget_image--" + Runtime.rtl.toStr(name);
-			});
-			return Runtime.rs.join(" ", styles);
-		},
-		/**
- * Return image
- */
-		getImage: function()
-		{
-			if (this.value == null)
-			{
-				return null;
-			}
-			var image = this.value.get("file");
-			/* Resolve size */
-			var sizes = this.value.get("sizes");
-			if (sizes && sizes.has(this.size))
-			{
-				image = sizes.get(this.size).get("file");
-			}
-			return image;
-		},
-		/**
- * On upload image
- */
-		onUploadImage: function()
-		{
-			var uploader = wp.media
-	({
-		title: "Файлы",
-		button: {
-			text: "Выбрать файл"
-		},
-		multiple: false
-	})
-	.on('select', () => {
-		let attachments = uploader.state().get('selection').toJSON();
-		let attachment = attachments[0];
-		
-		let sizes = {};
-		for (let size_name in attachment.sizes)
-		{
-			let size = attachment.sizes[size_name];
-			sizes[size_name] = {
-				"size": size_name,
-				"file": size.url,
-				"width": size.width,
-				"height": size.height,
-				"mime_type": "",
-			};
-		}
-		
-		let image = Runtime.Dict.from({
-			"id": attachment.id,
-			"width": attachment.width,
-			"height": attachment.height,
-			"file": attachment.url,
-			"sizes": Runtime.Dict.from(sizes),
-		});
-		
-		/* Send value change */
-		if (this.model) this.model.onValueChange(image, this.data);
-		this.emit("valueChange", image, this.data);
-	})
-	.open();
-		},
 	},
 };
-Object.assign(Runtime.WordPress.Components.Image,
+Object.assign(Runtime.WordPress.Theme.Components.Gallery.Gallery,
 {
 	components: function()
 	{
-		return Runtime.Vector.from(["Runtime.Widget.Button"]);
+		return Runtime.Vector.from(["Runtime.Widget.Gallery.Gallery"]);
 	},
 	css: function(vars)
 	{
 		var res = "";
-		res += Runtime.rtl.toStr(".widget_image.h-1867 img{max-width: 200px;max-height: 200px}.widget_image--small.h-1867 img{max-width: 100px;max-height: 100px}.widget_image__upload_button.h-1867{padding-bottom: 10px}");
+		res += Runtime.rtl.toStr(".widget_gallery__item.h-fc5d{display: flex;flex-direction: column;align-items: center}.widget_gallery__item_title.h-fc5d{font-weight: bold;text-align: center;margin-bottom: 10px}.widget_gallery__item_image.h-fc5d{cursor: pointer}");
 		return res;
 	},
 	getNamespace: function()
 	{
-		return "Runtime.WordPress.Components";
+		return "Runtime.WordPress.Theme.Components.Gallery";
 	},
 	getClassName: function()
 	{
-		return "Runtime.WordPress.Components.Image";
+		return "Runtime.WordPress.Theme.Components.Gallery.Gallery";
 	},
 	getParentClassName: function()
 	{
-		return "Runtime.Web.Component";
+		return "Runtime.Widget.Gallery.Gallery";
 	},
 	getClassInfo: function()
 	{
@@ -28295,9 +30775,189 @@ Object.assign(Runtime.WordPress.Components.Image,
 		return null;
 	},
 });
-Runtime.rtl.defClass(Runtime.WordPress.Components.Image);
-window["Runtime.WordPress.Components.Image"] = Runtime.WordPress.Components.Image;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Components.Image;
+Runtime.rtl.defClass(Runtime.WordPress.Theme.Components.Gallery.Gallery);
+window["Runtime.WordPress.Theme.Components.Gallery.Gallery"] = Runtime.WordPress.Theme.Components.Gallery.Gallery;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.Components.Gallery.Gallery;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.Components == 'undefined') Runtime.WordPress.Theme.Components = {};
+if (typeof Runtime.WordPress.Theme.Components.Gallery == 'undefined') Runtime.WordPress.Theme.Components.Gallery = {};
+Runtime.WordPress.Theme.Components.Gallery.GalleryModel = function()
+{
+	Runtime.Widget.Gallery.GalleryModel.apply(this, arguments);
+};
+Runtime.WordPress.Theme.Components.Gallery.GalleryModel.prototype = Object.create(Runtime.Widget.Gallery.GalleryModel.prototype);
+Runtime.WordPress.Theme.Components.Gallery.GalleryModel.prototype.constructor = Runtime.WordPress.Theme.Components.Gallery.GalleryModel;
+Object.assign(Runtime.WordPress.Theme.Components.Gallery.GalleryModel.prototype,
+{
+	/**
+	 * Returns small image
+	 */
+	getSmallImage: function(pos)
+	{
+		var item = this.getItem(pos);
+		if (!item)
+		{
+			return "";
+		}
+		var image = Runtime.rtl.attr(item, ["image", "sizes", this.small_size]);
+		if (!image)
+		{
+			return "";
+		}
+		return image.get("file");
+	},
+	/**
+	 * Returns big image
+	 */
+	getBigImage: function(pos)
+	{
+		var item = this.getItem(pos);
+		if (!item)
+		{
+			return "";
+		}
+		var image = Runtime.rtl.attr(item, ["image", "sizes", this.big_size]);
+		if (!image)
+		{
+			return "";
+		}
+		return image.get("file");
+	},
+	/**
+	 * Init widget params
+	 */
+	initParams: function(params)
+	{
+		Runtime.Widget.Gallery.GalleryModel.prototype.initParams.call(this, params);
+		if (params == null)
+		{
+			return ;
+		}
+		if (params.has("api_name"))
+		{
+			this.api_name = params.get("api_name");
+		}
+		if (params.has("big_size"))
+		{
+			this.big_size = params.get("big_size");
+		}
+		if (params.has("small_size"))
+		{
+			this.small_size = params.get("small_size");
+		}
+	},
+	/**
+	 * Init widget settings
+	 */
+	initWidget: function(params)
+	{
+		Runtime.Widget.Gallery.GalleryModel.prototype.initWidget.call(this, params);
+	},
+	/**
+	 * Process frontend data
+	 */
+	serialize: function(serializer, data)
+	{
+		serializer.process(this, "items", data);
+		Runtime.Widget.Gallery.GalleryModel.prototype.serialize.call(this, serializer, data);
+	},
+	/**
+	 * Load items
+	 */
+	loadItems: async function()
+	{
+		var result = await this.layout.callApi(Runtime.Map.from({"api_name":"runtime.wordpress.gallery","method_name":"actionSearch","data":Runtime.Map.from({"api_name":this.api_name})}));
+		if (result.isSuccess())
+		{
+			this.items = result.data.get("items");
+		}
+	},
+	/**
+	 * Load data
+	 */
+	loadData: async function(container)
+	{
+		await Runtime.Widget.Gallery.GalleryModel.prototype.loadData.call(this, container);
+		await this.loadItems();
+	},
+	_init: function()
+	{
+		Runtime.Widget.Gallery.GalleryModel.prototype._init.call(this);
+		this.api_name = "";
+		this.big_size = "medium_large";
+		this.small_size = "medium";
+	},
+});
+Object.assign(Runtime.WordPress.Theme.Components.Gallery.GalleryModel, Runtime.Widget.Gallery.GalleryModel);
+Object.assign(Runtime.WordPress.Theme.Components.Gallery.GalleryModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Gallery";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Gallery.GalleryModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Widget.Gallery.GalleryModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Theme.Components.Gallery.GalleryModel);
+window["Runtime.WordPress.Theme.Components.Gallery.GalleryModel"] = Runtime.WordPress.Theme.Components.Gallery.GalleryModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.Components.Gallery.GalleryModel;
 "use strict;"
 /*!
  *  BayLang Technology
@@ -28347,7 +31007,7 @@ Object.assign(Runtime.WordPress.Theme.AssetHook.prototype,
 	 */
 	import_container_data_after: function(params)
 	{
-		this.assets_path = params.get("container").layout.widgets.get("assets_path");
+		this.assets_path = params.get("container").layout.storage.params.get("assets_path");
 	},
 	/**
 	 * Assets
@@ -28412,6 +31072,145 @@ Object.assign(Runtime.WordPress.Theme.AssetHook,
 Runtime.rtl.defClass(Runtime.WordPress.Theme.AssetHook);
 window["Runtime.WordPress.Theme.AssetHook"] = Runtime.WordPress.Theme.AssetHook;
 if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.AssetHook;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+Runtime.WordPress.Theme.Metrika = function()
+{
+	Runtime.Web.Hooks.AppHook.apply(this, arguments);
+};
+Runtime.WordPress.Theme.Metrika.prototype = Object.create(Runtime.Web.Hooks.AppHook.prototype);
+Runtime.WordPress.Theme.Metrika.prototype.constructor = Runtime.WordPress.Theme.Metrika;
+Object.assign(Runtime.WordPress.Theme.Metrika.prototype,
+{
+	/**
+	 * Register hooks
+	 */
+	register_hooks: function()
+	{
+		this.register("runtime.wordpress::form_submit", "form_submit");
+	},
+	/**
+	 * Submit form event
+	 */
+	form_submit: function(data)
+	{
+		var res = data.get("res");
+		if (!res.isSuccess())
+		{
+			return ;
+		}
+		/* Check form */
+		var form = data.get("form");
+		if (!(form instanceof Runtime.WordPress.Theme.Components.Form.FormModel))
+		{
+			return ;
+		}
+		/* Get event name */
+		var event_name = form.metrika_event;
+		if (event_name == "")
+		{
+			var res = Runtime.Map.from({"event_name":"submit"});
+			Runtime.rtl.getContext().callHook("runtime.wordpress::form_submit_event_name", res);
+			event_name = res.get("event_name");
+		}
+		/* https://developers.google.com/analytics/devguides/collection/gtagjs/events?hl=ru */
+		if (typeof window['gtag'] === 'function'){
+			gtag('event', event_name, {
+				'event_category': 'goal',
+				'event_action': event_name
+			});
+		}
+		
+		/* https://developers.google.com/analytics/devguides/collection/analyticsjs/events */
+		else if (typeof window['ga'] === 'function'){
+			ga('send', {
+				hitType: 'event',
+				eventCategory: 'goal',
+				eventAction: event_name
+			});
+		}
+		
+		/* Facebook */
+		if (typeof window['fbq'] === 'function'){
+			fbq('track', event_name);
+		}
+		
+		/* Yandex */
+		if ((typeof yaCounter) != 'undefined' && yaCounter != null)
+			yaCounter.reachGoal(event_name);
+		
+		console.log("metrika_event " + event_name);
+	},
+});
+Object.assign(Runtime.WordPress.Theme.Metrika, Runtime.Web.Hooks.AppHook);
+Object.assign(Runtime.WordPress.Theme.Metrika,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Theme";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Theme.Metrika";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.Hooks.AppHook";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Theme.Metrika);
+window["Runtime.WordPress.Theme.Metrika"] = Runtime.WordPress.Theme.Metrika;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.Metrika;
 "use strict;"
 /*!
  *  BayLang Technology
@@ -28517,82 +31316,3 @@ Object.assign(Runtime.WordPress.Theme.ModuleDescription,
 Runtime.rtl.defClass(Runtime.WordPress.Theme.ModuleDescription);
 window["Runtime.WordPress.Theme.ModuleDescription"] = Runtime.WordPress.Theme.ModuleDescription;
 if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.ModuleDescription;
-"use strict;"
-/*!
- *  BayLang Technology
- *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-if (typeof Runtime == 'undefined') Runtime = {};
-if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
-Runtime.WordPress.WP_App = function()
-{
-	Runtime.Web.BaseApp.apply(this, arguments);
-};
-Runtime.WordPress.WP_App.prototype = Object.create(Runtime.Web.BaseApp.prototype);
-Runtime.WordPress.WP_App.prototype.constructor = Runtime.WordPress.WP_App;
-Object.assign(Runtime.WordPress.WP_App.prototype,
-{
-});
-Object.assign(Runtime.WordPress.WP_App, Runtime.Web.BaseApp);
-Object.assign(Runtime.WordPress.WP_App,
-{
-	/* ======================= Class Init Functions ======================= */
-	getNamespace: function()
-	{
-		return "Runtime.WordPress";
-	},
-	getClassName: function()
-	{
-		return "Runtime.WordPress.WP_App";
-	},
-	getParentClassName: function()
-	{
-		return "Runtime.Web.BaseApp";
-	},
-	getClassInfo: function()
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return Map.from({
-			"annotations": Vector.from([
-			]),
-		});
-	},
-	getFieldsList: function()
-	{
-		var a = [];
-		return Runtime.Vector.from(a);
-	},
-	getFieldInfoByName: function(field_name)
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return null;
-	},
-	getMethodsList: function()
-	{
-		var a=[
-		];
-		return Runtime.Vector.from(a);
-	},
-	getMethodInfoByName: function(field_name)
-	{
-		return null;
-	},
-});
-Runtime.rtl.defClass(Runtime.WordPress.WP_App);
-window["Runtime.WordPress.WP_App"] = Runtime.WordPress.WP_App;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.WP_App;

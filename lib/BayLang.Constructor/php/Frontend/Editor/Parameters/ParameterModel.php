@@ -37,10 +37,86 @@ class ParameterModel extends \BayLang\Constructor\Frontend\Editor\Parameters\Par
 		$this->value = \BayLang\Constructor\Frontend\Editor\Processor\CodeProcessor::getValueFromOpCode($op_dict_pair->value);
 	}
 	/**
+	 * Find code
+	 */
+	function findOpCode()
+	{
+		if ($this->op_code != null)
+		{
+			return ;
+		}
+		/* Find code */
+		$op_dict = $this->getModelCodes();
+		$this->op_code = $op_dict->values->findItem(new \Runtime\Callback($this, "isOpCode"));
+	}
+	/**
+	 * Returns model codes
+	 */
+	function getModelCodes()
+	{
+		/* Get values */
+		$op_dict = $this->widget->primary_model_code->expression->args->get(1);
+		if (!$op_dict)
+		{
+			return ;
+		}
+		if (!($op_dict instanceof \BayLang\OpCodes\OpDict))
+		{
+			return ;
+		}
+		return $op_dict;
+	}
+	/**
+	 * Create attribute
+	 */
+	function createModelAttribute()
+	{
+		if ($this->op_code != null)
+		{
+			return ;
+		}
+		$this->op_code = new \BayLang\OpCodes\OpDictPair(\Runtime\Map::from(["key"=>$this->getAttributeName()]));
+		$op_dict = $this->getModelCodes();
+		$op_dict->values->append($this->op_code);
+	}
+	/**
+	 * Remove attribute
+	 */
+	function removeModelAttribute()
+	{
+		if ($this->op_code == null)
+		{
+			return ;
+		}
+		/* Clear code */
+		$this->op_code = null;
+		/* Remove attribute */
+		$op_dict = $this->getModelCodes();
+		$pos = $op_dict->values->find(\Runtime\lib::equalAttr("key", $this->getAttributeName()));
+		if ($pos >= 0)
+		{
+			$op_dict->values->remove($pos);
+		}
+	}
+	/**
 	 * Set value
 	 */
 	function setValue($value)
 	{
+		if ($value === "")
+		{
+			$this->removeModelAttribute();
+			$this->value = "";
+			return ;
+		}
+		/* Find item */
+		$this->findOpCode();
+		/* Create html attribute */
+		if ($this->op_code == null)
+		{
+			$this->createModelAttribute();
+		}
+		/* Set value */
 		$this->value = $value;
 		$this->op_code->value = \BayLang\Constructor\Frontend\Editor\Processor\CodeProcessor::getOpCodeByValue($value);
 	}
@@ -67,7 +143,7 @@ class ParameterModel extends \BayLang\Constructor\Frontend\Editor\Parameters\Par
 		/* Model settings onChange event */
 		if (\Runtime\rtl::exists($this->widget->model_settings->onChange))
 		{
-			$is_updated = $this->widget->model_settings->onChange($model, $this);
+			$is_updated = $this->widget->model_settings->onChange(new \Runtime\rtl(), $model, $this);
 			if ($is_updated)
 			{
 				return ;

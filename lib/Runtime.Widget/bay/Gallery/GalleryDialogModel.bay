@@ -1,0 +1,100 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.Gallery;
+
+use Runtime.Widget.Gallery.GalleryDialog;
+use Runtime.Widget.Dialog.DialogModel;
+
+
+class GalleryDialogModel extends DialogModel
+{
+	string component = classof GalleryDialog;
+	int current = 0;
+	
+	
+	/**
+	 * Returns items
+	 */
+	Collection getItems() => this.parent_widget.getItems();
+	
+	
+	/**
+	 * Returns item
+	 */
+	Collection getItem(int pos) => this.parent_widget.getItem(pos);
+	
+	
+	/**
+	 * Returns image
+	 */
+	Collection getImage(int pos) => this.parent_widget.getBigImage(pos);
+	
+	
+	/**
+	 * Returns true if image is contains
+	 */
+	bool getImageContains() =>
+		this.parent_widget.dialog_image_contains === true or
+		this.parent_widget.dialog_image_contains == "1" or
+		this.parent_widget.dialog_image_contains == "true"
+	;
+	
+	
+	/**
+	 * Returns current image
+	 */
+	string getCurrentImage() => this.getImage(this.current);
+	
+	
+	/**
+	 * Select image
+	 */
+	void select(int pos)
+	{
+		int count = this.getItems().count();
+		if (count == 0)
+		{
+			this.current = 0;
+			return;
+		}
+		this.current = pos % count;
+		if (this.current < 0)
+		{
+			this.current = (this.current + count) % count;
+		}
+	}
+	
+	
+	/**
+	 * Show prev image
+	 */
+	void prev()
+	{
+		this.select(this.current - 1);
+	}
+	
+	
+	/**
+	 * Show next image
+	 */
+	void next()
+	{
+		this.select(this.current + 1);
+	}
+}

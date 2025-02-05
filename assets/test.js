@@ -1997,6 +1997,13 @@ Object.assign(BayLang.Test.LangBay.Html.prototype,
 		var res = this.translate(content);
 		Runtime.Unit.AssertHelper.equalValue(content, res.get(1), content);
 	},
+	testClick: function()
+	{
+		this.reset();
+		var content = Runtime.rs.join("\n", Runtime.Vector.from(["<class name=\"App.Component\">","","<template>","\t<button","\t\tclass=\"widget_test\"","\t\t@event:click={{","\t\t\tvoid ()","\t\t\t{","\t\t\t\tthis.onClick();","\t\t\t}","\t\t}}","\t>","\t\tTest","\t</button>","</template>","","</class>"]));
+		var res = this.translate(content);
+		Runtime.Unit.AssertHelper.equalValue(content, res.get(1), content);
+	},
 	testScript1: function()
 	{
 		this.reset();
@@ -2112,6 +2119,7 @@ Object.assign(BayLang.Test.LangBay.Html,
 			"testContent1",
 			"testContent2",
 			"testContent3",
+			"testClick",
 			"testScript1",
 			"testSlot1",
 			"testSlot2",
@@ -2266,6 +2274,16 @@ Object.assign(BayLang.Test.LangBay.Html,
 			});
 		}
 		if (field_name == "testContent3")
+		{
+			var Vector = Runtime.Vector;
+			var Map = Runtime.Map;
+			return Map.from({
+				"annotations": Vector.from([
+					new Runtime.Unit.Test(Runtime.Map.from({})),
+				]),
+			});
+		}
+		if (field_name == "testClick")
 		{
 			var Vector = Runtime.Vector;
 			var Map = Runtime.Map;
@@ -3557,6 +3575,14 @@ Object.assign(BayLang.Test.LangBay.Style.prototype,
 		var res = this.translate(content);
 		Runtime.Unit.AssertHelper.equalValue(css_content, res.get(1), css_content);
 	},
+	test12: function()
+	{
+		this.reset();
+		var content = Runtime.rs.join("\n", Runtime.Vector.from([".main_page{","\tpadding: 20px;","\tcolor: green;","\t@media (max-width: 950px){","\t\tdisplay: none;","\t}","}"]));
+		var css_content = Runtime.rs.join("\n", Runtime.Vector.from([".main_page.h-71c3{padding: 20px;color: green}","@media (max-width: 950px){.main_page.h-71c3{display: none}}"]));
+		var res = this.translate(content);
+		Runtime.Unit.AssertHelper.equalValue(css_content, res.get(1), css_content);
+	},
 	_init: function()
 	{
 		this.parser = null;
@@ -3611,6 +3637,7 @@ Object.assign(BayLang.Test.LangBay.Style,
 			"test9",
 			"test10",
 			"test11",
+			"test12",
 		];
 		return Runtime.Vector.from(a);
 	},
@@ -3717,6 +3744,16 @@ Object.assign(BayLang.Test.LangBay.Style,
 			});
 		}
 		if (field_name == "test11")
+		{
+			var Vector = Runtime.Vector;
+			var Map = Runtime.Map;
+			return Map.from({
+				"annotations": Vector.from([
+					new Runtime.Unit.Test(Runtime.Map.from({})),
+				]),
+			});
+		}
+		if (field_name == "test12")
 		{
 			var Vector = Runtime.Vector;
 			var Map = Runtime.Map;

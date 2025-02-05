@@ -84,7 +84,7 @@ class SQLBuilder extends \Runtime\BaseObject
 	/**
 	 * Prepare field
 	 */
-	function prepare_field($item)
+	function prepareField($item)
 	{
 		$res1 = \Runtime\rs::split(",", $item);
 		$res1 = $res1->map(function ($s)
@@ -105,7 +105,7 @@ class SQLBuilder extends \Runtime\BaseObject
 	/**
 	 * Prepare value
 	 */
-	function prepare_value($item, $op)
+	function prepareValue($item, $op)
 	{
 		if ($op == "%like%")
 		{
@@ -131,6 +131,17 @@ class SQLBuilder extends \Runtime\BaseObject
 	{
 		$value = $this->conn->pdo->quote($value);
 		return $value;
+	}
+	/**
+	 * Returns table name
+	 */
+	function getTableName()
+	{
+		if (\Runtime\rs::substr($this->q->_table_name, 0, 1) != "`")
+		{
+			return "`" . \Runtime\rtl::toStr($this->conn->prefix) . \Runtime\rtl::toStr($this->q->_table_name) . \Runtime\rtl::toStr("`");
+		}
+		return $this->q->_table_name;
 	}
 	/**
 	 * Returns query sql
@@ -201,7 +212,7 @@ class SQLBuilder extends \Runtime\BaseObject
 			/* New line */
 			$sql .= \Runtime\rtl::toStr("\n");
 			/* Add table name */
-			$sql .= \Runtime\rtl::toStr(" FROM `" . \Runtime\rtl::toStr($this->conn->prefix) . \Runtime\rtl::toStr($q->_table_name) . \Runtime\rtl::toStr("` AS `") . \Runtime\rtl::toStr($q->_table_name) . \Runtime\rtl::toStr("`"));
+			$sql .= \Runtime\rtl::toStr(" FROM " . \Runtime\rtl::toStr($this->getTableName()) . \Runtime\rtl::toStr(" AS `") . \Runtime\rtl::toStr($q->_table_alias) . \Runtime\rtl::toStr("`"));
 			/* New line */
 			$sql .= \Runtime\rtl::toStr("\n");
 			/* Add joins */
@@ -253,7 +264,7 @@ class SQLBuilder extends \Runtime\BaseObject
 			{
 				$order = $q->_order->map(function ($item)
 				{
-					return $this->prepare_field(\Runtime\rtl::attr($item, 0)) . \Runtime\rtl::toStr(" ") . \Runtime\rtl::toStr(\Runtime\rtl::attr($item, 1));
+					return $this->prepareField(\Runtime\rtl::attr($item, 0)) . \Runtime\rtl::toStr(" ") . \Runtime\rtl::toStr(\Runtime\rtl::attr($item, 1));
 				});
 				$sql .= \Runtime\rtl::toStr(" ORDER BY " . \Runtime\rtl::toStr(\Runtime\rs::join(",", $order)));
 				/* New line */
@@ -284,7 +295,7 @@ class SQLBuilder extends \Runtime\BaseObject
 				});
 			}
 			/* Build sql */
-			$this->sql = "INSERT INTO " . \Runtime\rtl::toStr($this->conn->prefix) . \Runtime\rtl::toStr($q->_table_name) . \Runtime\rtl::toStr(" (") . \Runtime\rtl::toStr(\Runtime\rs::join(",", $keys)) . \Runtime\rtl::toStr(") VALUES (") . \Runtime\rtl::toStr(\Runtime\rs::join(",", $values)) . \Runtime\rtl::toStr(")");
+			$this->sql = "INSERT INTO " . \Runtime\rtl::toStr($this->getTableName()) . \Runtime\rtl::toStr(" (") . \Runtime\rtl::toStr(\Runtime\rs::join(",", $keys)) . \Runtime\rtl::toStr(") VALUES (") . \Runtime\rtl::toStr(\Runtime\rs::join(",", $values)) . \Runtime\rtl::toStr(")");
 			$this->data = $q->_data->clone();
 		}
 		else if ($q->_kind == \Runtime\ORM\Query::QUERY_UPDATE)
@@ -298,7 +309,7 @@ class SQLBuilder extends \Runtime\BaseObject
 				$q->_data->each(function ($value, $key) use (&$update_arr,&$data)
 				{
 					$field_key = "update_" . \Runtime\rtl::toStr($key);
-					$field_name = $this->prepare_field($key);
+					$field_name = $this->prepareField($key);
 					$update_arr->push($field_name . \Runtime\rtl::toStr(" = ") . \Runtime\rtl::toStr($this->formatKey($field_key)));
 					$data = $data->set($field_key, $value);
 				});
@@ -307,7 +318,7 @@ class SQLBuilder extends \Runtime\BaseObject
 			$res = $this->convertFilter($q->_filter, $data);
 			$where_str = \Runtime\rtl::attr($res, 0);
 			/* Build sql */
-			$this->sql = "UPDATE " . \Runtime\rtl::toStr($this->conn->prefix) . \Runtime\rtl::toStr($q->_table_name) . \Runtime\rtl::toStr(" SET ") . \Runtime\rtl::toStr(\Runtime\rs::join(", ", $update_arr)) . \Runtime\rtl::toStr(" WHERE ") . \Runtime\rtl::toStr($where_str);
+			$this->sql = "UPDATE " . \Runtime\rtl::toStr($this->getTableName()) . \Runtime\rtl::toStr(" SET ") . \Runtime\rtl::toStr(\Runtime\rs::join(", ", $update_arr)) . \Runtime\rtl::toStr(" WHERE ") . \Runtime\rtl::toStr($where_str);
 			$this->data = $data;
 		}
 		else if ($q->_kind == \Runtime\ORM\Query::QUERY_DELETE)
@@ -317,7 +328,7 @@ class SQLBuilder extends \Runtime\BaseObject
 			$res = $this->convertFilter($q->_filter, $data);
 			$where_str = \Runtime\rtl::attr($res, 0);
 			/* Delete item */
-			$this->sql = "DELETE FROM " . \Runtime\rtl::toStr($this->conn->prefix) . \Runtime\rtl::toStr($q->_table_name) . \Runtime\rtl::toStr(" WHERE ") . \Runtime\rtl::toStr($where_str);
+			$this->sql = "DELETE FROM " . \Runtime\rtl::toStr($this->getTableName()) . \Runtime\rtl::toStr(" WHERE ") . \Runtime\rtl::toStr($where_str);
 			$this->data = $data;
 		}
 		else if ($q->_kind == \Runtime\ORM\Query::QUERY_RAW)
@@ -381,12 +392,12 @@ class SQLBuilder extends \Runtime\BaseObject
 		{
 			if ($op == "!=")
 			{
-				$s = $this->prepare_field($field_name) . \Runtime\rtl::toStr(" is not null");
+				$s = $this->prepareField($field_name) . \Runtime\rtl::toStr(" is not null");
 				return \Runtime\Vector::from([$s,$field_index]);
 			}
 			else
 			{
-				$s = $this->prepare_field($field_name) . \Runtime\rtl::toStr(" is null");
+				$s = $this->prepareField($field_name) . \Runtime\rtl::toStr(" is null");
 				return \Runtime\Vector::from([$s,$field_index]);
 			}
 		}
@@ -408,7 +419,7 @@ class SQLBuilder extends \Runtime\BaseObject
 						$res->push($this->formatKey($field_key));
 						$field_index++;
 					}
-					$s = $this->prepare_field($field_name) . \Runtime\rtl::toStr(" in (") . \Runtime\rtl::toStr(\Runtime\rs::join(",", $res)) . \Runtime\rtl::toStr(")");
+					$s = $this->prepareField($field_name) . \Runtime\rtl::toStr(" in (") . \Runtime\rtl::toStr(\Runtime\rs::join(",", $res)) . \Runtime\rtl::toStr(")");
 					return \Runtime\Vector::from([$s,$field_index]);
 				}
 			}
@@ -417,8 +428,8 @@ class SQLBuilder extends \Runtime\BaseObject
 		{
 			$s = "";
 			$field_key = $convert_key($field_index . \Runtime\rtl::toStr("_where_") . \Runtime\rtl::toStr($field_name));
-			$field_name = $this->prepare_field($field_name);
-			$res = $this->prepare_value($value, $op);
+			$field_name = $this->prepareField($field_name);
+			$res = $this->prepareValue($value, $op);
 			$value = \Runtime\rtl::attr($res, 0);
 			$op = \Runtime\rtl::attr($res, 1);
 			if ($op == "match")

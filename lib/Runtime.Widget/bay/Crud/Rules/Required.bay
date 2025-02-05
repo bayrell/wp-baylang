@@ -19,13 +19,11 @@
 namespace Runtime.Widget.Crud.Rules;
 
 use Runtime.re;
-use Runtime.BaseStruct;
-use Runtime.Widget.Crud.SaveApi;
-use Runtime.Widget.Crud.FieldResult;
-use Runtime.Widget.Crud.Rules.CrudRule;
+use Runtime.Widget.Crud.RulesManager;
+use Runtime.Widget.Crud.Rules.BaseRule;
 
 
-struct Required extends CrudRule
+struct Required extends BaseRule
 {
 	string name = "";
 	bool check_create = true;
@@ -33,19 +31,20 @@ struct Required extends CrudRule
 	
 	
 	/**
-	 * Validate item
+	 * Validate
 	 */
-	async Dict validateItem(SaveApi api, Dict data)
+	async bool validate(RulesManager rules, Dict data)
 	{
-		if (api.pk == null and not this.check_create) return data;
-		if (api.pk != null and not this.check_update) return data;
+		if (rules.isCreate() and not this.check_create) return true;
+		if (rules.isUpdate() and not this.check_update) return true;
 		
 		var value = data[this.name];
 		if (not data.has(this.name) or value === "" or value === null)
 		{
-			api.fields.addFieldError(this.name, "Field is required");
+			rules.addFieldError(this.name, "Field is required");
+			return false;
 		}
 		
-		return data;
+		return true;
 	}
 }

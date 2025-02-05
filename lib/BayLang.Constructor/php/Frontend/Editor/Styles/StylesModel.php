@@ -191,9 +191,34 @@ class StylesModel extends \Runtime\Web\BaseModel
 				continue;
 			}
 			/* Set CSS Value */
-			$source = $styles->get($selector_name);
+			$source = $this->filterContent($styles->get($selector_name));
 			$this->setSelectorContent($selector_name, $source, $op_code);
 		}
+	}
+	/**
+	 * Filter CSS content
+	 */
+	function filterContent($source)
+	{
+		$lines = \Runtime\rs::split("\n", $source);
+		$lines = $lines->map(function ($line)
+		{
+			$line = \Runtime\rs::trim($line, "\r");
+			if (\Runtime\rs::charAt($line, 0) == "\t")
+			{
+				$line = \Runtime\rs::substr($line, 1);
+			}
+			return $line;
+		});
+		while ($lines->count() > 0 && $lines->get(0) == "")
+		{
+			$lines->remove(0);
+		}
+		while ($lines->count() > 0 && $lines->last() == "")
+		{
+			$lines->remove($lines->count() - 1);
+		}
+		return \Runtime\rs::join("\n", $lines);
 	}
 	/**
 	 * Update HTML Style

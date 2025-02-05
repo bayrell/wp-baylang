@@ -244,6 +244,8 @@
 		<div class="widget_css__items">
 			%render this.renderInput(selector, "width", "");
 			%render this.renderInput(selector, "height", "");
+			%render this.renderInput(selector, "max-width", "");
+			%render this.renderInput(selector, "max-height", "");
 			%render this.renderInput(selector, "min-width", "");
 			%render this.renderInput(selector, "min-height", "");
 		</div>

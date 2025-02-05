@@ -114,7 +114,7 @@ class TranslatorBayProgram extends \Runtime\BaseObject
 		$flags = \Runtime\Vector::from(["async","static","pure"]);
 		$flags = $flags->filter(function ($flag_name) use (&$op_code)
 		{
-			return $op_code->flags->isFlag($flag_name);
+			return ($op_code->flags) ? ($op_code->flags->isFlag($flag_name)) : (false);
 		});
 		$result->push(\Runtime\rs::join(" ", $flags));
 		if ($flags->count() > 0)

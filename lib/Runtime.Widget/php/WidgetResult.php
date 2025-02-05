@@ -30,7 +30,7 @@ class WidgetResult extends \Runtime\Web\Component
 		$this->_t($__v0, $this->_escape($this->model->message));
 		
 		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_result", $this->getErrorClass(), static::getStyles("widget_result", $this->model->styles)])], $__v0);
+		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_result", $this->getErrorClass(), static::mergeStyles("widget_result", $this->model->styles)])], $__v0);
 		
 		return $this->_flatten($__v);
 	}

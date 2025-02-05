@@ -40,7 +40,7 @@ class CursorMySQL extends \Runtime\ORM\Cursor
 			return 0;
 		}
 		$q = $this->q->copy()->clearFields()->addRawField("count(1) as c")->limit(-1)->start(-1)->clearOrder();
-		$cursor = $this->conn->executeQuery($q);
+		$cursor = $this->conn->execute($q);
 		$res = $cursor->fetchVar("c");
 		$cursor->close();
 		$this->found_rows = $res;

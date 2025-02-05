@@ -152,6 +152,14 @@ class Style
 		$res = $this->translate($content);
 		\Runtime\Unit\AssertHelper::equalValue($css_content, $res->get(1), $css_content);
 	}
+	function test12()
+	{
+		$this->reset();
+		$content = \Runtime\rs::join("\n", \Runtime\Vector::from([".main_page{","\tpadding: 20px;","\tcolor: green;","\t@media (max-width: 950px){","\t\tdisplay: none;","\t}","}"]));
+		$css_content = \Runtime\rs::join("\n", \Runtime\Vector::from([".main_page.h-71c3{padding: 20px;color: green}","@media (max-width: 950px){.main_page.h-71c3{display: none}}"]));
+		$res = $this->translate($content);
+		\Runtime\Unit\AssertHelper::equalValue($css_content, $res->get(1), $css_content);
+	}
 	/* ======================= Class Init Functions ======================= */
 	function _init()
 	{
@@ -199,6 +207,7 @@ class Style
 			"test9",
 			"test10",
 			"test11",
+			"test12",
 		];
 		return \Runtime\Collection::from($a);
 	}
@@ -265,6 +274,12 @@ class Style
 				]),
 			]);
 		if ($field_name == "test11")
+			return \Runtime\Dict::from([
+				"annotations"=>\Runtime\Collection::from([
+					new \Runtime\Unit\Test([]),
+				]),
+			]);
+		if ($field_name == "test12")
 			return \Runtime\Dict::from([
 				"annotations"=>\Runtime\Collection::from([
 					new \Runtime\Unit\Test([]),

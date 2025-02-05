@@ -24,7 +24,7 @@ class WP_Footer extends \Runtime\Web\Component
 		$__v = new \Runtime\Vector();
 		
 		/* Raw */
-		$this->_t($__v, new \Runtime\RawString(\Runtime\WordPress\WP_Helper::wp_call("wp_footer")));
+		$this->_t($__v, new \Runtime\RawString(\Runtime\WordPress\WP_Helper::wp_apply("wp_footer")));
 		
 		return $this->_flatten($__v);
 	}

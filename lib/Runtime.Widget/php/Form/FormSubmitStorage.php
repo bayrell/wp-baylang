@@ -19,7 +19,7 @@
 namespace Runtime\Widget\Form;
 class FormSubmitStorage extends \Runtime\Widget\Form\FormSaveStorage
 {
-	public $action;
+	public $method_name;
 	/**
 	 * Returns method name
 	 */
@@ -27,7 +27,7 @@ class FormSubmitStorage extends \Runtime\Widget\Form\FormSaveStorage
 	{
 		if ($name == "submit")
 		{
-			return $this->action;
+			return $this->method_name;
 		}
 		return "";
 	}
@@ -42,7 +42,7 @@ class FormSubmitStorage extends \Runtime\Widget\Form\FormSaveStorage
 	function _init()
 	{
 		parent::_init();
-		$this->action = "actionSave";
+		$this->method_name = "actionSave";
 	}
 	static function getNamespace()
 	{

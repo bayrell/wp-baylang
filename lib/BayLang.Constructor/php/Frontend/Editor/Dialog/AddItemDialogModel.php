@@ -106,18 +106,14 @@ class AddItemDialogModel extends \Runtime\Widget\Dialog\DialogModel
 		});
 		/* Get groups used */
 		$groups = \Runtime\Map::from([]);
-		$this->selected_group_name = "";
 		for ($i = 0; $i < $this->current_widgets->count(); $i++)
 		{
 			$group_name = $this->current_widgets->get($i)->getGroupName();
 			$groups->set($group_name, 1);
-			if ($this->selected_group_name == "")
-			{
-				$this->selected_group_name = $group_name;
-			}
 		}
 		/* Update groups */
 		$this->current_groups = \Runtime\Vector::from([]);
+		$this->selected_group_name = "";
 		$group_settings = $editor->getGroups();
 		for ($i = 0; $i < $group_settings->count(); $i++)
 		{
@@ -126,6 +122,11 @@ class AddItemDialogModel extends \Runtime\Widget\Dialog\DialogModel
 			if ($groups->has($group_name))
 			{
 				$this->current_groups->push($group);
+				/* Default selected group */
+				if ($this->selected_group_name == "")
+				{
+					$this->selected_group_name = $group_name;
+				}
 			}
 		}
 	}

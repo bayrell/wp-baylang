@@ -1,0 +1,93 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Admin.Settings;
+
+use Runtime.Entity.Factory;
+use Runtime.Web.BasePageModel;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.Form.FormModel;
+use Runtime.Widget.Form.FormSubmitStorage;
+use Runtime.Widget.Form.FormSaveStorage;
+use Runtime.Widget.Form.FormSubmitModel;
+use Runtime.WordPress.Admin.Settings.ProjectCreate;
+use Runtime.WordPress.Admin.Settings.TabsModel;
+
+
+class ProjectCreateModel extends BasePageModel
+{
+	string component = classof ProjectCreate;
+	TabsModel tabs = null;
+	FormModel form = null;
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Add tabs */
+		this.tabs = this.addWidget(classof TabsModel, {
+			"active": "create-project"
+		});
+		
+		/* Save form */
+		this.form = this.addWidget(
+			classof FormSubmitModel,
+			{
+				"widget_name": "form",
+				"primary_key": ["id"],
+				"submit_button": {
+					"text": "Save",
+					"styles": ["success", "large"],
+				},
+				"storage": new Factory(
+					classof FormSubmitStorage,
+					{
+						"api_name": "admin.wordpress.project",
+						"method_name": "actionCreate",
+					}
+				),
+				"fields":
+				[
+					{
+						"name": "id",
+						"label": "Api name",
+						"component": "Runtime.Widget.Input",
+					},
+					{
+						"name": "name",
+						"label": "Name",
+						"component": "Runtime.Widget.Input",
+					},
+				],
+			}
+		);
+	}
+	
+	
+	/**
+	 * Build title
+	 */
+	void buildTitle(RenderContainer container)
+	{
+		this.layout.setPageTitle("Create project");
+	}
+}

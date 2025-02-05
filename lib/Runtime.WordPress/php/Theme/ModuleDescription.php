@@ -46,7 +46,7 @@ class ModuleDescription
 	 */
 	static function entities()
 	{
-		return \Runtime\Vector::from([new \Runtime\Entity\Hook("Runtime.WordPress.Theme.AssetHook"),\Runtime\Web\Hooks\Components::header(\Runtime\Vector::from(["Runtime.WordPress.Theme.WP_Head"])),\Runtime\Web\Hooks\Components::footer(\Runtime\Vector::from(["Runtime.WordPress.Theme.WP_Footer"]))]);
+		return \Runtime\Vector::from([new \Runtime\Entity\Hook("Runtime.WordPress.Theme.AssetHook"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Theme.Api.FormSubmitApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Theme.Api.GalleryApi"),new \Runtime\Web\Annotations\Route("Runtime.WordPress.Theme.Robots"),\Runtime\Web\Hooks\Components::header(\Runtime\Vector::from(["Runtime.WordPress.Theme.WP_Head"])),\Runtime\Web\Hooks\Components::footer(\Runtime\Vector::from(["Runtime.WordPress.Theme.WP_Footer"]))]);
 	}
 	/* ======================= Class Init Functions ======================= */
 	static function getNamespace()

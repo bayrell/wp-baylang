@@ -62,6 +62,12 @@ class Parameter extends BaseObject
 	
 	
 	/**
+	 * Returns attribute name
+	 */
+	string getAttributeName() => this.name;
+	
+	
+	/**
 	 * Is op_code
 	 */
 	void isOpCode(BaseOpCode op_code)

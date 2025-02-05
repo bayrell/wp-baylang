@@ -33,7 +33,7 @@ class RowButtons extends \Runtime\Widget\RenderList
 			$this->_t($__v0, $this->renderItems());
 			
 			/* Element 'div' */
-			$this->_e($__v, "div", ["class" => $this->_class_name(["widget_row_buttons", $this->class, static::getStyles("widget_row_buttons", $this->model->styles)])], $__v0);
+			$this->_e($__v, "div", ["class" => $this->_class_name(["widget_row_buttons", $this->class, static::mergeStyles("widget_row_buttons", $this->model->styles)])], $__v0);
 		}
 		else
 		{
@@ -44,7 +44,7 @@ class RowButtons extends \Runtime\Widget\RenderList
 			$this->_t($__v0, $this->renderSlot("default"));
 			
 			/* Element 'div' */
-			$this->_e($__v, "div", ["class" => $this->_class_name(["widget_row_buttons", $this->class, static::getStyles("widget_row_buttons", $this->styles)])], $__v0);
+			$this->_e($__v, "div", ["class" => $this->_class_name(["widget_row_buttons", $this->class, static::mergeStyles("widget_row_buttons", $this->styles)])], $__v0);
 		}
 		
 		return $this->_flatten($__v);
@@ -56,7 +56,7 @@ class RowButtons extends \Runtime\Widget\RenderList
 	static function css($vars)
 	{
 		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_row_buttons.h-a598{display: flex;gap: var(--widget-space)}.widget_row_buttons--align-end.h-a598{justify-content: end}.widget_row_buttons--no-gap.h-a598{gap: 0}.widget_row_buttons--no-gap.h-a598 .widget_button.h-8dd7{border-right-width: 0;border-radius: 0}.widget_row_buttons--no-gap.h-a598 .widget_button.item--first.h-8dd7{border-top-left-radius: 4px;border-bottom-left-radius: 4px}.widget_row_buttons--no-gap.h-a598 .widget_button.item--last.h-8dd7{border-top-right-radius: 4px;border-bottom-right-radius: 4px;border-right-width: var(--widget-border-width) !important}.widget_row_buttons--top_buttons.h-a598{margin-bottom: 10px}");
+		$res .= \Runtime\rtl::toStr(".widget_row_buttons.h-a598{display: flex;gap: var(--widget-space)}.widget_row_buttons--align-end.h-a598{justify-content: end}.widget_row_buttons--center.h-a598{justify-content: center}.widget_row_buttons--bottom_buttons.h-a598{margin-top: 10px}.widget_row_buttons--top_buttons.h-a598{margin-bottom: 10px}.widget_row_buttons--no_gap.h-a598{gap: 0}.widget_row_buttons--no_gap.h-a598 .widget_button.h-8dd7{border-right-width: 0;border-radius: 0}.widget_row_buttons--no_gap.h-a598 .widget_button.item--first.h-8dd7{border-top-left-radius: 4px;border-bottom-left-radius: 4px}.widget_row_buttons--no_gap.h-a598 .widget_button.item--last.h-8dd7{border-top-right-radius: 4px;border-bottom-right-radius: 4px;border-right-width: var(--widget-border-width) !important}.widget_row_buttons--top_buttons.h-a598{margin-bottom: 10px}");
 		return $res;
 	}
 	/* ======================= Class Init Functions ======================= */

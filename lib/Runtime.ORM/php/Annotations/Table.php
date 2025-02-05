@@ -17,21 +17,15 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Annotations;
-class Table extends \Runtime\BaseStruct
+class Table extends \Runtime\Entity\Entity
 {
-	public $__name;
-	public $__model_name;
-	/* ======================= Class Init Functions ======================= */
-	function _init()
+	function __construct($name)
 	{
-		parent::_init();
-		$this->__name = "";
-		$this->__model_name = "";
+		parent::__construct(\Runtime\Map::from(["name"=>$name]));
 	}
+	/* ======================= Class Init Functions ======================= */
 	function takeValue($k,$d=null)
 	{
-		if ($k == "name")return $this->__name;
-		else if ($k == "model_name")return $this->__model_name;
 	}
 	static function getNamespace()
 	{
@@ -43,7 +37,7 @@ class Table extends \Runtime\BaseStruct
 	}
 	static function getParentClassName()
 	{
-		return "Runtime.BaseStruct";
+		return "Runtime.Entity.Entity";
 	}
 	static function getClassInfo()
 	{
@@ -55,8 +49,6 @@ class Table extends \Runtime\BaseStruct
 	static function getFieldsList()
 	{
 		$a = [];
-		$a[]="name";
-		$a[]="model_name";
 		return \Runtime\Collection::from($a);
 	}
 	static function getFieldInfoByName($field_name)

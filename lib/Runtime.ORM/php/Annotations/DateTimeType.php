@@ -25,12 +25,13 @@ class DateTimeType extends \Runtime\ORM\Annotations\BaseType
 	 */
 	function fromDatabase($conn, $item)
 	{
-		if ($item->has($this->name))
+		if (!$item->has($this->name))
 		{
-			$value = \Runtime\rtl::attr($item, $this->name);
-			$item = \Runtime\rtl::setAttr($item, [$this->name], static::convertFromDatabase($value));
-			$item = $conn->fromDatabase($this, $item, $this->name);
+			return $item;
 		}
+		$value = \Runtime\rtl::attr($item, $this->name);
+		$item = \Runtime\rtl::setAttr($item, [$this->name], static::convertFromDatabase($value));
+		$item = $conn->fromDatabase($this, $item, $this->name);
 		return $item;
 	}
 	/**
@@ -38,6 +39,10 @@ class DateTimeType extends \Runtime\ORM\Annotations\BaseType
 	 */
 	function toDatabase($conn, $item, $is_update)
 	{
+		if (!$item->has($this->name))
+		{
+			return $item;
+		}
 		$value = \Runtime\rtl::attr($item, $this->name);
 		$item = \Runtime\rtl::setAttr($item, [$this->name], static::convertToDatabase($value));
 		$item = $conn->toDatabase($this, $item, $this->name);
@@ -48,6 +53,10 @@ class DateTimeType extends \Runtime\ORM\Annotations\BaseType
 	 */
 	static function convertFromDatabase($value)
 	{
+		if ($value == null)
+		{
+			return null;
+		}
 		return \Runtime\DateTime::fromString($value);
 	}
 	/**
@@ -57,7 +66,7 @@ class DateTimeType extends \Runtime\ORM\Annotations\BaseType
 	{
 		if (!($value instanceof \Runtime\DateTime))
 		{
-			return "";
+			return null;
 		}
 		return $value->setOffset(0)->getDateTimeString();
 	}

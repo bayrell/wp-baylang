@@ -47,7 +47,6 @@ class CaptchaRoute extends BaseRoute
 				"uri": "/generate_captcha/",
 				"name": "site:generate_captcha",
 				"method": "actionIndex",
-				"enable_locale": false,
 			},
 		];
 	}

@@ -121,29 +121,27 @@ class RenderProvider extends \Runtime\BaseProvider
 	 */
 	function startApp($options)
 	{
-		$vue_app = null;
 		$Vue = \Runtime\rtl::attr($window, "Vue");
 		$registerLayout = null;
 		/* Get props */
-		$component = \Runtime\rtl::find_class($options->get("component"));
-		$props = $options->get("props");
+		$component = \Runtime\rtl::find_class($this->layout->component);
+		$props = \Runtime\Map::from(["key"=>"root","model"=>$this->layout]);
 		/* Create vue app */
-		$enable_ssr = $options->get("enable_ssr", false);
+		$enable_ssr = $this->enable_ssr;
 		if ($enable_ssr)
 		{
-			$vue_app = $Vue->createSSRApp($component, $props->toObject());
+			$this->vue = $Vue->createSSRApp($component, $props->toObject());
 		}
 		else
 		{
-			$vue_app = $Vue->createApp($component, $props->toObject());
+			$this->vue = $Vue->createApp($component, $props->toObject());
 		}
 		/* Register layout  */
-		$vue_app->use($registerLayout($this->layout));
+		$this->vue->use($registerLayout($this->vue, $this->layout));
 		/* Register other modules */
-		\Runtime\rtl::getContext()->callHookAsync(\Runtime\Web\Hooks\AppHook::VUE_MODULES, \Runtime\Map::from(["render_provider"=>$this,"vue"=>$vue_app]));
+		\Runtime\rtl::getContext()->callHookAsync(\Runtime\Web\Hooks\AppHook::VUE_MODULES, \Runtime\Map::from(["render_provider"=>$this,"vue"=>$this->vue,"layout"=>$this->layout]));
 		/* Mount app */
-		$vue_app->mount($options->get("element"), true);
-		return $vue_app;
+		$this->vue->mount($this->getRootElement(), true);
 	}
 	/**
 	 * Start provider

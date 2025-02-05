@@ -163,7 +163,7 @@ class Table extends \Runtime\Web\Component
 		
 		if ($this->model)
 		{
-			$items = $this->model->getItems();
+			$items = $this->model->storage->getItems();
 			
 			if ($items)
 			{
@@ -179,6 +179,15 @@ class Table extends \Runtime\Web\Component
 			/* Text */
 			$this->_t($__v, $this->renderPagination());
 		}
+		
+		return $__v;
+	}
+	function renderTopButtons()
+	{
+		$__v = new \Runtime\Vector();
+		
+		/* Text */
+		$this->_t($__v, $this->renderWidget($this->model->top_buttons));
 		
 		return $__v;
 	}
@@ -223,13 +232,16 @@ class Table extends \Runtime\Web\Component
 		$__v0 = new \Runtime\Vector();
 		
 		/* Text */
+		$this->_t($__v0, $this->renderTopButtons());
+		
+		/* Text */
 		$this->_t($__v0, $this->renderTable());
 		
 		/* Text */
 		$this->_t($__v0, $this->renderWidgets());
 		
 		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_table", $this->class, static::getStyles("widget_table", $this->model->styles)])], $__v0);
+		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_table", $this->class, static::mergeStyles("widget_table", $this->model->styles)])], $__v0);
 		
 		return $this->_flatten($__v);
 	}

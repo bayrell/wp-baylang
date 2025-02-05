@@ -1,0 +1,134 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Admin.Settings;
+
+use Runtime.re;
+use Runtime.fs;
+use BayLang.Helper.Project;
+use BayLang.Constructor.Backend.Service.ProjectService as BaseProjectService;
+
+
+class ProjectService extends BaseProjectService
+{
+	/**
+	 * Validate data
+	 */
+	async void validate()
+	{
+		await parent();
+		
+		/* Check if project is exist */
+		if (this.isCreate())
+		{
+			string theme_root_path = "";
+			string api_name = this.data.get("id");
+			
+			#ifcode PHP then
+			$theme_root_path = get_theme_root();
+			#endif
+			
+			/* Check theme is exists */
+			string theme_path = fs::join([theme_root_path, api_name]);
+			if (await fs::exists(theme_path))
+			{
+				this.rules.addFieldError("api_name", "Api name is exists");
+			}
+		}
+	}
+	
+	
+	/**
+	 * Before save
+	 */
+	async void onSaveBefore()
+	{
+		await parent();
+		if (not this.rules.correct()) return;
+		
+		/* Create project */
+		if (this.isCreate())
+		{
+			await this.createProject();
+		}
+	}
+	
+	
+	/**
+	 * Create project
+	 */
+	async void createProject()
+	{
+		string api_name = this.data.get("id");
+		string file_archive = "";
+		string theme_root_path = "";
+		
+		#ifcode PHP then
+		$theme_root_path = get_theme_root();
+		$file_archive = \BayLang_Plugin::getPath() . "/files/clear-wp-theme.zip";
+		#endif
+		
+		/* Create theme path */
+		string theme_path = fs::join([theme_root_path, api_name]);
+		if (not await fs::exists(theme_path))
+		{
+			await fs::mkdir(theme_path);
+		}
+		
+		/* Copy project */
+		#ifcode PHP then
+		shell_exec("unzip $file_archive -d $theme_path");
+		#endif
+		
+		/* Reload project */
+		this.item = Project::readProject(theme_path);
+		await this.item.load();
+	}
+	
+	
+	/**
+	 * Save item
+	 */
+	async void saveItem()
+	{
+		await parent();
+		
+		/* If project exists */
+		if (not this.item.path) return;
+		
+		/* Theme settings */
+		string theme_name = this.item.getName();
+		string theme_description = this.item.getDescription();
+		
+		/* Trim name and description */
+		theme_name = rs::trim(theme_name);
+		theme_description = rs::trim(theme_description);
+		theme_description = re::replace("[\n\r]", " ", theme_description);
+		theme_description = re::replace("\s+", " ", theme_description);
+		
+		/* Save wordpress */
+		string style_css_path = fs::join([this.item.path, "style.css"]);
+		string style_css_content = rs::join("\n", [
+			"/*",
+			" * Theme Name: " ~ theme_name,
+			" * Description: " ~ theme_description,
+			" */",
+		]);
+		await fs::saveFile(style_css_path, style_css_content);
+	}
+}

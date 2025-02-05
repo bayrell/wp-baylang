@@ -55,7 +55,7 @@ class CursorMySQL extends Cursor
 			.clearOrder()
 		;
 		
-		Cursor cursor = await this.conn.executeQuery(q);
+		Cursor cursor = await this.conn.execute(q);
 		
 		int res = await cursor.fetchVar('c');
 		await cursor.close();

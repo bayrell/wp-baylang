@@ -55,7 +55,7 @@ class H3 extends Header
 	/**
 	 * Returns group name
 	 */
-	string getGroupName() => "basic";
+	string getGroupName() => "html";
 	
 	
 	/**

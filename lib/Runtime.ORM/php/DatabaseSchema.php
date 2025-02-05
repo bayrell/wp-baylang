@@ -19,6 +19,7 @@
 namespace Runtime\ORM;
 class DatabaseSchema extends \Runtime\BaseHook
 {
+	const REGISTER="runtime.orm.database::register";
 	const SAVE_AFTER="runtime.orm.database::save_after";
 	const SAVE_BEFORE="runtime.orm.database::save_before";
 	/**
@@ -26,6 +27,10 @@ class DatabaseSchema extends \Runtime\BaseHook
 	 */
 	function getMethodName($hook_name)
 	{
+		if ($hook_name == static::REGISTER)
+		{
+			return "onRegister";
+		}
 		if ($hook_name == static::SAVE_AFTER)
 		{
 			return "onAfterSave";

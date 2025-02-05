@@ -21,29 +21,47 @@ class TableRowButtonsModel extends \Runtime\Widget\RowButtonsModel
 {
 	public $widget_name;
 	/**
+	 * Return params
+	 */
+	function getButtonParams($params, $action)
+	{
+		if (!$params->has($action))
+		{
+			return \Runtime\Map::from(["show"=>true,"button"=>\Runtime\Map::from([])]);
+		}
+		$show_button = true;
+		$params_button = ($params->has($action)) ? ($params->get($action)) : (null);
+		if ($params_button instanceof \Runtime\Dict)
+		{
+			if ($params_button->has("show"))
+			{
+				$show_button = $params_button->get("show");
+			}
+		}
+		else if ($params->has($action))
+		{
+			$show_button = $params->get($action);
+		}
+		return \Runtime\Map::from(["show"=>$show_button,"params"=>$params_button]);
+	}
+	/**
 	 * Init widget settings
 	 */
 	function initWidget($params)
 	{
-		$show_edit = true;
-		$show_delete = true;
-		if ($params->has("edit"))
-		{
-			$show_edit = $params->get("edit");
-		}
-		if ($params->has("delete"))
-		{
-			$show_delete = $params->get("delete");
-		}
+		$params_edit_button = $this->getButtonParams($params, "edit");
+		$params_delete_button = $this->getButtonParams($params, "delete");
 		/* Edit button */
-		if ($show_edit)
+		if ($params_edit_button->get("show"))
 		{
-			$this->addButton(\Runtime\Map::from(["content"=>"Edit","widget_name"=>"edit_button","styles"=>\Runtime\Vector::from(["default","small"])]));
+			$button = \Runtime\Map::from(["content"=>"Edit","widget_name"=>"edit_button","styles"=>\Runtime\Vector::from(["default","small"])]);
+			$this->addButton($button->concat($params_edit_button->get("params")));
 		}
 		/* Delete button */
-		if ($show_delete)
+		if ($params_delete_button->get("show"))
 		{
-			$this->addButton(\Runtime\Map::from(["content"=>"Delete","widget_name"=>"delete_button","styles"=>\Runtime\Vector::from(["danger","small"])]));
+			$button = \Runtime\Map::from(["content"=>"Delete","widget_name"=>"delete_button","styles"=>\Runtime\Vector::from(["danger","small"])]);
+			$this->addButton($button->concat($params_delete_button->get("params")));
 		}
 		parent::initWidget($params);
 	}

@@ -27,8 +27,8 @@ class BasePageModel extends \Runtime\Web\BaseModel
 	{
 		/* Load page data */
 		$this->loadData($container);
-		/* Create response */
-		$container->renderPage($this->component);
+		/* Set page component */
+		$this->layout->setPageComponent($this->component);
 		/* Build title */
 		$this->buildTitle($container);
 	}

@@ -125,7 +125,7 @@ class SelectImageDialog extends \Runtime\Widget\Dialog\Dialog
 	function isImage($item)
 	{
 		$file_name = $item->get("file_name");
-		$file_extension = \Runtime\rs::extname($file_name);
+		$file_extension = \Runtime\rs::lower(\Runtime\rs::extname($file_name));
 		$arr = \Runtime\Vector::from(["jpg","jpeg","png","svg"]);
 		if ($arr->indexOf($file_extension) == -1)
 		{

@@ -23,12 +23,12 @@ use Runtime.BaseStruct;
 use Runtime.Exceptions.RuntimeException;
 use Runtime.ORM.Connection;
 use Runtime.ORM.Cursor;
+use Runtime.ORM.Provider;
 use Runtime.ORM.Query;
 use Runtime.ORM.QueryFilter;
 use Runtime.ORM.Relation;
-use Runtime.Widget.Crud.SaveApi;
+use Runtime.Widget.Crud.CrudService;
 use Runtime.Widget.Crud.Rules.CrudRule;
-use Runtime.Widget.Crud.Rules.FieldResult;
 
 
 struct Unique extends CrudRule
@@ -39,11 +39,15 @@ struct Unique extends CrudRule
 	/**
 	 * Before save item
 	 */
-	async void onSaveBefore(SaveApi api)
+	async void onSaveBefore(CrudService service)
 	{
+		Connection connection = service.getConnection();
+		Provider provider = @.provider(classof Provider);
+		string table_name = service.getTableName();
+		
 		Query q = new Query()
 			.select()
-			.from(api.getTableName())
+			.from(table_name)
 			.addRawField("count(1) as c")
 		;
 		
@@ -53,16 +57,16 @@ struct Unique extends CrudRule
 			for (int i=0; i<this.keys.count(); i++)
 			{
 				string field_name = this.keys.get(i);
-				string value = api.item.get(field_name);
+				string value = service.data.get(field_name);
 				q.where(field_name, "=", value);
 			}
 		}
 		
 		/* Add primary key */
-		if (api.item != null and not api.item.isNew())
+		if (service.item != null and not service.item.isNew())
 		{
-			Collection filter = Relation::getPrimaryFilter(
-				api.getTableName(), api.item.toMap(), true
+			Collection filter = provider.getPrimaryFilter(
+				service.getTableName(), service.item.toMap(), true
 			);
 			for (int i=0; i<filter.count(); i++)
 			{
@@ -73,14 +77,13 @@ struct Unique extends CrudRule
 		}
 		
 		/* Execute query */
-		Connection connection = api.getConnection();
-		int res = await connection.fetchVar(q, 'c');
+		int res = await connection.fetchVar(q, "c");
 		if (res > 0)
 		{
 			for (int i=0; i<this.keys.count(); i++)
 			{
 				string name = this.keys.get(i);
-				api.fields.addFieldError(name, "Field must be unique");
+				service.rules.addFieldError(name, "Field must be unique");
 			}
 		}
 	}

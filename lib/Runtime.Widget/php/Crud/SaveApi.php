@@ -19,47 +19,12 @@
 namespace Runtime\Widget\Crud;
 class SaveApi extends \Runtime\Web\BaseApi
 {
-	public $item;
-	public $pk;
-	public $data;
-	public $fields;
-	public $rules;
 	/**
-	 * Returns if item
+	 * Returns service
 	 */
-	function isActionItem()
+	function createService()
 	{
-		return $this->action == "actionItem";
-	}
-	/**
-	 * Returns if save
-	 */
-	function isActionSave()
-	{
-		return $this->action == "actionSave";
-	}
-	/**
-	 * Returns if delete
-	 */
-	function isActionDelete()
-	{
-		return $this->action == "actionDelete";
-	}
-	/**
-	 * Init api
-	 */
-	function init()
-	{
-		$this->fields = new \Runtime\Widget\Crud\FieldResult();
-		$this->rules = $this->getRules();
-		$this->result->data->set("fields", $this->fields);
-	}
-	/**
-	 * Returns rules
-	 */
-	function getRules()
-	{
-		return \Runtime\Vector::from([]);
+		return null;
 	}
 	/**
 	 * Returns item fields
@@ -69,205 +34,36 @@ class SaveApi extends \Runtime\Web\BaseApi
 		return \Runtime\Vector::from([]);
 	}
 	/**
-	 * Returns save fields
+	 * Build error
 	 */
-	function getSaveFields()
+	function buildError($service)
 	{
-		return \Runtime\Vector::from([]);
-	}
-	/**
-	 * New item
-	 */
-	function newItem()
-	{
-		return null;
-	}
-	/**
-	 * Find item
-	 */
-	function findItem($pk)
-	{
-		return null;
-	}
-	/**
-	 * Set item
-	 */
-	function setItemValue($key, $value)
-	{
-	}
-	/**
-	 * Load item
-	 */
-	function loadItem($create_instance=true)
-	{
-		$pk = $this->post_data->get("pk");
-		if ($pk != null && $pk instanceof \Runtime\Dict)
-		{
-			$this->pk = $pk;
-			$this->item = $this->findItem($pk);
-		}
-		else
-		{
-			if ($create_instance)
-			{
-				$this->item = $this->newItem();
-			}
-		}
 		/* Check if item is exists */
-		if ($this->item == null)
+		if (!$service->item)
 		{
 			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\ItemNotFound());
 		}
-	}
-	/**
-	 * Validate item
-	 */
-	function validateItem($data)
-	{
-		/* Call rules */
-		$rules = $this->getRules();
-		for ($i = 0; $i < $rules->count(); $i++)
+		/* Validate error */
+		if (!$service->rules->correct())
 		{
-			$rule = \Runtime\rtl::attr($rules, $i);
-			$data = $rule->validateItem($this, $data);
+			throw new \Runtime\Exceptions\ApiError(new \Runtime\Widget\Crud\FieldException());
 		}
-		/* Filter data */
-		$new_data = $data->intersect($this->getSaveFields());
-		return $new_data;
-	}
-	/**
-	 * Load data
-	 */
-	function loadData()
-	{
-		$item = $this->post_data->get("item");
-		if ($item == null)
-		{
-			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\RuntimeException("Post data 'item' not found"));
-		}
-		if (!($item instanceof \Runtime\Dict))
-		{
-			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\RuntimeException("Post data 'item' not found"));
-		}
-		/* Get data */
-		$this->data = $this->validateItem($item);
-		/* Check fields error */
-		$this->fields->checkError();
-	}
-	/**
-	 * Process data
-	 */
-	function processData()
-	{
-		$keys = $this->getSaveFields();
-		for ($i = 0; $i < $keys->count(); $i++)
-		{
-			$key = $keys->get($i);
-			if (!$this->data->has($key))
-			{
-				continue;
-			}
-			$value = $this->data->get($key);
-			$this->setItemValue($key, $value);
-		}
-	}
-	/**
-	 * Before save
-	 */
-	function onSaveBefore()
-	{
-		$rules = $this->getRules();
-		for ($i = 0; $i < $rules->count(); $i++)
-		{
-			$rule = \Runtime\rtl::attr($rules, $i);
-			$rule->onSaveBefore($this);
-		}
-		/* Check fields error */
-		$this->fields->checkError();
-	}
-	/**
-	 * After save
-	 */
-	function onSaveAfter()
-	{
-		$rules = $this->getRules();
-		for ($i = 0; $i < $rules->count(); $i++)
-		{
-			$rule = \Runtime\rtl::attr($rules, $i);
-			$rule->onSaveAfter($this);
-		}
-	}
-	/**
-	 * Save
-	 */
-	function save()
-	{
-	}
-	/**
-	 * Save item
-	 */
-	function saveItem()
-	{
-		/* Before save */
-		$this->onSaveBefore();
-		/* Save item */
-		$this->save();
-		/* After save */
-		$this->onSaveAfter();
-	}
-	/**
-	 * Before delete
-	 */
-	function onDeleteBefore()
-	{
-		$rules = $this->getRules();
-		for ($i = 0; $i < $rules->count(); $i++)
-		{
-			$rule = \Runtime\rtl::attr($rules, $i);
-			$rule->onDeleteBefore($this);
-		}
-		/* Check fields error */
-		$this->fields->checkError();
-	}
-	/**
-	 * After delete
-	 */
-	function onDeleteAfter()
-	{
-		$rules = $this->getRules();
-		for ($i = 0; $i < $rules->count(); $i++)
-		{
-			$rule = \Runtime\rtl::attr($rules, $i);
-			$rule->onDeleteAfter($this);
-		}
-	}
-	/**
-	 * Remove
-	 */
-	function remove()
-	{
-	}
-	/**
-	 * Remove item
-	 */
-	function removeItem()
-	{
-		/* Before delete */
-		$this->onDeleteBefore();
-		/* Remove */
-		$this->remove();
-		/* Before delete */
-		$this->onDeleteAfter();
 	}
 	/**
 	 * Build result
 	 */
-	function buildResult()
+	function buildResult($service)
 	{
-		if (!$this->item)
-		{
-			return ;
-		}
+		$this->result->data->set("fields", $service->rules->getFields());
+		/* Check error */
+		$this->buildError($service);
+		/* Convert item */
+		$fields = $this->getItemFields();
+		$item = $service->convertItem($service->item, $fields);
+		$pk = $service->getPrimaryKey($service->item);
+		/* Setup result */
+		$this->result->data->set("pk", $pk);
+		$this->result->data->set("item", $item);
 		/* Success */
 		$this->success();
 	}
@@ -276,50 +72,49 @@ class SaveApi extends \Runtime\Web\BaseApi
 	 */
 	function actionItem()
 	{
-		/* Load data */
-		$this->loadItem();
+		/* Create service */
+		$service = $this->createService();
+		/* Load item */
+		$service->searchItem($this->post_data->get("pk"));
 		/* Build result */
-		$this->buildResult();
-		/* Success */
-		$this->success();
+		$this->buildResult($service);
+	}
+	/**
+	 * Action create
+	 */
+	function actionCreate()
+	{
+		$this->actionSave();
 	}
 	/**
 	 * Action save
 	 */
 	function actionSave()
 	{
-		/* Load data */
-		$this->loadItem();
-		$this->loadData();
+		/* Create service */
+		$service = $this->createService();
+		/* Load item */
+		$service->loadItem($this->post_data->get("pk"), true);
 		/* Save item */
-		$this->processData();
-		$this->saveItem();
+		$service->save($this->post_data->get("item"));
 		/* Build result */
-		$this->buildResult();
-		/* Success */
-		$this->success();
+		$this->buildResult($service);
 	}
 	/**
 	 * Action delete
 	 */
 	function actionDelete()
 	{
-		/* Remove item */
-		$this->loadItem();
-		$this->removeItem();
+		/* Create service */
+		$service = $this->createService();
+		/* Load item */
+		$service->loadItem($this->post_data->get("pk"));
+		/* Delete item */
+		$service->delete();
 		/* Build result */
-		$this->buildResult();
+		$this->buildResult($service);
 	}
 	/* ======================= Class Init Functions ======================= */
-	function _init()
-	{
-		parent::_init();
-		$this->item = null;
-		$this->pk = null;
-		$this->data = \Runtime\Map::from([]);
-		$this->fields = null;
-		$this->rules = \Runtime\Vector::from([]);
-	}
 	static function getNamespace()
 	{
 		return "Runtime.Widget.Crud";

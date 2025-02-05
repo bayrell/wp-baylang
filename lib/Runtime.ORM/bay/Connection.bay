@@ -20,17 +20,21 @@ namespace Runtime.ORM;
 
 use Runtime.BaseStruct;
 use Runtime.Exceptions.RuntimeException;
+use Runtime.ORM.Factory.CursorFactory;
 use Runtime.ORM.Cursor;
 use Runtime.ORM.Provider;
 use Runtime.ORM.Query;
 use Runtime.ORM.QueryFilter;
+use Runtime.ORM.QueryLog;
 use Runtime.ORM.QueryResult;
 use Runtime.ORM.Relation;
 
 
 class Connection
 {
-	protected string name = "";
+	string name = "";
+	CursorFactory cursor = null;
+	QueryLog log = null;
 	
 	
 	/**
@@ -48,9 +52,33 @@ class Connection
 	
 	
 	/**
+	 * Set cursor factory
+	 */
+	void setCursorFactory(CursorFactory factory)
+	{
+		this.cursor = factory;
+	}
+	
+	
+	/**
+	 * Set query log
+	 */
+	void setQueryLog(QueryLog value)
+	{
+		this.log = value;
+	}
+	
+	
+	/**
+	 * Returns query log
+	 */
+	QueryLog getQueryLog() => this.log;
+	
+	
+	/**
 	 * Constructor
 	 */
-	public void constructor(string name)
+	public void constructor(string name = "")
 	{
 		this.name = name;
 	}
@@ -79,19 +107,34 @@ class Connection
 	/**
 	 * Create new cursor
 	 */
-	Cursor createCursor() => new Cursor();
+	Cursor createCursor()
+	{
+		if (not this.cursor) return;
+		Cursor cursor = this.cursor.createCursor();
+		cursor.setConnection(this);
+		return cursor;
+	}
+	
+	
+	/**
+	 * Fork connection
+	 */
+	Connection fork()
+	{
+		return rtl::newInstance(static::getClassName());
+	}
 	
 	
 	/**
 	 * Prepare field
 	 */
-	string prepare_field(var item) => item;
+	string prepareField(var item) => item;
 	
 	
 	/**
 	 * Prepare value
 	 */
-	string prepare_value(string item, string op) => item;
+	string prepareValue(string item, string op) => item;
 	
 	
 	/**
@@ -101,10 +144,15 @@ class Connection
 	
 	
 	/**
+	 * Returns table name
+	 */
+	string getTableName(string table_name) => this.prefix ~ table_name;
+	
+	
+	/**
 	 * Execute Query
 	 */
 	async Cursor execute(Query q, Dict params = null) => null;
-	async Cursor executeQuery(Query q, Dict params = null) => this.execute(q, params);
 	
 	
 	/**
@@ -242,61 +290,6 @@ class Connection
 	
 	
 	/**
-	 * Find relation by object
-	 */
-	async Relation findRelationByObject
-		(string table_name, Dict item, Dict params = null)
-	{
-		/* Build filter */
-		Vector filter = item.transition(
-			QueryFilter (var value, string key)
-			{
-				return new QueryFilter(key, "=", value);
-			}
-		);
-		
-		/* Find relation */
-		return await this.findRelationByFilter(table_name, filter, params);
-	}
-	
-	
-	/**
-	 * Find relation by object
-	 */
-	async Relation findRelationById
-		(string table_name, var id, Dict params = null)
-	{
-		/* Get primary keys */
-		Vector pk = Relation::getPrimaryKeys(table_name);
-		string pk_name = pk.get(0);
-	
-		/* Build filter */
-		Vector filter = [
-			new QueryFilter(pk_name, "=", id)
-		];
-		
-		/* Find relation */
-		return await this.findRelationByFilter(table_name, filter, params);
-	}
-	
-	
-	/**
-	 * Find relation by filter
-	 */
-	async Relation findRelationByFilter
-		(string table_name, Collection<QueryFilter> filter, Dict params = null)
-	{
-		Query q = new Query()
-			.select([table_name ~ ".*"])
-			.from(table_name)
-			.setFilter(filter)
-			.limit(1)
-		;
-		return await this.findRelation(q, params);
-	}
-	
-	
-	/**
 	 * Find relation by query
 	 */
 	async Relation findRelation(Query q, Dict params = null)
@@ -309,21 +302,6 @@ class Connection
 	
 	
 	/**
-	 * Find relations by filter
-	 */
-	async Vector<Relation> findRelationsByFilter
-		(string table_name, Collection<QueryFilter> filter, Dict params = null)
-	{
-		Query q = new Query()
-			.select([table_name ~ ".*"])
-			.from(table_name)
-			.setFilter(filter)
-		;
-		return await this.findRelations(q, params);
-	}
-	
-	
-	/**
 	 * Find relations by query
 	 */
 	async Relation findRelations(Query q, Dict params = null)
@@ -332,33 +310,5 @@ class Connection
 		QueryResult items = await c.fetchAll(q, params);
 		await c.close();
 		return items.toRelation();
-	}
-	
-	
-	/**
-	 * Find or create
-	 */
-	async Relation findOrCreate
-		(string table_name, Dict item, Dict params = null)
-	{
-		/* Build filter */
-		Vector filter = item.transition(
-			QueryFilter (var value, string key)
-			{
-				return new QueryFilter(key, "=", value);
-			}
-		);
-		
-		/* Find item */
-		Relation relation = await this.findRelationByFilter(table_name, filter, params);
-		if (relation) return relation;
-		
-		/* Create if not found */
-		relation = Relation::newInstance(table_name);
-		
-		/* Set new data */
-		relation.updateData(item);
-		
-		return relation;
 	}
 }

@@ -261,14 +261,13 @@ class rtl
 	 */
 	static function apply($f, $args=null)
 	{
-		if ($args == null) $args = [];
-		else if ($args instanceof \Runtime\Collection) $args = $args->_arr;
-		
 		if ($f instanceof \Runtime\Callback)
 		{
 			return $f->apply($args);
 		}
 		
+		if ($args == null) $args = [];
+		else if ($args instanceof \Runtime\Collection) $args = $args->_arr;
 		return call_user_func_array($f, $args);
 	}
 	/**

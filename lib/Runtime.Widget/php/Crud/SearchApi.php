@@ -19,16 +19,12 @@
 namespace Runtime\Widget\Crud;
 class SearchApi extends \Runtime\Web\BaseApi
 {
-	public $items;
-	public $page;
-	public $pages;
-	public $limit;
 	/**
-	 * Returns rules
+	 * Returns service
 	 */
-	function getRules()
+	function createService()
 	{
-		return \Runtime\Vector::from([]);
+		return null;
 	}
 	/**
 	 * Returns item fields
@@ -38,34 +34,74 @@ class SearchApi extends \Runtime\Web\BaseApi
 		return \Runtime\Vector::from([]);
 	}
 	/**
-	 * Search items
-	 */
-	function searchItems()
-	{
-	}
-	/**
 	 * Build result
 	 */
-	function buildResult()
+	function buildResult($service)
 	{
+		if (!$service->items)
+		{
+			return ;
+		}
+		/* Convert item */
+		$fields = $this->getItemFields();
+		$items = $service->items->map(function ($item) use (&$service,&$fields)
+		{
+			return $service->convertItem($item, $fields);
+		});
+		/* Setup result */
+		$this->result->data->set("items", $items);
+		$this->result->data->set("page", $service->page);
+		$this->result->data->set("pages", $service->pages);
+		$this->result->data->set("limit", $service->limit);
+		/* Success */
+		$this->success();
+	}
+	/**
+	 * Build item result
+	 */
+	function buildItemResult($service)
+	{
+		if (!$service->item)
+		{
+			return ;
+		}
+		/* Convert item */
+		$fields = $this->getItemFields();
+		$item = $service->convertItem($service->item, $fields);
+		$pk = $service->getPrimaryKey($service->item);
+		/* Setup result */
+		$this->result->data->set("pk", $pk);
+		$this->result->data->set("item", $item);
+		$this->result->data->set("fields", $service->rules->getFields());
+		/* Success */
+		$this->success();
+	}
+	/**
+	 * Action item
+	 */
+	function actionItem()
+	{
+		/* Create service */
+		$service = $this->createService();
+		/* Load item */
+		$service->searchItem($this->post_data->get("pk"));
+		/* Build result */
+		$this->buildError($service);
+		$this->buildItemResult($service);
 	}
 	/**
 	 * Action search
 	 */
 	function actionSearch()
 	{
-		$this->searchItems();
-		$this->buildResult();
+		/* Create service */
+		$service = $this->createService();
+		/* Search items */
+		$service->search($this->post_data);
+		/* Build result */
+		$this->buildResult($service);
 	}
 	/* ======================= Class Init Functions ======================= */
-	function _init()
-	{
-		parent::_init();
-		$this->items = null;
-		$this->page = 0;
-		$this->pages = 0;
-		$this->limit = 0;
-	}
 	static function getNamespace()
 	{
 		return "Runtime.Widget.Crud";

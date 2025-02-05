@@ -40,12 +40,20 @@ class Component extends \Runtime\BaseObject
 		
 		if ($widget)
 		{
-			$component = $widget->component;
-			
-			if ($component)
+			if ($widget instanceof \Runtime\Web\BaseModel)
 			{
-				/* Component '{component}' */
-				$this->_c($__v, $component, $this->_merge_attrs(["model" => $this->_model($widget)], $props));
+				$component = $widget->component;
+				
+				if ($component)
+				{
+					/* Component '{component}' */
+					$this->_c($__v, $component, $this->_merge_attrs(["model" => $this->_model($widget)], $props));
+				}
+			}
+			else
+			{
+				/* Component '{widget}' */
+				$this->_c($__v, $widget, ["model" => $this->_model(\Runtime\Vector::from([]))]);
 			}
 		}
 		
@@ -420,13 +428,13 @@ class Component extends \Runtime\BaseObject
  */
 	function _teleport($parent_elem, $attrs=null, $content=null)
 	{
-		$parent_elem->push("<!--teleport start--><!--teleport end-->");
-	$this->layout->teleports->push($content->join(""));
+		/*$parent_elem->push("<!--teleport start--><!--teleport end-->");
+	$this->layout->teleports->push($content->join(""));*/
 	}
 	/**
- * Returns styles
+ * Merge styles
  */
-	static function getStyles($class_name, $styles)
+	static function mergeStyles($class_name, $styles)
 	{
 		return $styles->map(function ($item) use (&$class_name)
 		{

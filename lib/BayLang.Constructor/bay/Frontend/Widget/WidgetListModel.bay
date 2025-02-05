@@ -65,7 +65,7 @@ class WidgetListModel extends BasePageModel
 				(
 					"Runtime.Widget.Table.TableStorage",
 					{
-						"api_name": "baylang.constructor.module::search",
+						"api_name": "baylang.constructor.module.search",
 					}
 				),
 				"widget_name": "modules",
@@ -110,7 +110,7 @@ class WidgetListModel extends BasePageModel
 				(
 					"Runtime.Widget.Table.TableStorage",
 					{
-						"api_name": "baylang.constructor.widget::search",
+						"api_name": "baylang.constructor.widget.search",
 					}
 				),
 				
@@ -127,7 +127,7 @@ class WidgetListModel extends BasePageModel
 						"storage": new Factory(
 							classof FormSubmitStorage,
 							{
-								"api_name": "baylang.constructor.widget::save"
+								"api_name": "baylang.constructor.widget.save"
 							}
 						),
 						"fields":
@@ -164,7 +164,7 @@ class WidgetListModel extends BasePageModel
 						"storage": new Factory(
 							classof FormDeleteStorage,
 							{
-								"api_name": "baylang.constructor.widget::save"
+								"api_name": "baylang.constructor.widget.save"
 							}
 						),
 					}

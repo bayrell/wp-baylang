@@ -33,7 +33,7 @@ class BackgroundImage extends StyleItem
 	/**
 	 * Build value
 	 */
-	string buildValue() => "url(${ static::assets(\"" ~ this.value ~ "\")})";
+	string buildValue() => "url(${ Component::assets(\"" ~ this.value ~ "\")})";
 	
 	
 	/**
@@ -57,7 +57,7 @@ class BackgroundImage extends StyleItem
 			reader.matchToken("(");
 			reader.matchToken("$");
 			reader.matchToken("{");
-			reader.matchToken("static");
+			reader.matchToken("Component");
 			reader.matchToken(":");
 			reader.matchToken(":");
 			reader.matchToken("assets");

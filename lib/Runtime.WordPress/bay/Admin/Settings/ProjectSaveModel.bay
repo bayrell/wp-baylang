@@ -1,0 +1,107 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Admin.Settings;
+
+use Runtime.Entity.Factory;
+use Runtime.Web.BasePageModel;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.Form.FormModel;
+use Runtime.Widget.Form.FormSaveStorage;
+use Runtime.Widget.Form.FormSubmitModel;
+use Runtime.WordPress.Admin.Settings.ProjectSave;
+use Runtime.WordPress.Admin.Settings.TabsModel;
+
+
+class ProjectSaveModel extends BasePageModel
+{
+	string component = classof ProjectSave;
+	string project_id = "";
+	TabsModel tabs = null;
+	FormModel edit_form = null;
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Project id */
+		this.project_id = this.layout.route.matches.get("project_id");
+		
+		/* Add tabs */
+		this.tabs = this.addWidget(classof TabsModel, {
+			"active": "settings"
+		});
+		
+		/* Edit form */
+		this.edit_form = this.addWidget(
+			classof FormSubmitModel,
+			{
+				"widget_name": "edit_form",
+				"primary_key": ["id"],
+				"pk": {
+					"id": this.project_id,
+				},
+				"submit_button": {
+					"text": "Save",
+					"styles": ["success", "large"],
+				},
+				"storage": new Factory(
+					classof FormSaveStorage,
+					{
+						"api_name": "admin.wordpress.project"
+					}
+				),
+				"fields":
+				[
+					{
+						"name": "name",
+						"label": "Name",
+						"component": "Runtime.Widget.Input",
+					},
+					{
+						"name": "description",
+						"label": "Description",
+						"component": "Runtime.Widget.TextArea",
+						"props":
+						{
+							"height": "150px",
+						},
+					},
+					{
+						"name": "reload_cache",
+						"label": "Reload cache",
+						"component": "Runtime.WordPress.Admin.Settings.ReloadCache",
+					},
+				],
+			}
+		);
+	}
+	
+	
+	/**
+	 * Build title
+	 */
+	void buildTitle(RenderContainer container)
+	{
+		this.layout.setPageTitle("Save project");
+	}
+}

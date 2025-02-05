@@ -26,36 +26,15 @@ use Runtime.Exceptions.RuntimeException;
 use Runtime.Web.BaseApi;
 use Runtime.Web.Annotations.ApiMethod;
 use BayLang.Constructor.Backend.ApiHook;
-use BayLang.Helper.Project;
+use BayLang.Constructor.Backend.Service.WidgetService;
 
 
 class AssetsApi extends BaseApi
 {
-	Project project;
-	
-	
 	/**
 	 * Returns api name
 	 */
 	static string getApiName() => "baylang.constructor.assets";
-	
-	
-	/**
-	 * Action before
-	 */
-	async void onActionBefore()
-	{
-		/* Get project */
-		string project_id = this.post_data.get("project_id");
-		this.project = await ApiHook::getProject(project_id);
-		if (not this.project)
-		{
-			throw new ApiError(new ItemNotFound(project_id, "Project"));
-		}
-		
-		/* Load project */
-		await this.project.load();
-	}
 	
 	
 	/**
@@ -64,6 +43,13 @@ class AssetsApi extends BaseApi
 	@ApiMethod
 	async void uploadFile()
 	{
+		WidgetService service = new WidgetService();
+		string project_id = this.post_data.get("project_id");
+		
+		/* Load project */
+		await service.loadProject(project_id);
+		
+		/* Get file */
 		File file = this.post_data.get("file");
 		if (not file)
 		{
@@ -71,9 +57,8 @@ class AssetsApi extends BaseApi
 		}
 		
 		/* Get path */
-		string assets_path = ApiHook::getAssetsPath(this.project);
 		string folder_name = this.post_data.get("path");
-		string folder_path = fs::join([assets_path, folder_name]);
+		string folder_path = fs::join([service.assets_path, folder_name]);
 		string file_upload_path = fs::join([folder_path, file.getName()]);
 		
 		/* Create folder */
@@ -102,9 +87,15 @@ class AssetsApi extends BaseApi
 	@ApiMethod
 	async void removeFile()
 	{
-		string assets_path = ApiHook::getAssetsPath(this.project);
+		WidgetService service = new WidgetService();
+		string project_id = this.post_data.get("project_id");
+		
+		/* Load project */
+		await service.loadProject(project_id);
+		
+		/* Get file path */
 		string file_name = this.post_data.get("file_name");
-		string file_path = fs::join([assets_path, "images", file_name]);
+		string file_path = fs::join([service.assets_path, "images", file_name]);
 		
 		/* Check file path */
 		if (not await fs::exists(file_path))
@@ -131,8 +122,15 @@ class AssetsApi extends BaseApi
 	@ApiMethod
 	async void getFiles()
 	{
-		string assets_path = ApiHook::getAssetsPath(this.project);
-		string assets_url_path = ApiHook::getAssetsUrlPath(this.project);
+		WidgetService service = new WidgetService();
+		string project_id = this.post_data.get("project_id");
+		
+		/* Load project */
+		await service.loadProject(project_id);
+		
+		/* Get assets path */
+		string assets_path = ApiHook::getAssetsPath(service.project);
+		string assets_url_path = ApiHook::getAssetsUrlPath(service.project);
 		string folder_name = this.post_data.get("path");
 		string folder_path = fs::join([assets_path, folder_name]);
 		

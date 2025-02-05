@@ -23,23 +23,26 @@ class Unique extends \Runtime\Widget\Crud\Rules\CrudRule
 	/**
 	 * Before save item
 	 */
-	function onSaveBefore($api)
+	function onSaveBefore($service)
 	{
-		$q = (new \Runtime\ORM\Query())->select()->from($api->getTableName())->addRawField("count(1) as c");
+		$connection = $service->getConnection();
+		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
+		$table_name = $service->getTableName();
+		$q = (new \Runtime\ORM\Query())->select()->from($table_name)->addRawField("count(1) as c");
 		/* Add filter */
 		if ($this->keys)
 		{
 			for ($i = 0; $i < $this->keys->count(); $i++)
 			{
 				$field_name = $this->keys->get($i);
-				$value = $api->item->get($field_name);
+				$value = $service->data->get($field_name);
 				$q->where($field_name, "=", $value);
 			}
 		}
 		/* Add primary key */
-		if ($api->item != null && !$api->item->isNew())
+		if ($service->item != null && !$service->item->isNew())
 		{
-			$filter = \Runtime\ORM\Relation::getPrimaryFilter($api->getTableName(), $api->item->toMap(), true);
+			$filter = $provider->getPrimaryFilter($service->getTableName(), $service->item->toMap(), true);
 			for ($i = 0; $i < $filter->count(); $i++)
 			{
 				$item = \Runtime\rtl::attr($filter, $i);
@@ -48,14 +51,13 @@ class Unique extends \Runtime\Widget\Crud\Rules\CrudRule
 			}
 		}
 		/* Execute query */
-		$connection = $api->getConnection();
 		$res = $connection->fetchVar($q, "c");
 		if ($res > 0)
 		{
 			for ($i = 0; $i < $this->keys->count(); $i++)
 			{
 				$name = $this->keys->get($i);
-				$api->fields->addFieldError($name, "Field must be unique");
+				$service->rules->addFieldError($name, "Field must be unique");
 			}
 		}
 	}

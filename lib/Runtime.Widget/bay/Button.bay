@@ -35,6 +35,9 @@
 .widget_button:active{
 	box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25);
 }
+.widget_button--bold{
+	font-weight: bold;
+}
 .widget_button--small{
 	padding: var(--widget-button-padding-small-y) var(--widget-button-padding-small-x);
 	line-height: 1.2em;
@@ -64,18 +67,21 @@
 
 
 <template>
-	%if (this.href == null)
+	%set Dict data = this.getData();
+	%if (data.get("href") == null)
 	{
 		<button type={{ this.type }}
 			class="widget_button"
-			class={{ static::getStyles("widget_button", this.styles) }}
+			class={{ static::mergeStyles("widget_button", data.get("styles")) }}
 			class={{ this.renderListClass() }}
 			class={{ this.class }}
+			@event:click={{ this.onClick }}
 			@ref="widget"
 		>
-			%if (this.content)
+			%set string content = data.get("content");
+			%if (content)
 			{
-				%render this.content;
+				%render content;
 			}
 			%else
 			{
@@ -85,18 +91,20 @@
 	}
 	%else
 	{
-		<a class="nolink" class={{ this.class }}
-			href={{ this.href }} target={{ this.target }}
+		<a class="nolink" class={{ this.class }} class="widget_button__link"
+			href={{ data.get("href") }} target={{ data.get("target") }}
 			@ref="widget"
 		>
 			<button type={{ this.type }}
 				class="widget_button"
-				class={{ static::getStyles("widget_button", this.styles) }}
+				class={{ static::mergeStyles("widget_button", data.get("styles")) }}
 				class={{ this.renderListClass() }}
+				@event:click={{ this.onClick }}
 			>
-				%if (not this.checkSlot("default"))
+				%set string content = data.get("content");
+				%if (content)
 				{
-					%render this.content;
+					%render content;
 				}
 				%else
 				{
@@ -116,6 +124,41 @@ props string target = "_self";
 props string content = "";
 props var href = null;
 props Collection<string> styles = [];
+
+
+/**
+ * Returns props
+ */
+Dict getData()
+{
+	if (this.model)
+	{
+		Dict props = this.model.getProps(this.data);
+		props.set("styles", this.styles.concat(this.model.styles).removeDuplicates());
+		return props;
+	}
+	return {
+		"content": this.content,
+		"href": this.href,
+		"styles": this.styles,
+		"target": this.target,
+	};
+}
+
+
+/**
+ * Button click
+ */
+void onClick(var e)
+{
+	e.stopPropagation();
+	Dict data = this.getData();
+	if (this.model and data.get("href") == null)
+	{
+		this.model.onClick(this.data);
+	}
+}
+
 
 </script>
 

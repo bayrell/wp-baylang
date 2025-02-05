@@ -21,12 +21,6 @@
 <use name="Runtime.Widget.RowButtons" component="true" />
 <use name="Runtime.Widget.Table.Table" component="true" />
 
-<style>
-.top_buttons{
-	margin-bottom: 10px;
-}
-</style>
-
 <template>
 	<div class="widgets_list">
 		<RowButtons class="top_buttons" @model={{ this.model.top_buttons }} />

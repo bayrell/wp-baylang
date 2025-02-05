@@ -94,9 +94,9 @@ class Chain extends \Runtime\Callback
 	/**
 	 * Apply chain
 	 */
-	function apply($value=null)
+	function apply($args=null)
 	{
-		$monada = new \Runtime\Monad($value);
+		$monada = new \Runtime\Monad($args->get(0));
 		if (!$this->is_async)
 		{
 			$this->applyChain($monada);
@@ -115,9 +115,9 @@ class Chain extends \Runtime\Callback
 	/**
 	 * Apply async chain
 	 */
-	function applyAsync($value)
+	function applyAsync($args=null)
 	{
-		$monada = new \Runtime\Monad($value);
+		$monada = new \Runtime\Monad($args->get(0));
 		$this->applyChainAsync($monada);
 		return $monada->value();
 	}

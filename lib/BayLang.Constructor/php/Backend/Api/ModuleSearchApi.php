@@ -25,39 +25,20 @@ class ModuleSearchApi extends \Runtime\Widget\Crud\SearchApi
 	 */
 	static function getApiName()
 	{
-		return "baylang.constructor.module::search";
+		return "baylang.constructor.module.search";
 	}
 	/**
 	 * Action search
 	 */
 	function actionSearch()
 	{
-		/* Get project */
-		$project_id = \Runtime\rtl::attr($this->post_data, ["foreign_key", "project_id"]);
-		$this->project = \BayLang\Constructor\Backend\ApiHook::getProject($project_id);
-		if (!$this->project)
-		{
-			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\ItemNotFound($project_id, "Project"));
-		}
-		/* Load modules */
-		$this->project->load();
+		$service = new \BayLang\Constructor\Backend\Service\ProjectService();
+		/* Load project */
+		$service->loadItem(\Runtime\Map::from(["id"=>\Runtime\rtl::attr($this->post_data, ["foreign_key", "project_id"])]));
 		/* Get modules */
-		$items = $this->project->modules->transition(function ($item)
-		{
-			return $item;
-		});
-		/* Sort modules */
-		$items = $items->sort(function ($a, $b)
-		{
-			return \Runtime\rs::compare($a->getName(), $b->getName());
-		});
-		/* Filter items */
-		$items = $items->map(function ($module)
-		{
-			return \Runtime\Map::from(["id"=>$module->getName()]);
-		});
+		$modules = $service->getModules();
 		/* Set result */
-		$this->success(\Runtime\Map::from(["data"=>\Runtime\Map::from(["items"=>$items,"page"=>0,"pages"=>1])]));
+		$this->success(\Runtime\Map::from(["data"=>\Runtime\Map::from(["items"=>$modules,"page"=>0,"pages"=>1])]));
 	}
 	/* ======================= Class Init Functions ======================= */
 	function _init()

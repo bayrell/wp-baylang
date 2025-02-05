@@ -16,7 +16,7 @@
  *  limitations under the License.
 -->
 
-<class name="Runtime.Widget.TextArea">
+<class name="Runtime.Widget.TextArea" extends="Runtime.Widget.Field">
 
 <use name="Runtime.Web.Messages.ValueChangeMessage" />
 

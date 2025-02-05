@@ -1,0 +1,87 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.WordPress.Theme.Components.Email.FormMessage">
+
+<template>
+	<div style="font-family:verdana;font-size:16px">
+		<table>
+			%if (this.invoice_id)
+			{
+				<tr>
+					<td style="padding: 2px; text-align: right">Number:</td>
+					<td style="padding: 2px; text-align: left">{{ this.invoice_id }}</td>
+				</tr>
+			}
+			%if (this.site_name)
+			{
+				<tr>
+					<td style="padding: 2px; text-align: right">Web site:</td>
+					<td style="padding: 2px; text-align: left">{{ this.site_name }}</td>
+				</tr>
+			}
+			%if (this.form_title)
+			{
+				<tr>
+					<td style="padding: 2px; text-align: right">Form title:</td>
+					<td style="padding: 2px; text-align: left">{{ this.form_title }}</td>
+				</tr>
+			}
+			%if (this.form_name and this.form_title != this.form_name)
+			{
+				<tr>
+					<td style="padding: 2px; text-align: right">Form name:</td>
+					<td style="padding: 2px; text-align: left">{{ this.form_name }}</td>
+				</tr>
+			}
+			%if (this.metrika_form_id)
+			{
+				<tr>
+					<td style="padding: 2px; text-align: right">Form id:</td>
+					<td style="padding: 2px; text-align: left">{{ this.metrika_form_id }}</td>
+				</tr>
+			}
+			%if (this.data)
+			{
+				%set Dict keys = this.data.keys();
+				%for (int i=0; i<keys.count(); i++)
+				{
+					%set string name = keys.get(i);
+					%set string value = this.data.get(name);
+					<tr>
+						<td style="padding: 2px; text-align: right">{{ name }}:</td>
+						<td style="padding: 2px; text-align: left">{{ value }}</td>
+					</tr>
+				}
+			}
+		</table>
+	</div>
+</template>
+
+<script>
+
+props string site_name = "";
+props string form_name = "";
+props string form_title = "";
+props string invoice_id = "";
+props string metrika_form_id = "";
+props Dict data = {};
+
+</script>
+
+</class>

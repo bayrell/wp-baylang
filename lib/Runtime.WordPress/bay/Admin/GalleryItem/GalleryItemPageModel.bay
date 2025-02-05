@@ -1,0 +1,239 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Admin.GalleryItem;
+
+use Runtime.Entity.Factory;
+use Runtime.Web.BasePageModel;
+use Runtime.Web.ModelFactory;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.ButtonModel;
+use Runtime.Widget.Input;
+use Runtime.Widget.Label;
+use Runtime.Widget.RowButtonsModel;
+use Runtime.Widget.TextArea;
+use Runtime.Widget.Form.FormModel;
+use Runtime.Widget.Table.SaveDialogModel;
+use Runtime.Widget.Table.TableDialogModel;
+use Runtime.Widget.Table.TableRowButtonsModel;
+use Runtime.WordPress.Admin.Components.Image;
+use Runtime.WordPress.Admin.GalleryItem.GalleryItemPage;
+
+
+class GalleryItemPageModel extends BasePageModel
+{
+	string component = classof GalleryItemPage;
+	FormModel form = null;
+	TableDialogModel table = null;
+	RowButtonsModel top_buttons = null;
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Add form */
+		this.form = this.addWidget(
+			classof FormModel,
+			{
+				"widget_name": "form",
+				"primary_key": ["id"],
+				
+				/* Set foreign key */
+				"foreign_key": {
+					"gallery_id": this.layout.request_query.get("id"),
+				},
+				
+				/* Storage */
+				"storage": new Factory
+				(
+					"Runtime.Widget.Form.FormSaveStorage",
+					{
+						"api_name": "admin.wordpress.gallery.item.save",
+					}
+				),
+				"fields":
+				[
+					{
+						"name": "name",
+						"label": "Name",
+						"component": classof Input,
+					},
+					{
+						"name": "image",
+						"label": "Image",
+						"component": classof Image,
+						"props":
+						{
+							"upload": true,
+						},
+					},
+					{
+						"name": "pos",
+						"label": "Position",
+						"default": "100",
+						"component": classof Input,
+					},
+				],
+			}
+		);
+		
+		/* Add table */
+		this.table = this.addWidget(
+			classof TableDialogModel,
+			{
+				"widget_name": "table",
+				"styles": ["border"],
+				
+				/* Table title */
+				"get_title": void (Dict params)
+				{
+					string action = params.get("action");
+					Dict item = params.get("item");
+					if (action == "add")
+					{
+						return "Add item";
+					}
+					if (action == "edit")
+					{
+						return "Edit item";
+					}
+					if (action == "delete")
+					{
+						return "Delete item";
+					}
+					return "";
+				},
+				
+				/* Table storage */
+				"storage": new Factory
+				(
+					"Runtime.Widget.Table.TableStorage",
+					{
+						"api_name": "admin.wordpress.gallery.item.search",
+					}
+				),
+				
+				/* Set foreign key */
+				"foreign_key": {
+					"gallery_id": this.layout.request_query.get("id"),
+				},
+				
+				/* Set page */
+				"page": this.layout.request_query.get("p", 1) - 1,
+				"pagination_props":
+				{
+					"name": "p",
+				},
+				
+				/* Form */
+				"add_form": this.form,
+				"edit_form": this.form,
+				
+				/* Delete form */
+				"delete_form": new ModelFactory(
+					classof FormModel,
+					{
+						"widget_name": "delete_form",
+						"primary_key": ["id"],
+						"foreign_key": {
+							"gallery_id": this.layout.request_query.get("id"),
+						},
+						"storage": new Factory(
+							"Runtime.Widget.Form.FormDeleteStorage",
+							{
+								"api_name": "admin.wordpress.gallery.item.save"
+							}
+						),
+					}
+				),
+				
+				/* Table fields */
+				"fields":
+				[
+					{
+						"name": "row_number",
+					},
+					{
+						"name": "name",
+						"label": "Name",
+						"component": classof Label,
+					},
+					{
+						"name": "image",
+						"label": "Image",
+						"component": classof Image,
+						"props":
+						{
+							"center": true,
+						},
+					},
+					{
+						"name": "pos",
+						"label": "Position",
+						"component": classof Label,
+					},
+					{
+						"name": "row_buttons",
+						"model": new ModelFactory(
+							"Runtime.Widget.Table.TableRowButtonsModel"
+						),
+					},
+				],
+			}
+		);
+		
+		/* Add top buttons */
+		this.top_buttons = this.addWidget(
+			classof RowButtonsModel,
+			{
+				"widget_name": "top_buttons",
+				"styles": ["top_buttons", "no_gap"],
+				"buttons":
+				[
+					new ModelFactory
+					(
+						"Runtime.Widget.BackButtonModel",
+						{
+							"href": this.layout.url("admin:gallery:index"),
+						}
+					),
+					new ModelFactory
+					(
+						"Runtime.Widget.Table.AddButtonModel",
+						{
+							"table": this.table,
+						}
+					)
+				],
+			}
+		);
+	}
+	
+	
+	/**
+	 * Build title
+	 */
+	void buildTitle(RenderContainer container)
+	{
+		this.layout.setPageTitle("Gallery items");
+	}
+}

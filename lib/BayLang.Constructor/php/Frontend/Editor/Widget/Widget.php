@@ -144,7 +144,7 @@ class Widget extends \Runtime\BaseObject
 		/* Setup widget settings */
 		if ($this->settings && \Runtime\rtl::exists($this->settings->setup))
 		{
-			$this->settings->setup($this);
+			$this->settings->setup(new \Runtime\rtl(), $this);
 		}
 	}
 	/**

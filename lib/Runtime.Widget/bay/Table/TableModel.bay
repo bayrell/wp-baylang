@@ -47,6 +47,7 @@ class TableModel extends BaseModel
 		"name": "page",
 	};
 	TableStorageInterface storage = null;
+	RowButtonsModel top_buttons = null;
 	int limit = 10;
 	int page = 0;
 	int pages = 0;
@@ -147,6 +148,20 @@ class TableModel extends BaseModel
 			}
 		);
 		
+		/* Top buttons*/
+		if (params.has("top_buttons"))
+		{
+			Collection top_buttons = params.get("top_buttons");
+			this.top_buttons = this.addWidget(
+				classof RowButtonsModel,
+				{
+					"widget_name": "top_buttons",
+					"styles": ["@top_buttons"],
+					"buttons": top_buttons instanceof Collection ? top_buttons : [],
+				}
+			);
+		}
+		
 		/* Add layout */
 		this.layout.addComponent(this.pagination_class_name);
 	}
@@ -195,12 +210,6 @@ class TableModel extends BaseModel
 			bool (Map field) use (field_name) => field.get("name") != field_name
 		);
 	}
-	
-	
-	/**
-	 * Returns items
-	 */
-	Collection<Dict> getItems() => this.items;
 	
 	
 	/**

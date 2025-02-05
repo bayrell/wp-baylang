@@ -27,7 +27,7 @@ use Runtime.Widget.Form.FormStorageInterface;
 
 class FormSubmitStorage extends FormSaveStorage
 {
-	string action = "actionSave";
+	string method_name = "actionSave";
 	
 
 	/**
@@ -35,7 +35,7 @@ class FormSubmitStorage extends FormSaveStorage
 	 */
 	string getMethodName(string name)
 	{
-		if (name == "submit") return this.action;
+		if (name == "submit") return this.method_name;
 		return "";
 	}
 

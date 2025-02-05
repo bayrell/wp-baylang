@@ -21,6 +21,7 @@ namespace Runtime.Widget.WidgetSettings.Settings;
 use Runtime.BaseObject;
 use Runtime.Web.RenderContainer;
 use BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent;
+use BayLang.Constructor.Frontend.Editor.Parameters.ParameterContent;
 use BayLang.Constructor.WidgetPage.ParameterFactory;
 use BayLang.Constructor.WidgetPage.WidgetSettingsInterface;
 
@@ -94,16 +95,7 @@ class ButtonSettings extends BaseObject implements WidgetSettingsInterface
 	 */
 	Collection<ParameterFactory> getParams() =>
 	[
-		new ParameterFactory
-		(
-			classof ParameterComponent,
-			{
-				"name": "content",
-				"label": "Content",
-				"component": "Runtime.Widget.Input",
-				"default": "",
-			}
-		),
+		new ParameterFactory(classof ParameterContent),
 		new ParameterFactory
 		(
 			classof ParameterComponent,
@@ -138,5 +130,11 @@ class ButtonSettings extends BaseObject implements WidgetSettingsInterface
 	 */
 	Dict<fn> getDefaultTemplate() =>
 	{
+		"default": Dict () =>
+		{
+			"content": rs::join("\n", [
+				"<template>Click</template>"
+			])
+		},
 	};
 }

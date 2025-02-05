@@ -59,7 +59,7 @@ class Header extends \Runtime\Widget\WidgetSettings\Settings\ContainerSettings i
 	 */
 	function getGroupName()
 	{
-		return "basic";
+		return "html";
 	}
 	/**
 	 * Returns true if is widget settings

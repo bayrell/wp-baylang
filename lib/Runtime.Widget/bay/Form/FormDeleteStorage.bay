@@ -26,6 +26,9 @@ use Runtime.Widget.Form.FormStorageInterface;
 
 class FormDeleteStorage extends FormSaveStorage
 {
+	string method_name = "actionDelete";
+	
+	
 	/**
 	 * Submit form
 	 */
@@ -38,7 +41,7 @@ class FormDeleteStorage extends FormSaveStorage
 		post_data = this.form.mergePostData(post_data, "submit");
 		ApiResult res = await this.form.layout.callApi({
 			"api_name": this.getApiName(),
-			"method_name": "actionDelete",
+			"method_name": this.method_name,
 			"data": post_data
 		});
 		return res;

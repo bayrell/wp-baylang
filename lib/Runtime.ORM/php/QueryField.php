@@ -56,7 +56,7 @@ class QueryField extends \Runtime\BaseObject
 		$res1 = \Runtime\rs::split(" as ", $s);
 		$res2 = \Runtime\rs::split(".", \Runtime\rtl::attr($res1, 0));
 		$alias_name = ($res1->count() > 1) ? ($res1->get(1)) : ("");
-		$field_name = ($res2->count() == 0) ? ($res2->get(0)) : ($res2->get(1));
+		$field_name = ($res2->count() == 1) ? ($res2->get(0)) : ($res2->get(1));
 		$table_name = ($res2->count() > 1) ? ($res2->get(0)) : ("");
 		return new \Runtime\ORM\QueryField($table_name, $field_name, $alias_name);
 	}

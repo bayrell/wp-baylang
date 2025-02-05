@@ -49,7 +49,7 @@
 <template>
 	<div class="form_row"
 		class={{ this.class }}
-		class={{ static::getStyles("form_row", this.styles) }}
+		class={{ static::mergeStyles("form_row", this.styles) }}
 	>
 		%if (this.checkSlot("label"))
 		{

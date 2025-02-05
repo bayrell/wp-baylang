@@ -16,7 +16,7 @@
  *  limitations under the License.
 -->
 
-<class name="Runtime.Widget.TextEditable">
+<class name="Runtime.Widget.TextEditable" extends="Runtime.Widget.Field">
 
 <use name="Runtime.Reference" />
 <use name="Runtime.Web.Messages.ValueChangeMessage" />

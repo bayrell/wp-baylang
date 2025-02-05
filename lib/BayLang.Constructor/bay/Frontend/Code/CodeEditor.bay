@@ -18,7 +18,7 @@
 
 <class name="BayLang.Constructor.Frontend.Code.CodeEditor">
 
-<use name="BayLang.Constructor.Frontend.Code.TextEditable" component="true" />
+<use name="Runtime.Widget.Editor.Editor" component="true" />
 <use name="BayLang.Constructor.Frontend.Code.TreeItem" />
 
 
@@ -112,9 +112,15 @@
 .code_editor__file{
 	overflow-y: auto;
 	height: 100%;
-	%(TextEditable)widget_text_editable{
+	%(Editor)widget_text{
+		height: 100%;
 		border-width: 0px;
-		padding: 5px;
+	}
+	%(Editor)widget_text__lines{
+		width: 30px;
+	}
+	%(Editor)widget_text__editable{
+		width: calc(100% - 30px);
 	}
 }
 .code_editor__file.hide{
@@ -228,7 +234,7 @@
 			<div class="code_editor__file" @key={{ item.file_path }}
 				class={{ item == this.model.selected_tab ? "" : "hide" }}
 			>
-				<TextEditable
+				<Editor
 					class="wrap"
 					value={{ item.content }}
 					reference={{ item.code_editor }}

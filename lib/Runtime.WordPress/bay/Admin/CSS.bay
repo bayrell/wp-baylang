@@ -34,6 +34,9 @@
 #core_ui_root{
 	margin-top: 20px;
 }
+%(RowButtons)top_buttons{
+	margin-bottom: 10px;
+}
 %(Table)widget_table{
 	%(RowButtons)widget_table__top_buttons{
 		margin-bottom: calc(var(--widget-space) * 2);

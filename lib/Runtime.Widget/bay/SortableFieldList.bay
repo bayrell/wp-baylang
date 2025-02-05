@@ -1,0 +1,158 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+
+<class name="Runtime.Widget.SortableFieldList"
+	extends="Runtime.Widget.SortableList"
+>
+
+<use name="Runtime.Widget.Input" component="true" />
+<use name="Runtime.Widget.Select" component="true" />
+
+
+<style>
+.widget_sortable_list__item{
+	align-items: stretch;
+	margin: 10px 0px;
+}
+.widget_sortable_list__item_element{
+	display: flex;
+}
+.widget_sortable_list__item_element--drag{
+	align-items: center;
+}
+.widget_sortable_list__item_element--remove{
+	align-items: start;
+}
+.widget_sortable_list__item_value{
+	padding: 5px;
+	%(Input)widget_input, %(Select)widget_select{
+		border-bottom: 1px var(--widget-color-border) solid;
+		box-shadow: none;
+		outline: none;
+	}
+}
+.widget_sortable_list__item_value_row{
+	display: flex;
+	align-items: center;
+	margin-bottom: 1px;
+}
+.widget_sortable_list__item_value_label{
+	width: 80px;
+}
+.widget_sortable_list__item_value_item{
+	flex: 1;
+}
+</style>
+
+
+<template name="renderValueItem" args="Dict field, int pos, Dict item">
+	<div class="widget_sortable_list__item_value_row">
+		<div class="widget_sortable_list__item_value_label">{{ field.get("label") }}</div>
+		<div class="widget_sortable_list__item_value_item">
+			%if (item)
+			{
+				%set string field_name = field.get("name");
+				%set string field_component = field.get("component");
+				%set Dict field_props = field.get("props");
+				<{field_component}
+					name={{ field_name }}
+					value={{ item.get(field_name) }}
+					@event:valueChange={{
+						void (var message) use (field_name, pos, item)
+						{
+							item.set(field_name, message.value);
+							this.onValueChange();
+						}
+					}}
+					...field_props
+				/>
+			}
+		</div>
+	</div>
+</template>
+
+
+<template name="renderValue" args="int pos, Dict item">
+	%for (int i=0; i<this.fields.count(); i++)
+	{
+		%set Dict field = this.fields.get(i);
+		%render this.renderValueItem(field, pos, item);
+	}
+</template>
+
+
+<template name="renderItem" args="int pos">
+	%set var item = this.getItems().get(pos);
+	<div class="widget_sortable_list__item"
+		data-pos={{ pos }}
+		@key={{ item }}
+	>
+		<div class="widget_sortable_list__item_element widget_sortable_list__item_element--drag">
+			<div class="widget_sortable_list__item_drag"
+				@event:mousedown={{
+					void (var e) use (item){ this.onMouseDown(e, item); }
+				}}
+			>@raw{{ "&#9776;" }}</div>
+		</div>
+		<div class="widget_sortable_list__item_value">
+			%render this.renderValue(pos, item);
+		</div>
+		<div class="widget_sortable_list__item_element widget_sortable_list__item_element--remove">
+			<div class="widget_sortable_list__item_remove"
+				@event:click={{
+					void (var e) use (pos){ this.removeItem(pos); }
+				}}
+			>@raw{{ "&#10005;" }}</div>
+		</div>
+	</div>
+</template>
+
+
+<script>
+
+Collection fields = [];
+
+
+/**
+ * Create new item
+ */
+var createItem() => {};
+
+
+/**
+ * Returns drag & drop element
+ */
+void getDragElement(var elem)
+{
+	if (elem.classList.contains("widget_sortable_list__item")) return elem;
+	if (elem.parentElement.classList.contains("widget_sortable_list__item"))
+	{
+		return elem.parentElement;
+	}
+	if (elem.parentElement.parentElement.classList.contains("widget_sortable_list__item"))
+	{
+		return elem.parentElement.parentElement;
+	}
+	return null;
+}
+
+
+</script>
+
+</class>

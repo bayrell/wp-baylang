@@ -298,6 +298,12 @@ class SelectedItem extends \Runtime\Web\Component
 		$this->_t($__v1, $this->renderInput($selector, "height", ""));
 		
 		/* Text */
+		$this->_t($__v1, $this->renderInput($selector, "max-width", ""));
+		
+		/* Text */
+		$this->_t($__v1, $this->renderInput($selector, "max-height", ""));
+		
+		/* Text */
 		$this->_t($__v1, $this->renderInput($selector, "min-width", ""));
 		
 		/* Text */

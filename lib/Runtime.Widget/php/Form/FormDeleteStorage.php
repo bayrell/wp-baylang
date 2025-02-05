@@ -19,6 +19,7 @@
 namespace Runtime\Widget\Form;
 class FormDeleteStorage extends \Runtime\Widget\Form\FormSaveStorage
 {
+	public $method_name;
 	/**
 	 * Submit form
 	 */
@@ -26,10 +27,15 @@ class FormDeleteStorage extends \Runtime\Widget\Form\FormSaveStorage
 	{
 		$post_data = \Runtime\Map::from(["pk"=>$this->form->pk]);
 		$post_data = $this->form->mergePostData($post_data, "submit");
-		$res = $this->form->layout->callApi(\Runtime\Map::from(["api_name"=>$this->getApiName(),"method_name"=>"actionDelete","data"=>$post_data]));
+		$res = $this->form->layout->callApi(\Runtime\Map::from(["api_name"=>$this->getApiName(),"method_name"=>$this->method_name,"data"=>$post_data]));
 		return $res;
 	}
 	/* ======================= Class Init Functions ======================= */
+	function _init()
+	{
+		parent::_init();
+		$this->method_name = "actionDelete";
+	}
 	static function getNamespace()
 	{
 		return "Runtime.Widget.Form";

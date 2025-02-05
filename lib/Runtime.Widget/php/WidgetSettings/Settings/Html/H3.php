@@ -52,7 +52,7 @@ class H3 extends \Runtime\Widget\WidgetSettings\Settings\Html\Header
 	 */
 	function getGroupName()
 	{
-		return "basic";
+		return "html";
 	}
 	/**
 	 * Returns true if is widget settings

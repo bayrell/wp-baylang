@@ -74,17 +74,39 @@ class MailLogPageModel extends BasePageModel
 					{
 						"name": "gmtime_send",
 						"label": "Send time",
+						"calculate": lib::pipe()
+							.add(lib::attr(["item", "gmtime_send"]))
+							.add(lib::normalizeDateTime())
+						,
 						"component": classof Label,
+						"show": bool (Dict data)
+						{
+							return data["item", "gmtime_send"] != null;
+						},
 					},
 					{
 						"name": "status",
 						"label": "Status",
-						"component": classof Label,
+						"component": classof SelectLabel,
+						"props":
+						{
+							"options":
+							[
+								{"key": -1, "value": "Error"},
+								{"key": 0, "value": "Planned"},
+								{"key": 1, "value": "Delivered"},
+								{"key": 2, "value": "Process"},
+							],
+						},
 					},
 					{
 						"name": "send_email_error",
 						"label": "Error",
 						"component": classof Label,
+						"show": bool (Dict data)
+						{
+							return data["item", "send_email_error"] != "";
+						},
 					},
 					{
 						"name": "dest",
@@ -103,17 +125,7 @@ class MailLogPageModel extends BasePageModel
 						"props": {
 							"readonly": true,
 						}
-					},
-					{
-						"name": "worker",
-						"label": "Worker",
-						"component": classof Label,
-					},
-					{
-						"name": "plan",
-						"label": "Plan",
-						"component": classof Label,
-					},
+					}
 				],
 			}
 		);
@@ -142,7 +154,7 @@ class MailLogPageModel extends BasePageModel
 				(
 					"Runtime.Widget.Table.TableStorage",
 					{
-						"api_name": "admin.wordpress.mail.log::search",
+						"api_name": "admin.wordpress.mail.log.search",
 					}
 				),
 				
@@ -179,7 +191,10 @@ class MailLogPageModel extends BasePageModel
 						"component": classof SelectLabel,
 						"props": {
 							"options": [
-								{"key": -1, "value": "Cancel"},
+								{"key": -1, "value": "Error"},
+								{"key": 0, "value": "Planned"},
+								{"key": 1, "value": "Delivered"},
+								{"key": 2, "value": "Process"},
 							],
 						},
 					},

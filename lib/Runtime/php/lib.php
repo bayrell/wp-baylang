@@ -268,6 +268,16 @@ class lib
 		};
 	}
 	/**
+	 * Comparator
+	 */
+	static function comparator($compare, $f=null)
+	{
+		return function ($a, $b) use (&$compare,&$f)
+		{
+			return $compare($f($a), $f($b));
+		};
+	}
+	/**
 	 * Sort asc
 	 */
 	static function sortAsc($a, $b)

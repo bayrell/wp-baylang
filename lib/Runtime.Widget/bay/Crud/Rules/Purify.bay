@@ -19,13 +19,11 @@
 namespace Runtime.Widget.Crud.Rules;
 
 use Runtime.re;
-use Runtime.BaseStruct;
-use Runtime.Widget.Crud.SaveApi;
-use Runtime.Widget.Crud.FieldResult;
-use Runtime.Widget.Crud.Rules.CrudRule;
+use Runtime.Widget.Crud.RulesManager;
+use Runtime.Widget.Crud.Rules.BaseRule;
 
 
-struct Purify extends CrudRule
+struct Purify extends BaseRule
 {
 	string name = "";
 	
@@ -44,11 +42,11 @@ struct Purify extends CrudRule
 	/**
 	 * Validate item
 	 */
-	async Dict validateItem(SaveApi api, Dict data)
+	async bool validate(RulesManager rules, Dict data)
 	{
 		var value = data.get(this.name);
 		value = this.purify(value);
 		data.set(this.name, value);
-		return data;
+		return true;
 	}
 }

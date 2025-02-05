@@ -23,6 +23,7 @@ use Runtime.Callback;
 use Runtime.Serializer;
 use Runtime.Web.ApiResult;
 use Runtime.Web.BaseModel;
+use Runtime.Web.Messages.ClickMessage;
 use Runtime.Widget.Button;
 use Runtime.Widget.ButtonModel;
 use Runtime.Widget.Dialog.ConfirmDialogModel;
@@ -61,5 +62,16 @@ class SaveDialogModel extends ConfirmDialogModel
 	void initWidget(Dict params)
 	{
 		parent(params);
+	}
+	
+	
+	/**
+	 * Add close button click
+	 */
+	void onCloseButtonClick(ClickMessage message)
+	{
+		parent();
+		if (this.action == "add" and this.add_form) this.add_form.setItem(null);
+		if (this.action == "edit" and this.edit_form) this.edit_form.setItem(null);
 	}
 }

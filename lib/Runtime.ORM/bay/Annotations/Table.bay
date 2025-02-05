@@ -18,11 +18,15 @@
 
 namespace Runtime.ORM.Annotations;
 
-use Runtime.BaseStruct;
+use Runtime.Entity.Entity;
 
 
-struct Table extends BaseStruct
+struct Table extends Entity
 {
-    string name = "";
-    string model_name = "";
+	void constructor(string name)
+	{
+		parent({
+			"name": name,
+		});
+	}
 }

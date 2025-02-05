@@ -48,6 +48,75 @@ class EditorProvider extends BaseProvider
 	
 	
 	/**
+	 * Add widget
+	 */
+	void addWidget(WidgetSettingsInterface widget_settings)
+	{
+		/* Add widget */
+		this.widgets.push(widget_settings);
+		
+		/* Add settings */
+		this.settings.set(widget_settings::getClassName(), widget_settings);
+		
+		/* Add widget by model name */
+		if (widget_settings.isModel())
+		{
+			this.settings.set(widget_settings.getModelName(), widget_settings);
+		}
+		
+		/* Add widget by component name */
+		else
+		{
+			this.settings.set(widget_settings.getComponentName(), widget_settings);
+		}
+	}
+	
+	
+	/**
+	 * Remove widget
+	 */
+	void removeWidget(WidgetSettingsInterface widget_settings)
+	{
+		if (not widget_settings) return;
+		
+		/* Find widget */
+		int pos = this.widgets.indexOf(widget_settings);
+		if (pos >= 0)
+		{
+			this.widgets.remove(pos);
+		}
+		
+		/* Remove by class name */
+		if (this.settings.has(widget_settings::getClassName()))
+		{
+			this.settings.remove(widget_settings::getClassName());
+		}
+		
+		/* Remove by model name */
+		if (this.settings.has(widget_settings.getModelName()))
+		{
+			this.settings.remove(widget_settings.getModelName());
+		}
+		
+		/* Remove by component name */
+		if (this.settings.has(widget_settings.getComponentName()))
+		{
+			this.settings.remove(widget_settings.getComponentName());
+		}
+	}
+	
+	
+	/**
+	 * Remove widget by name
+	 */
+	void remove(string widget_name)
+	{
+		WidgetSettingsInterface widget_settings = this.get(widget_name);
+		this.removeWidget(widget_settings);
+	}
+	
+	
+	/**
 	 * Init provider
 	 */
 	async void init()
@@ -85,22 +154,7 @@ class EditorProvider extends BaseProvider
 				WidgetSettingsInterface widget_settings = widgets.get(j);
 				
 				/* Add widget */
-				this.widgets.push(widget_settings);
-				
-				/* Add settings */
-				this.settings.set(widget_settings::getClassName(), widget_settings);
-				
-				/* Add widget by model name */
-				if (widget_settings.isModel())
-				{
-					this.settings.set(widget_settings.getModelName(), widget_settings);
-				}
-				
-				/* Add widget by component name */
-				else
-				{
-					this.settings.set(widget_settings.getComponentName(), widget_settings);
-				}
+				this.addWidget(widget_settings);
 			}
 		}
 		

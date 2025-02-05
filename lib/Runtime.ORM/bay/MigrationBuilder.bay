@@ -1,0 +1,346 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.ORM;
+
+use Runtime.lib;
+use Runtime.BaseObject;
+use Runtime.DateTime;
+use Runtime.ORM.Annotations.Migration;
+use Runtime.ORM.Factory.CursorFactory;
+use Runtime.ORM.BaseMigration;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Cursor;
+use Runtime.ORM.Provider as DatabaseProvider;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryLog;
+
+
+class MigrationBuilder extends BaseObject
+{
+	Connection connection = null;
+	Connection connection_query = null;
+	Collection<BaseMigration> migrations = null;
+	string connection_name = "";
+	bool execute = false;
+	Collection<Dict> history = [];
+	Dict history_cache = {};
+	
+	
+	/**
+	 * Constructor
+	 */
+	void constructor(string connection_name = "default")
+	{
+		parent();
+		this.connection_name = connection_name;
+	}
+	
+	
+	/**
+	 * Returns query log
+	 */
+	QueryLog getQueryLog() => this.connection_query.getQueryLog();
+	
+	
+	/**
+	 * Returns SQL query
+	 */
+	Collection<string> getSQL()
+	{
+		Collection<string> items = this.getQueryLog().map(lib::attr("sql"));
+		Collection<string> result = [];
+		
+		for (int i=0; i<items.count(); i++)
+		{
+			string item = items.get(i);
+			bool is_comment = rs::substr(item, 0, 2) == "--";
+			if (is_comment)
+			{
+				if (i != 0) result.push("");
+			}
+			else
+			{
+				item ~= ";";
+			}
+			result.push(item);
+		}
+		
+		return result;
+	}
+	
+	
+	/**
+	 * Init migrations
+	 */
+	async void init()
+	{
+		/* Get database provider */
+		DatabaseProvider database = @.provider(classof DatabaseProvider);
+		
+		/* Fork connection */
+		this.connection = database.getConnection(this.connection_name);
+		this.connection_query = this.connection.fork();
+		
+		/* Set query log */
+		this.connection_query.setQueryLog(new QueryLog);
+		
+		/* Execute migration */
+		if (not this.execute)
+		{
+			this.connection_query.setCursorFactory(new CursorFactory(classof Cursor));
+		}
+		
+		/* Get migrations */
+		this.migrations = this.getMigrations();
+		
+		/* Create table */
+		await this.createTable();
+		
+		/* Load history */
+		await this.loadHistory();
+	}
+	
+	
+	/**
+	 * Create migrations table
+	 */
+	async void createTable()
+	{
+		Query q = (new Query())
+			.select()
+			.from("`information_schema`.`tables`", "t")
+			.addRawField("count(*) as c")
+			.where("table_schema", "=", this.connection.database)
+			.where("table_name", "=", this.connection.getTableName("database_migrations"))
+		;
+		
+		Cursor cursor = this.connection.execute(q);
+		int count = await cursor.fetchVar('c');
+		await cursor.close();
+		
+		if (count == 1) return;
+		
+		/* Create table */
+		Collection<string> sql = [
+			"CREATE TABLE `" ~ this.connection.getTableName("database_migrations") ~ "` (",
+			"  `id` bigint(20) NOT NULL AUTO_INCREMENT,",
+			"  `name` varchar(255) NOT NULL,",
+			"  `gmtime_add` datetime NOT NULL,",
+			"  PRIMARY KEY (`id`),"
+			"  UNIQUE KEY name (`name`)"
+			") ENGINE=InnoDB",
+		];
+		await this.connection.executeSQL(rs::join("\n", sql));
+	}
+	
+	
+	/**
+	 * Load history
+	 */
+	async void loadHistory()
+	{
+		Query q = (new Query())
+			.select(["id", "name", "gmtime_add"])
+			.from("database_migrations")
+			.orderBy("id", "asc")
+		;
+		
+		this.history = this.connection.fetchAll(q).toDict();
+		for (int i=0; i<this.history.count(); i++)
+		{
+			Dict item = this.history.get(i);
+			this.history_cache.set(item.get("name"), item);
+		}
+	}
+	
+	
+	/**
+	 * Returns migrations
+	 */
+	Collection<BaseMigration> getMigrations()
+	{
+		Collection<Migration> items = @.getEntities(classof Migration);
+		items = items.map(
+			BaseMigration (Migration annotation) => rtl::newInstance(annotation.name)
+		);
+		
+		/* Extends items */
+		for (int i=0; i<items.count(); i++)
+		{
+			BaseMigration item = items.get(i);
+			items.appendItems(item.buildMigrations());
+		}
+		
+		/* Make index */
+		Dict<BaseMigration> index = {};
+		for (int i=0; i<items.count(); i++)
+		{
+			BaseMigration item = items.get(i);
+			index.set(item.getName(), item);
+			
+			/* Set connection */
+			item.setConnection(this.connection_query);
+		}
+		
+		/* Add items */
+		Collection migrations = [];
+		Dict cache = {};
+		
+		fn addItem = null;
+		addItem = void (BaseMigration item)
+			use (migrations, cache, index, addItem)
+		{
+			if (item == null) return;
+			if (cache.has(item.getName())) return;
+			
+			/* Add item to cache */
+			cache.set(item.getName(), true);
+			
+			/* Get required migrations */
+			Collection<string> required = item.getRequired();
+			required = required.map
+			(
+				BaseMigration (string name) use (index) => index.get(name)
+			);
+			required = required.filter(lib::equalNot(null));
+			
+			/* Add required migrations */
+			for (int i=0; i<required.count(); i++)
+			{
+				addItem(required.get(i));
+			}
+			
+			/* Add item */
+			migrations.push(item);
+		};
+		
+		for (int i=0; i<items.count(); i++)
+		{
+			addItem(items.get(i));
+		}
+		
+		return migrations;
+	}
+	
+	
+	/**
+	 * Check allow migration
+	 */
+	bool allowMigration(BaseMigration migration, string kind)
+	{
+		string name = migration.getName();
+		
+		if (kind == "up")
+		{
+			if (this.history_cache.has(name)) return false;
+			return true;
+		}
+		else if (kind == "down")
+		{
+			if (this.history_cache.has(name)) return true;
+		}
+		
+		return false;
+	}
+	
+	
+	/**
+	 * Add migration to dabase
+	 */
+	async void addMigration(BaseMigration migration)
+	{
+		string name = migration.getName();
+		
+		/* Insert record */
+		await this.connection.insert(
+			"database_migrations",
+			{
+				"name": name,
+				"gmtime_add": DateTime::now().setOffset(0).getDateTimeString(),
+			}
+		);
+	}
+	
+	
+	/**
+	 * Remove migration
+	 */
+	async void removeMigration(BaseMigration migration)
+	{
+		string name = migration.getName();
+		
+		/* Remove record */
+		Query q = (new Query)
+			.delete("database_migrations")
+			.where("name", "=", name)
+		;
+		Cursor c = await this.connection.execute(q);
+		await c.close();
+	}
+	
+	
+	/**
+	 * Up migrations
+	 */
+	async void up()
+	{
+		for (int i=0; i<this.migrations.count(); i++)
+		{
+			BaseMigration migration = this.migrations.get(i);
+			
+			/* Check allow migration */
+			int allow = this.allowMigration(migration, "up");
+			if (allow == 0) continue;
+			
+			/* Up migration */
+			if (migration.up) await rtl::apply(migration.up);
+			
+			/* Add migration */
+			if (this.execute)
+			{
+				await this.addMigration(migration);
+			}
+		}
+	}
+	
+	
+	/**
+	 * Down migrations
+	 */
+	async void down()
+	{
+		for (int i=this.migrations.count() - 1; i>=0; i--)
+		{
+			BaseMigration migration = this.migrations.get(i);
+			
+			/* Check allow migration */
+			int allow = this.allowMigration(migration, "down");
+			if (allow == 0) continue;
+			
+			/* Down */
+			if (migration.down) await rtl::apply(migration.down);
+			
+			/* Remove migration */
+			if (this.execute)
+			{
+				await this.removeMigration(migration);
+			}
+		}
+	}
+}

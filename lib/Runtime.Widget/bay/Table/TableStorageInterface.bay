@@ -24,6 +24,12 @@ use Runtime.Widget.Table.TableModel;
 
 interface TableStorageInterface
 {
+	/**
+	 * Returns items
+	 */
+	Collection getItems();
+	
+	
     /**
 	 * Set table
 	 */

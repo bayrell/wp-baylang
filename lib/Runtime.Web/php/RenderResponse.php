@@ -19,7 +19,37 @@
 namespace Runtime\Web;
 class RenderResponse extends \Runtime\Web\Response
 {
+	public $container;
+	function __construct($container)
+	{
+		parent::__construct();
+		$this->container = $container;
+	}
+	/**
+	 * Returns content
+	 */
+	function getContent($render_core_ui=true)
+	{
+		if ($this->content)
+		{
+			return $this->content;
+		}
+		/* Create component */
+		$component = \Runtime\rtl::newInstance($this->container->layout->component);
+		$component->container = $this->container;
+		$component->layout = $this->container->layout;
+		$component->model = $this->container->layout;
+		/* Render component */
+		$content = \Runtime\Vector::from(["<!DOCTYPE html>\n",($render_core_ui) ? ($component->renderCoreUI()) : ($component->renderApp())]);
+		$this->content = \Runtime\RawString::normalize($content);
+		return $this->content;
+	}
 	/* ======================= Class Init Functions ======================= */
+	function _init()
+	{
+		parent::_init();
+		$this->container = null;
+	}
 	static function getNamespace()
 	{
 		return "Runtime.Web";

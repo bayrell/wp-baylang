@@ -19,7 +19,6 @@
 namespace BayLang\Constructor\Backend\Api;
 class AssetsApi extends \Runtime\Web\BaseApi
 {
-	public $project;
 	/**
 	 * Returns api name
 	 */
@@ -28,34 +27,23 @@ class AssetsApi extends \Runtime\Web\BaseApi
 		return "baylang.constructor.assets";
 	}
 	/**
-	 * Action before
-	 */
-	function onActionBefore()
-	{
-		/* Get project */
-		$project_id = $this->post_data->get("project_id");
-		$this->project = \BayLang\Constructor\Backend\ApiHook::getProject($project_id);
-		if (!$this->project)
-		{
-			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\ItemNotFound($project_id, "Project"));
-		}
-		/* Load project */
-		$this->project->load();
-	}
-	/**
 	 * Upload file
 	 */
 	function uploadFile()
 	{
+		$service = new \BayLang\Constructor\Backend\Service\WidgetService();
+		$project_id = $this->post_data->get("project_id");
+		/* Load project */
+		$service->loadProject($project_id);
+		/* Get file */
 		$file = $this->post_data->get("file");
 		if (!$file)
 		{
 			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\RuntimeException("File not found"));
 		}
 		/* Get path */
-		$assets_path = \BayLang\Constructor\Backend\ApiHook::getAssetsPath($this->project);
 		$folder_name = $this->post_data->get("path");
-		$folder_path = \Runtime\fs::join(\Runtime\Vector::from([$assets_path,$folder_name]));
+		$folder_path = \Runtime\fs::join(\Runtime\Vector::from([$service->assets_path,$folder_name]));
 		$file_upload_path = \Runtime\fs::join(\Runtime\Vector::from([$folder_path,$file->getName()]));
 		/* Create folder */
 		if (!\Runtime\fs::exists($folder_path))
@@ -73,9 +61,13 @@ class AssetsApi extends \Runtime\Web\BaseApi
 	 */
 	function removeFile()
 	{
-		$assets_path = \BayLang\Constructor\Backend\ApiHook::getAssetsPath($this->project);
+		$service = new \BayLang\Constructor\Backend\Service\WidgetService();
+		$project_id = $this->post_data->get("project_id");
+		/* Load project */
+		$service->loadProject($project_id);
+		/* Get file path */
 		$file_name = $this->post_data->get("file_name");
-		$file_path = \Runtime\fs::join(\Runtime\Vector::from([$assets_path,"images",$file_name]));
+		$file_path = \Runtime\fs::join(\Runtime\Vector::from([$service->assets_path,"images",$file_name]));
 		/* Check file path */
 		if (!\Runtime\fs::exists($file_path))
 		{
@@ -91,8 +83,13 @@ class AssetsApi extends \Runtime\Web\BaseApi
 	 */
 	function getFiles()
 	{
-		$assets_path = \BayLang\Constructor\Backend\ApiHook::getAssetsPath($this->project);
-		$assets_url_path = \BayLang\Constructor\Backend\ApiHook::getAssetsUrlPath($this->project);
+		$service = new \BayLang\Constructor\Backend\Service\WidgetService();
+		$project_id = $this->post_data->get("project_id");
+		/* Load project */
+		$service->loadProject($project_id);
+		/* Get assets path */
+		$assets_path = \BayLang\Constructor\Backend\ApiHook::getAssetsPath($service->project);
+		$assets_url_path = \BayLang\Constructor\Backend\ApiHook::getAssetsUrlPath($service->project);
 		$folder_name = $this->post_data->get("path");
 		$folder_path = \Runtime\fs::join(\Runtime\Vector::from([$assets_path,$folder_name]));
 		/* Check file path */
@@ -127,11 +124,6 @@ class AssetsApi extends \Runtime\Web\BaseApi
 		$this->success(\Runtime\Map::from(["data"=>\Runtime\Map::from(["items"=>$items,"path"=>$folder_name])]));
 	}
 	/* ======================= Class Init Functions ======================= */
-	function _init()
-	{
-		parent::_init();
-		$this->project = null;
-	}
 	static function getNamespace()
 	{
 		return "BayLang.Constructor.Backend.Api";

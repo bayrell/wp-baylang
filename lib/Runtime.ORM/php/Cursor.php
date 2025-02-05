@@ -21,10 +21,24 @@ class Cursor extends \Runtime\BaseObject
 {
 	public $conn;
 	public $q;
-	function __construct($conn)
+	function __construct($conn=null)
 	{
 		parent::__construct();
 		$this->conn = $conn;
+	}
+	/**
+	 * Get connection
+	 */
+	function getConnection()
+	{
+		return $this->conn;
+	}
+	/**
+	 * Set connection
+	 */
+	function setConnection($connection)
+	{
+		$this->conn = $connection;
 	}
 	/**
 	 * Returns found rows
@@ -114,8 +128,8 @@ class Cursor extends \Runtime\BaseObject
 		{
 			return null;
 		}
-		$table_name = $this->q->_table_name;
-		return \Runtime\ORM\Relation::newInstance($table_name, $row);
+		$class_name = $this->q->getRelationName();
+		return \Runtime\ORM\Relation::newInstance($class_name, $row);
 	}
 	/**
 	 * Fetch all rows

@@ -59,6 +59,17 @@ class BusHttp extends \Runtime\BaseObject implements \Runtime\Web\BusInterface
 			{
 				$res->exception(new \Runtime\Exceptions\AbstractException("Api response error"));
 			}
+			/* Print exception */
+			if (\Runtime\rtl::getContext()->env("DEBUG") && $res->isException() && $answer)
+			{
+				$arr = \Runtime\Vector::from([]);
+				$arr->push($res->error_name . \Runtime\rtl::toStr(" ") . \Runtime\rtl::toStr("in file ") . \Runtime\rtl::toStr($res->error_file) . \Runtime\rtl::toStr(":") . \Runtime\rtl::toStr($res->error_line));
+				$arr->appendItems($res->error_trace->map(function ($value, $pos)
+				{
+					return $pos + 1 . \Runtime\rtl::toStr(") ") . \Runtime\rtl::toStr($value);
+				}));
+				\Runtime\io::print_error(\Runtime\rs::join("\n", $arr));
+			}
 		}
 		catch (\Exception $_ex)
 		{

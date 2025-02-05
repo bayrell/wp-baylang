@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) exit;
 use Runtime\WordPress\WP_Helper;
 
 
-if ( !class_exists( 'BayLang_Plugin' )  )
+if ( !class_exists( 'BayLang_Plugin' ) )
 {
 
 class BayLang_Plugin
@@ -43,9 +43,12 @@ class BayLang_Plugin
 		add_action('wp_ajax_admin_call_api', 'BayLang_Plugin::admin_call_api');
 		
 		/* Add admin script */
-		add_action('baylang_admin_render_page', 'BayLang_Plugin::add_admin_script');
+		add_action('admin_render_page', 'BayLang_Plugin::add_admin_script');
 		add_action('admin_head', 'BayLang_Plugin::admin_head');
 		add_action('admin_print_footer_scripts', 'BayLang_Plugin::admin_footer', 999999);
+		
+		/* Init wordpress */
+		add_action('init', 'BayLang_Plugin::image_sizes');
 		
 		/* Template init */
 		add_action('wp', 'BayLang_Plugin::create_template_context', 0);
@@ -53,6 +56,16 @@ class BayLang_Plugin
 		/* Template scripts */
 		add_action('wp_enqueue_scripts', 'BayLang_Plugin::add_template_script');
 		add_action('wp_head', 'BayLang_Plugin::widget_page_scripts', 999999);
+		
+		/* Cron schedules */
+		add_filter('cron_schedules', 'BayLang_Plugin::cron_schedules');
+		
+		/* Add Cron send mail */
+		if ( !wp_next_scheduled('baylang_cron_send_mail' ))
+		{
+			wp_schedule_event(time() + 60, 'every_5_minute', 'baylang_cron_send_mail');
+		}
+		add_action('baylang_cron_send_mail', 'BayLang_Plugin::cron_send_mail');
 		
 		/* Robots tsxt */
 		add_filter('robots_txt', 'BayLang_Plugin::robots');
@@ -105,6 +118,15 @@ class BayLang_Plugin
 	public static function getVersion()
 	{
 		return "0.12";
+	}
+	
+	
+	/**
+	 * Returns plugin path
+	 */
+	public static function getPath()
+	{
+		return dirname(__FILE__);
 	}
 	
 	
@@ -236,7 +258,7 @@ class BayLang_Plugin
 		{
 			$init["modules"]->push("BayLang.Constructor.WidgetPage");
 			$init["modules"]->push("Runtime.Widget.WidgetSettings");
-			$init["modules"]->push("Runtime.WordPress.Settings");
+			$init["modules"]->push("Runtime.WordPress.Theme.WidgetSettings");
 		}
 		
 		/* Call action */
@@ -300,6 +322,53 @@ class BayLang_Plugin
 	
 	
 	/**
+	 * Cron schedules
+	 */
+	public static function cron_schedules($schedules)
+	{
+		$schedules['every_5_minute'] = array
+		(
+			'interval' => 300, // Каждые 5 минуты
+			'display'  => 'Every 5 Minutes',
+		);
+		$schedules['every_10_minute'] = array
+		(
+			'interval' => 600, // Каждые 10 минуты
+			'display'  => 'Every 10 Minutes',
+		);
+		return $schedules;
+	}
+	
+	
+	/**
+	 * Cron send mail
+	 */
+	public static function cron_send_mail()
+	{
+		static::create_admin_context();
+		
+		/* Load PHP Mailer */
+		require_once ABSPATH . "/wp-includes/PHPMailer/Exception.php";
+		require_once ABSPATH . "/wp-includes/PHPMailer/PHPMailer.php";
+		require_once ABSPATH . "/wp-includes/PHPMailer/SMTP.php";
+		
+		/* Send new message */
+		$provider = static::$context->provider("email");
+		$provider->loadSettings();
+		$provider->sendNewMessages();
+	}
+	
+	
+	/**
+	 * Image sizes
+	 */
+	public static function image_sizes()
+	{
+		add_image_size('medium_top', 300, 300, ['center', 'top']);
+	}
+	
+	
+	/**
 	 * Robots content
 	 */
 	public static function robots($output)
@@ -349,6 +418,8 @@ class BayLang_Plugin
 	 */
 	public static function register_admin_menu()
 	{
+		$baylang_url = plugin_dir_url(__FILE__);
+		
 		add_menu_page
 		(
 			'BayLang', 'BayLang',
@@ -357,8 +428,22 @@ class BayLang_Plugin
 			{
 				echo "BayLang";
 			},
-			'/wp-content/plugins/wp-baylang/assets/form.png',
+			$baylang_url . 'assets/form.png',
 			30
+		);
+		
+		add_submenu_page
+		(
+			'baylang',
+			'Fonts', 'Fonts',
+			'manage_options', 'baylang-fonts',
+			function()
+			{
+				$action = isset($_GET["action"]) ? $_GET["action"] : "index";
+				WP_Helper::wp_render_page(
+					"baylang:project:fonts:" . $action
+				);
+			}
 		);
 		
 		add_submenu_page
@@ -383,6 +468,21 @@ class BayLang_Plugin
 				$action = isset($_GET["action"]) ? $_GET["action"] : "index";
 				WP_Helper::wp_render_page(
 					"admin:forms:settings:" . $action
+				);
+			}
+		);
+		
+		add_submenu_page
+		(
+			'baylang',
+			'Gallery', 'Gallery',
+			'manage_options', 'baylang-gallery',
+			function()
+			{
+				$action = isset($_GET["action"]) ? $_GET["action"] : "index";
+				wp_enqueue_media();
+				WP_Helper::wp_render_page(
+					"admin:gallery:" . $action
 				);
 			}
 		);
@@ -414,8 +514,13 @@ class BayLang_Plugin
 			'manage_options', 'baylang-settings',
 			function ()
 			{
+				$route = "admin:project:save";
+				$action = isset($_GET["action"]) ? $_GET["action"] : "save";
+				if ($action == "save") $route = "admin:project:save";
+				else if ($action == "create") $route = "admin:project:create";
+				else if ($action == "migrations") $route = "admin:database:migrations";
 				WP_Helper::wp_render_page(
-					"baylang:project:settings",
+					$route,
 					function ($container)
 					{
 						$container->route->matches->set("project_id", "default");
@@ -441,7 +546,7 @@ class BayLang_Plugin
 						{
 							$container->route->matches->set("project_id", "default");
 							$container->route->matches->set("widget_name",
-								$_GET["widget_name"]
+								isset($_GET["widget_name"]) ? $_GET["widget_name"] : ""
 							);
 						}
 					);
@@ -493,29 +598,30 @@ class BayLang_Plugin
 	 */
 	public static function add_admin_script()
 	{
-		$version = "0.12";
+		$baylang_url = plugin_dir_url(__FILE__);
+		$version = static::getVersion();
 		wp_enqueue_script(
 			'vue',
 			WP_DEBUG
-			? '/wp-content/plugins/wp-baylang/assets/vue.runtime.global.js'
-			: '/wp-content/plugins/wp-baylang/assets/vue.runtime.global.prod.js',
+			? $baylang_url . 'assets/vue.runtime.global.js'
+			: $baylang_url . 'assets/vue.runtime.global.prod.js',
 			[], $version, true
 		);
 		wp_enqueue_script(
 			'baylang-runtime',
-			'/wp-content/plugins/wp-baylang/assets/runtime.js',
+			$baylang_url . 'assets/runtime.js',
 			[], $version, true
 		);
 		wp_enqueue_script(
 			'baylang-runtime-admin',
-			'/wp-content/plugins/wp-baylang/assets/admin.js',
+			$baylang_url . 'assets/admin.js',
 			['baylang-runtime'], $version, true
 		);
 		if (WP_DEBUG)
 		{
 			wp_enqueue_script(
 				'baylang-runtime-test',
-				'/wp-content/plugins/wp-baylang/assets/test.js',
+				$baylang_url . 'assets/test.js',
 				['baylang-runtime-admin'], $version, true
 			);
 		}
@@ -527,17 +633,18 @@ class BayLang_Plugin
 	 */
 	static function add_template_script()
 	{
+		$baylang_url = plugin_dir_url(__FILE__);
 		$version = static::getVersion();
 		wp_enqueue_script(
 			'vue',
 			WP_DEBUG
-			? '/wp-content/plugins/wp-baylang/assets/vue.runtime.global.js'
-			: '/wp-content/plugins/wp-baylang/assets/vue.runtime.global.prod.js',
+			? $baylang_url . 'assets/vue.runtime.global.js'
+			: $baylang_url . 'assets/vue.runtime.global.prod.js',
 			[], $version, true
 		);
 		wp_enqueue_script(
 			'baylang-runtime',
-			'/wp-content/plugins/wp-baylang/assets/runtime.js',
+			$baylang_url . 'assets/runtime.js',
 			[], $version, true
 		);
 	}
@@ -550,10 +657,11 @@ class BayLang_Plugin
 	{
 		if (current_user_can("edit_pages"))
 		{
+			$baylang_url = plugin_dir_url(__FILE__);
 			$version = static::getVersion();
 			wp_enqueue_script(
 				'baylang-constructor',
-				'/wp-content/plugins/wp-baylang/assets/constructor.js',
+				$baylang_url . 'assets/constructor.js',
 				['baylang-runtime'], $version, true
 			);
 			
@@ -626,8 +734,11 @@ set_exception_handler(function ($e){
 	
 	if (!$e) return;
 	
-	status_header(500);
-	http_response_code(500);
+	if (php_sapi_name() != 'cli')
+	{
+		status_header(500);
+		http_response_code(500);
+	}
 	
 	echo "<b>Fatal Error</b><br/>";
 	echo nl2br($e->getMessage()) . "<br/>\n";
@@ -645,8 +756,11 @@ register_shutdown_function(function(){
 	if (!$e) return;
 	if (!($e['type'] & (E_ERROR | E_COMPILE_ERROR))) return;
 	
-	status_header(500);
-	http_response_code(500);
+	if (php_sapi_name() != 'cli')
+	{
+		status_header(500);
+		http_response_code(500);
+	}
 	
 	echo "<b>Fatal Error</b><br/>";
 	echo nl2br($e['message']) . "<br/>\n";

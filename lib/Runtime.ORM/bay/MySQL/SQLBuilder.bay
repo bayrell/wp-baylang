@@ -100,7 +100,7 @@ class SQLBuilder extends BaseObject
 	/**
 	 * Prepare field
 	 */
-	string prepare_field(string item)
+	string prepareField(string item)
 	{
 		Collection res1 = rs::split(",", item);
 		res1 = res1.map( string (string s) => rs::trim(s) );
@@ -119,7 +119,7 @@ class SQLBuilder extends BaseObject
 	/**
 	 * Prepare value
 	 */
-	string prepare_value(string item, string op)
+	string prepareValue(string item, string op)
 	{
 		if (op == "%like%")
 		{
@@ -149,6 +149,19 @@ class SQLBuilder extends BaseObject
 		$value = $this->conn->pdo->quote($value);
 		#endif
 		return value;
+	}
+	
+	
+	/**
+	 * Returns table name
+	 */
+	string getTableName()
+	{
+		if (rs::substr(this.q._table_name, 0, 1) != "`")
+		{
+			return "`" ~ this.conn.prefix ~ this.q._table_name ~ "`";
+		}
+		return this.q._table_name;
 	}
 	
 	
@@ -221,7 +234,7 @@ class SQLBuilder extends BaseObject
 			sql ~= "\n";
 			
 			/* Add table name */
-			sql ~= " FROM `" ~ this.conn.prefix ~ q._table_name ~ "` AS `" ~ q._table_name ~ "`";
+			sql ~= " FROM " ~ this.getTableName() ~ " AS `" ~ q._table_alias ~ "`";
 			
 			/* New line */
 			sql ~= "\n";
@@ -272,7 +285,7 @@ class SQLBuilder extends BaseObject
 			{
 				Collection order = q._order.map
 				(
-					string (Collection item) => this.prepare_field(item[0]) ~ " " ~ item[1]
+					string (Collection item) => this.prepareField(item[0]) ~ " " ~ item[1]
 				);
 				
 				sql ~= " ORDER BY " ~ rs::join(",", order);
@@ -306,7 +319,7 @@ class SQLBuilder extends BaseObject
 			}
 			
 			/* Build sql */
-			this.sql = "INSERT INTO " ~ this.conn.prefix ~ q._table_name ~
+			this.sql = "INSERT INTO " ~ this.getTableName() ~
 				" (" ~ rs::join(",", keys) ~ ") VALUES (" ~ rs::join(",", values) ~ ")"
 			;
 			this.data = q._data.clone();
@@ -325,7 +338,7 @@ class SQLBuilder extends BaseObject
 					void (var value, string key) use (update_arr, data)
 					{
 						string field_key = "update_" ~ key;
-						string field_name = this.prepare_field(key)
+						string field_name = this.prepareField(key)
 						update_arr.push(field_name ~ " = " ~ this.formatKey(field_key));
 						data = data.set(field_key, value);
 					}
@@ -337,7 +350,7 @@ class SQLBuilder extends BaseObject
 			string where_str = res[0];
 			
 			/* Build sql */
-			this.sql = "UPDATE " ~ this.conn.prefix ~ q._table_name ~
+			this.sql = "UPDATE " ~ this.getTableName() ~
 				" SET " ~ rs::join(", ", update_arr) ~ " WHERE " ~ where_str
 			;
 			this.data = data;
@@ -351,7 +364,7 @@ class SQLBuilder extends BaseObject
 			string where_str = res[0];
 			
 			/* Delete item */
-			this.sql = "DELETE FROM " ~ this.conn.prefix ~ q._table_name ~
+			this.sql = "DELETE FROM " ~ this.getTableName() ~
 				" WHERE " ~ where_str
 			;
 			this.data = data;
@@ -433,12 +446,12 @@ class SQLBuilder extends BaseObject
 		{
 			if (op == "!=")
 			{
-				string s = this.prepare_field(field_name) ~ " is not null";
+				string s = this.prepareField(field_name) ~ " is not null";
 				return [s, field_index];
 			}
 			else
 			{
-				string s = this.prepare_field(field_name) ~ " is null";
+				string s = this.prepareField(field_name) ~ " is null";
 				return [s, field_index];
 			}
 		}
@@ -463,7 +476,7 @@ class SQLBuilder extends BaseObject
 						field_index++;
 					}
 					
-					string s = this.prepare_field(field_name) ~
+					string s = this.prepareField(field_name) ~
 						" in (" ~ rs::join(",", res) ~ ")"
 					;
 					return [s, field_index];
@@ -475,9 +488,9 @@ class SQLBuilder extends BaseObject
 		{
 			string s = "";
 			string field_key = convert_key(field_index ~ "_where_" ~ field_name);
-			field_name = this.prepare_field(field_name);
+			field_name = this.prepareField(field_name);
 			
-			list res = this.prepare_value(value, op);
+			list res = this.prepareValue(value, op);
 			value = res[0];
 			op = res[1];
 			

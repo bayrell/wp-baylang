@@ -20,7 +20,8 @@ namespace Runtime\ORM\Annotations;
 class BaseType extends \Runtime\BaseStruct
 {
 	public $__default;
-	public $__table_name_source;
+	public $__table_name;
+	public $__class_name;
 	public $__name;
 	public $__comment;
 	public $__nullable;
@@ -52,7 +53,8 @@ class BaseType extends \Runtime\BaseStruct
 	{
 		parent::_init();
 		$this->__default = null;
-		$this->__table_name_source = "";
+		$this->__table_name = "";
+		$this->__class_name = "";
 		$this->__name = "";
 		$this->__comment = "";
 		$this->__nullable = false;
@@ -60,7 +62,8 @@ class BaseType extends \Runtime\BaseStruct
 	function takeValue($k,$d=null)
 	{
 		if ($k == "default")return $this->__default;
-		else if ($k == "table_name_source")return $this->__table_name_source;
+		else if ($k == "table_name")return $this->__table_name;
+		else if ($k == "class_name")return $this->__class_name;
 		else if ($k == "name")return $this->__name;
 		else if ($k == "comment")return $this->__comment;
 		else if ($k == "nullable")return $this->__nullable;
@@ -88,7 +91,8 @@ class BaseType extends \Runtime\BaseStruct
 	{
 		$a = [];
 		$a[]="default";
-		$a[]="table_name_source";
+		$a[]="table_name";
+		$a[]="class_name";
 		$a[]="name";
 		$a[]="comment";
 		$a[]="nullable";

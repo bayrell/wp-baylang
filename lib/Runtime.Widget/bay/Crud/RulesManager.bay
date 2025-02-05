@@ -1,0 +1,215 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.Crud;
+
+use Runtime.BaseObject;
+use Runtime.Widget.Crud.CrudService;
+use Runtime.Widget.Crud.Rules.BaseRule;
+use Runtime.Widget.Crud.Rules.CrudRule;
+
+
+class RulesManager extends BaseObject
+{
+	string action = "";
+	bool is_create = false;
+	Collection rules = [];
+	Dict fields = {};
+	
+	
+	/**
+	 * Constructor
+	 */
+	void constructor(Dict params = null)
+	{
+		parent();
+		this._assign_values(params);
+	}
+	
+	
+	/**
+	 * Returns true if create
+	 */
+	bool isCreate() => this.is_create;
+	
+	
+	/**
+	 * Returns true if update
+	 */
+	bool isUpdate() => not this.is_create;
+	
+	
+	/**
+	 * Set create
+	 */
+	void setCreate(bool value)
+	{
+		this.is_create = value;
+	}
+	
+	
+	/**
+	 * Returns fields
+	 */
+	Dict getFields() => this.fields;
+	
+	
+	/**
+	 * Returns true if all rules pass
+	 */
+	bool correct() => this.fields.keys().count() == 0;
+	
+	
+	/**
+	 * Add rules
+	 */
+	void addRules(Collection rules)
+	{
+		this.rules.appendItems(rules);
+	}
+	
+	
+	/**
+	 * Add field error
+	 */
+	void addFieldError(string field_name, string error_message)
+	{
+		if (not this.fields.has(field_name))
+		{
+			this.fields.set(field_name, new Vector);
+		}
+		Vector messages = this.fields.get(field_name);
+		messages.push(error_message);
+	}
+	
+	
+	/**
+	 * Validate data
+	 */
+	async void validate(Dict data)
+	{
+		for (int i=0; i<this.rules.count(); i++)
+		{
+			BaseRule rule = this.rules.get(i);
+			if (rule instanceof BaseRule)
+			{
+				await rule.validate(this, data);
+			}
+		}
+	}
+	
+	
+	#ifdef BACKEND then
+	
+	/**
+	 * Before search
+	 */
+	async void onSearchBefore(CrudService service)
+	{
+		for (int i=0; i<this.rules.count(); i++)
+		{
+			CrudRule rule = this.rules[i];
+			if (rule instanceof CrudRule)
+			{
+				await rule.onSearchBefore(service);
+			}
+		}
+	}
+	
+	
+	/**
+	 * After search
+	 */
+	async void onSearchAfter(CrudService service)
+	{
+		for (int i=0; i<this.rules.count(); i++)
+		{
+			CrudRule rule = this.rules[i];
+			if (rule instanceof CrudRule)
+			{
+				await rule.onSearchAfter(service);
+			}
+		}
+	}
+	
+	
+	/**
+	 * Before save
+	 */
+	async void onSaveBefore(CrudService service)
+	{
+		for (int i=0; i<this.rules.count(); i++)
+		{
+			CrudRule rule = this.rules[i];
+			if (rule instanceof CrudRule)
+			{
+				await rule.onSaveBefore(service);
+			}
+		}
+	}
+	
+	
+	/**
+	 * After save
+	 */
+	async void onSaveAfter(CrudService service)
+	{
+		for (int i=0; i<this.rules.count(); i++)
+		{
+			CrudRule rule = this.rules[i];
+			if (rule instanceof CrudRule)
+			{
+				await rule.onSaveAfter(service);
+			}
+		}
+	}
+	
+	
+	/**
+	 * Before delete
+	 */
+	async void onDeleteBefore(CrudService service)
+	{
+		for (int i=0; i<this.rules.count(); i++)
+		{
+			CrudRule rule = this.rules[i];
+			if (rule instanceof CrudRule)
+			{
+				await rule.onDeleteBefore(service);
+			}
+		}
+	}
+	
+	
+	/**
+	 * After delete
+	 */
+	async void onDeleteAfter(CrudService service)
+	{
+		for (int i=0; i<this.rules.count(); i++)
+		{
+			CrudRule rule = this.rules[i];
+			if (rule instanceof CrudRule)
+			{
+				await rule.onDeleteAfter(service);
+			}
+		}
+	}
+	
+	#endif
+}

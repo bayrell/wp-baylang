@@ -1,0 +1,176 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.Gallery.GalleryDialog" extends="Runtime.Widget.Dialog.Dialog">
+
+<use name="Runtime.Widget.Button" component="true" />
+
+
+<style>
+.widget_dialog__container--photo{
+	max-width: 1000px;
+	background: transparent;
+	border: 0px transparent solid;
+	padding: 0px;
+	margin: calc(var(--widget-space) * 5) auto;
+	text-align: center;
+}
+.widget_dialog__arrow{
+	position: fixed;
+	top: calc(50% - 15px);
+	cursor: pointer;
+	opacity: 0.7;
+}
+.widget_dialog__arrow:before, .widget_dialog__arrow:after{
+	position: absolute;
+	display: block;
+	content: '';
+	width: 0;
+	height: 0;
+	left: 0;
+	top: 0;
+}
+.widget_dialog__arrow:hover{
+	opacity: 0.8;
+}
+.widget_dialog__arrow:focus{
+	outline: 0;
+}
+.widget_dialog__arrow:active{
+	outline: 0;
+	top: calc(50% - 14px);
+}
+.widget_dialog__arrow--left{
+	left: 10px;
+}
+.widget_dialog__arrow--left:before{
+	border-top: 40px solid transparent;
+	border-bottom: 40px solid transparent;
+	border-right: 45px solid #3F3F3F;
+}
+.widget_dialog__arrow--left:after{
+	left: 6px;
+	top: 10px;
+	border-top: 30px solid transparent;
+	border-bottom: 30px solid transparent;
+	border-right: 35px solid #FFF;
+}
+.widget_dialog__arrow--right{
+	right: 70px;
+}
+.widget_dialog__arrow--right:before{
+	border-top: 40px solid transparent;
+	border-bottom: 40px solid transparent;
+	border-left: 45px solid #3F3F3F;
+}
+.widget_dialog__arrow--right:after{
+	left: 4px;
+	top: 10px;
+	border-top: 30px solid transparent;
+	border-bottom: 30px solid transparent;
+	border-left: 35px solid #FFF;
+}
+.widget_dialog__image{
+	position: relative;
+	display: inline-block;
+	img{
+		max-width: 100%;
+		user-select: none;
+	}
+}
+.widget_dialog__close{
+	position: absolute;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 10px;
+	width: 42px;
+	height: 34px;
+	top: 0; right: 0;
+	font-size: 20px;
+	font-weight: bold;
+	text-transform: uppercase;
+	background-color: #fff;
+	border: 1px #d9d9d9 solid;
+	cursor: pointer;
+	border-radius: 5px;
+}
+.widget_dialog__shadow{
+	opacity: 0.5;
+}
+.widget_dialog__clear{
+	clear: both;
+}
+.widget_dialog__container--photo_contain{
+	text-align: center;
+	.widget_dialog__image{
+		img{
+			max-width: 100%;
+			max-height: calc(100vh - 50px);
+			user-select: none;
+		}
+	}
+}
+</style>
+
+
+<template name="renderDialogContainer">
+	<div class="widget_dialog__container--photo"
+		class={{ this.model.getImageContains() ?
+			"widget_dialog__container--photo_contain" : "" }}
+		@event:click={{ this.onContainerClick }}
+	>
+		<div class="widget_dialog__image">
+			<Button class="widget_dialog__close"
+				@event:click={{ void(){ this.model.hide(); } }}
+			>x</Button>
+			<img src={{ this.model.getCurrentImage() }} unselectable="on" />
+		</div>
+		<div class="widget_dialog__clear"></div>
+		<div class="widget_dialog__arrow widget_dialog__arrow--left"
+			@event:click={{ void(){ this.model.prev() } }}
+		></div>
+		<div class="widget_dialog__arrow widget_dialog__arrow--right"
+			@event:click={{ void(){ this.model.next() } }}
+		></div>
+	</div>
+</template>
+
+
+<script>
+
+/**
+ * On container click
+ */
+void onContainerClick(var e)
+{
+	if (
+		e.target.classList.contains("widget_dialog__arrow") or
+		e.target.classList.contains("widget_dialog__clear") or
+		e.target.classList.contains("widget_dialog__close") or
+		e.target.tagName == "IMG"
+	)
+	{
+		return;
+	}
+	this.onShadowClick();
+}
+
+</script>
+
+</class>

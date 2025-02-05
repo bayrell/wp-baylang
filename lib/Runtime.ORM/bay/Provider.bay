@@ -22,8 +22,11 @@ use Runtime.lib;
 use Runtime.BaseProvider;
 use Runtime.BaseStruct;
 use Runtime.Callback;
+use Runtime.Exceptions.ItemNotFound;
 use Runtime.Exceptions.RuntimeException;
 use Runtime.ORM.Connection;
+use Runtime.ORM.DatabaseSchema;
+use Runtime.ORM.QueryFilter;
 use Runtime.ORM.Annotations.AutoIncrement;
 use Runtime.ORM.Annotations.BaseType;
 use Runtime.ORM.Annotations.Database;
@@ -64,12 +67,132 @@ class Provider extends BaseProvider
 	
 	
 	/**
+	 * Returns relation name by table name
+	 */
+	string getRelationName(string table_name)
+	{
+		if (not this.tables.has(table_name)) return "";
+		return this.tables.get(table_name).get("class_name");
+	}
+	
+	
+	/**
 	 * Returns table annotations
 	 */
 	Collection<BaseStruct> getAnotations(string table_name)
 	{
 		if (not this.tables.has(table_name)) return [];
-		return this.tables[table_name, "annotations"];
+		return this.tables.get(table_name).get("annotations");
+	}
+	
+	
+	/**
+	 * To database
+	 */
+	async Dict toDatabase(string table_name, Connection conn, Dict data, bool is_update)
+	{
+		if (data == null) return null;
+		
+		Collection<BaseStruct> annotations = this.getAnotations(table_name);
+		for (int i=0; i<annotations.count(); i++)
+		{
+			BaseStruct annotation = annotations[i];
+			if (annotation instanceof BaseType)
+			{
+				data = await annotation.toDatabase(conn, data, is_update);
+			}
+		}
+		
+		return data;
+	}
+	
+	
+	/**
+	 * From database
+	 */
+	async Dict fromDatabase(string table_name, Connection conn, Dict data)
+	{
+		if (data == null) return null;
+		
+		Collection<BaseStruct> annotations = this.getAnotations(table_name);
+		for (int i=0; i<annotations.count(); i++)
+		{
+			BaseStruct annotation = annotations[i];
+			if (annotation instanceof BaseType)
+			{
+				data = await annotation.fromDatabase(conn, data);
+			}
+		}
+		
+		return data;
+	}
+	
+	
+	/**
+	 * Returns true if primary key is auto increment
+	 */
+	AutoIncrement getAutoIncrement(string table_name)
+	{
+		Collection<BaseStruct> annotations = this.getAnotations(table_name);
+		AutoIncrement annotation = annotations.findItem( lib::isInstance(classof AutoIncrement) );
+		return annotation;
+	}
+	
+	
+	/**
+	 * Returns primary key names of table
+	 */
+	Collection<string> getPrimaryKeyNames(string table_name)
+	{
+		/* Get primary annotation */
+		Collection<BaseStruct> annotations = this.getAnotations(table_name);
+		Primary primary = annotations.findItem( lib::isInstance(classof Primary) );
+		
+		if (primary == null) return null;
+		return primary.keys;
+	}
+	
+	
+	/**
+	 * Returns primary data
+	 */
+	Dict getPrimaryFromData(string table_name, Dict data)
+	{
+		/* Get primary annotation */
+		Collection<string> primary_keys = this.getPrimaryKeyNames(table_name);
+		
+		/* Check if primary keys if exists */
+		if (primary_keys == null)
+		{
+			throw new ItemNotFound(table_name, "Primary keys");
+		}
+		
+		/* Intersect values */
+		return data ? data.intersect(primary_keys, false) : {};
+	}
+	
+	
+	/**
+	 * Returns primary filter by data
+	 */
+	Vector<QueryFilter> getPrimaryFilter(string table_name, Dict data, bool use_full_key = true)
+	{
+		Dict pk = this.getPrimaryFromData(table_name, data);
+		Vector filter = pk.transition(
+			QueryFilter (var value, string key) use (table_name, use_full_key)
+			{
+				QueryFilter item = new QueryFilter;
+				item.key = key;
+				item.op = "=";
+				item.value = value;
+				if (use_full_key)
+				{
+					item.key = table_name ~ "." ~ key;
+				}
+				return item;
+			}
+		);
+		return filter;
 	}
 	
 	
@@ -107,20 +230,20 @@ class Provider extends BaseProvider
 	/**
 	 * Add table
 	 */
-	void addTable(Table table, Vector rules)
+	void addTable(string table_name, string class_name, Vector rules)
 	{
-		string table_name = table.name;
-		
 		for (int i=0; i<rules.count(); i++)
 		{
 			BaseStruct rule = rules.get(i);
-			rule <= table_name_source <= table_name;
+			rule <= class_name <= class_name;
+			rule <= table_name <= table_name;
 			rules.set(i, rule);
 		}
 		
 		this.tables.set(table_name, {
 			"annotations": rules.toCollection(),
-			"table": table,
+			"class_name": class_name,
+			"table_name": table_name,
 		});
 		
 		for (int i=0; i<rules.count(); i++)
@@ -157,33 +280,22 @@ class Provider extends BaseProvider
 	 */
 	protected void registerTables()
 	{
-		Collection<Database> items = @.getEntities(classof Database);
+		Collection<Table> items = @.getEntities(classof Table);
 		for (int i=0; i<items.count(); i++)
 		{
-			Database db = items[i];
-			string class_name = db.name;
-			Callback getMethodsList = new Callback(class_name, "getMethodsList");
-			Callback getMethodInfoByName = new Callback(class_name, "getMethodInfoByName");
+			Table table = items[i];
+			string class_name = table.name;
+			string table_name = new Callback(class_name, "getTableName").apply();
 			
-			Collection<string> methods = rtl::apply(getMethodsList);
-			for (int j=0; j<methods.count(); j++)
-			{
-				string method_name = methods[j];
-				Dict info = rtl::apply(getMethodInfoByName, [method_name]);
-				
-				/* Get methods annotations */
-				Vector annotations = info.get("annotations");
-				if (annotations)
-				{
-					Table table = annotations.findItem( lib::isInstance(classof Table) );
-					if (table)
-					{
-						Vector rules = rtl::apply(new Callback(class_name, method_name));
-						this.addTable(table, rules);
-					}
-				}
-			}
+			/* Add schema */
+			Vector rules = new Callback(class_name, "schema").apply();
+			this.addTable(table_name, class_name, rules);
 		}
+		
+		/* Call register event */
+		await @.callHookAsync(DatabaseSchema::REGISTER, {
+			"item": this,
+		});
 	}
 	
 	

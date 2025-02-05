@@ -21,7 +21,7 @@
 <use name="Runtime.WordPress.WP_Helper" />
 
 <template>
-	@raw{ WP_Helper::wp_call('wp_footer') }
+	@raw{ WP_Helper::wp_apply('wp_footer') }
 </template>
 
 </class>

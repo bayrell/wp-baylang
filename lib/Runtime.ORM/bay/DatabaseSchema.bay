@@ -23,6 +23,7 @@ use Runtime.BaseHook;
 
 class DatabaseSchema extends BaseHook
 {
+	static const string REGISTER = "runtime.orm.database::register";
 	static const string SAVE_AFTER = "runtime.orm.database::save_after";
 	static const string SAVE_BEFORE = "runtime.orm.database::save_before";
 	
@@ -32,6 +33,7 @@ class DatabaseSchema extends BaseHook
 	 */
 	string getMethodName(string hook_name)
 	{
+		if (hook_name == static::REGISTER) return "onRegister";
 		if (hook_name == static::SAVE_AFTER) return "onAfterSave";
 		if (hook_name == static::SAVE_BEFORE) return "onBeforeSave";
 		return "";

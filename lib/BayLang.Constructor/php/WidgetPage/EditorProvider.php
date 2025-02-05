@@ -37,6 +37,64 @@ class EditorProvider extends \Runtime\BaseProvider
 		$this->groups->push($group);
 	}
 	/**
+	 * Add widget
+	 */
+	function addWidget($widget_settings)
+	{
+		/* Add widget */
+		$this->widgets->push($widget_settings);
+		/* Add settings */
+		$this->settings->set($widget_settings::getClassName(), $widget_settings);
+		/* Add widget by model name */
+		if ($widget_settings->isModel())
+		{
+			$this->settings->set($widget_settings->getModelName(), $widget_settings);
+		}
+		else
+		{
+			$this->settings->set($widget_settings->getComponentName(), $widget_settings);
+		}
+	}
+	/**
+	 * Remove widget
+	 */
+	function removeWidget($widget_settings)
+	{
+		if (!$widget_settings)
+		{
+			return ;
+		}
+		/* Find widget */
+		$pos = $this->widgets->indexOf($widget_settings);
+		if ($pos >= 0)
+		{
+			$this->widgets->remove($pos);
+		}
+		/* Remove by class name */
+		if ($this->settings->has($widget_settings::getClassName()))
+		{
+			$this->settings->remove($widget_settings::getClassName());
+		}
+		/* Remove by model name */
+		if ($this->settings->has($widget_settings->getModelName()))
+		{
+			$this->settings->remove($widget_settings->getModelName());
+		}
+		/* Remove by component name */
+		if ($this->settings->has($widget_settings->getComponentName()))
+		{
+			$this->settings->remove($widget_settings->getComponentName());
+		}
+	}
+	/**
+	 * Remove widget by name
+	 */
+	function remove($widget_name)
+	{
+		$widget_settings = $this->get($widget_name);
+		$this->removeWidget($widget_settings);
+	}
+	/**
 	 * Init provider
 	 */
 	function init()
@@ -68,18 +126,7 @@ class EditorProvider extends \Runtime\BaseProvider
 			{
 				$widget_settings = $widgets->get($j);
 				/* Add widget */
-				$this->widgets->push($widget_settings);
-				/* Add settings */
-				$this->settings->set($widget_settings::getClassName(), $widget_settings);
-				/* Add widget by model name */
-				if ($widget_settings->isModel())
-				{
-					$this->settings->set($widget_settings->getModelName(), $widget_settings);
-				}
-				else
-				{
-					$this->settings->set($widget_settings->getComponentName(), $widget_settings);
-				}
+				$this->addWidget($widget_settings);
 			}
 		}
 		/* Widgets init */

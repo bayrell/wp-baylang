@@ -23,6 +23,11 @@
 <use name="BayLang.Constructor.Frontend.Editor.WidgetEditPageModel" />
 <use name="BayLang.Constructor.Frontend.Editor.WidgetMenu" component="true" />
 
+<style global="true">
+.scroll-lock .core_ui_root{
+	padding-right: 0px;
+}
+</style>
 
 <style>
 .index_page{

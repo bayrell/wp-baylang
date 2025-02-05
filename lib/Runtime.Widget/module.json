@@ -6,7 +6,9 @@
 		"Button.bay",
 		"ButtonModel.bay",
 		"ButtonWrap.bay",
+		"BackButtonModel.bay",
 		"CSS.bay",
+		"Field.bay",
 		"Image.bay",
 		"Input.bay",
 		"Label.bay",
@@ -24,11 +26,13 @@
 		"SelectModel.bay",
 		"SelectWrap.bay",
 		"SortableList.bay",
+		"SortableFieldList.bay",
 		"Tag.bay",
 		"Text.bay",
 		"TextArea.bay",
 		"TextEditable.bay",
 		"TextImage.bay",
+		"UploadFileButton.bay",
 		"WidgetResult.bay",
 		"WidgetResultModel.bay",
 		"ModuleDescription.bay"
@@ -55,7 +59,15 @@
 			"type": "module"
 		},
 		{
+			"src": "bay/Editor",
+			"type": "module"
+		},
+		{
 			"src": "bay/Form",
+			"type": "module"
+		},
+		{
+			"src": "bay/Gallery",
 			"type": "module"
 		},
 		{
@@ -97,10 +109,13 @@
 		"ContextMenu/",
 		"Crud/",
 		"Dialog/",
+		"Editor/",
 		"Form/",
+		"Gallery/",
 		"Seo/",
 		"Tab/",
 		"Table/",
-		"Tree/"
+		"Tree/",
+		"WidgetSettings/"
 	]
 }

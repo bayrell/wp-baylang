@@ -64,7 +64,7 @@ class Paragraph extends ContainerSettings
 	/**
 	 * Returns group name
 	 */
-	string getGroupName() => "basic";
+	string getGroupName() => "html";
 	
 	
 	/**

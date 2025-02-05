@@ -58,9 +58,6 @@ static class ModuleDescription
 		new Provider("BayLang.Constructor.WidgetPage.EditorProvider"),
 		
 		#ifdef BACKEND then
-		new Hook("Runtime.Web.Hooks.Environments", {
-			"frontend": ["CONSTRUCTOR"],
-		}),
 		new Route("BayLang.Constructor.WidgetPage.Routes"),
 		#endif
 	];

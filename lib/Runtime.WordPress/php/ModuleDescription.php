@@ -46,7 +46,7 @@ class ModuleDescription
 	 */
 	static function entities()
 	{
-		return \Runtime\Vector::from([new \Runtime\Web\Annotations\Api("Runtime.WordPress.Api.FormSubmitApi"),new \Runtime\ORM\Annotations\Database("Runtime.WordPress.Database.Schema"),new \Runtime\WordPress\ORM\WP_Factory()]);
+		return \Runtime\Vector::from([new \Runtime\Entity\Provider("email", "Runtime.WordPress.EmailProvider"),new \Runtime\ORM\Annotations\Table("Runtime.WordPress.Database.Form"),new \Runtime\ORM\Annotations\Table("Runtime.WordPress.Database.FormData"),new \Runtime\ORM\Annotations\Table("Runtime.WordPress.Database.FormIP"),new \Runtime\ORM\Annotations\Table("Runtime.WordPress.Database.Gallery"),new \Runtime\ORM\Annotations\Table("Runtime.WordPress.Database.GalleryItem"),new \Runtime\ORM\Annotations\Table("Runtime.WordPress.Database.MailDelivery"),new \Runtime\ORM\Annotations\Table("Runtime.WordPress.Database.MailSettings"),new \Runtime\ORM\Annotations\Migration("Runtime.WordPress.Database.Migrations.Core_2025_01"),new \Runtime\WordPress\Database\ORM\WP_Factory()]);
 	}
 	/* ======================= Class Init Functions ======================= */
 	static function getNamespace()

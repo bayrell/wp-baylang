@@ -37,6 +37,12 @@ class TableStorage extends BaseObject implements TableStorageInterface
 	
 	
 	/**
+	 * Returns items
+	 */
+	Collection<Dict> getItems() => this.table.items;
+	
+	
+	/**
 	 * Set table
 	 */
 	void setTable(TableModel table)

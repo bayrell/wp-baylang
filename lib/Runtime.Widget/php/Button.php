@@ -28,16 +28,18 @@ class Button extends \Runtime\Web\Component
 	function render()
 	{
 		$__v = new \Runtime\Vector();
+		$data = $this->getData();
 		
-		if ($this->href == null)
+		if ($data->get("href") == null)
 		{
 			/* Element 'button' */
 			$__v0 = new \Runtime\Vector();
+			$content = $data->get("content");
 			
-			if ($this->content)
+			if ($content)
 			{
 				/* Text */
-				$this->_t($__v0, $this->_escape($this->content));
+				$this->_t($__v0, $this->_escape($content));
 			}
 			else
 			{
@@ -46,7 +48,7 @@ class Button extends \Runtime\Web\Component
 			}
 			
 			/* Element 'button' */
-			$this->_e($__v, "button", ["type" => $this->type,"class" => $this->_class_name(["widget_button", static::getStyles("widget_button", $this->styles), $this->renderListClass(), $this->class])], $__v0);
+			$this->_e($__v, "button", ["type" => $this->type,"class" => $this->_class_name(["widget_button", static::mergeStyles("widget_button", $data->get("styles")), $this->renderListClass(), $this->class])], $__v0);
 		}
 		else
 		{
@@ -55,11 +57,12 @@ class Button extends \Runtime\Web\Component
 			
 			/* Element 'button' */
 			$__v1 = new \Runtime\Vector();
+			$content = $data->get("content");
 			
-			if (!$this->checkSlot("default"))
+			if ($content)
 			{
 				/* Text */
-				$this->_t($__v1, $this->_escape($this->content));
+				$this->_t($__v1, $this->_escape($content));
 			}
 			else
 			{
@@ -68,18 +71,43 @@ class Button extends \Runtime\Web\Component
 			}
 			
 			/* Element 'button' */
-			$this->_e($__v0, "button", ["type" => $this->type,"class" => $this->_class_name(["widget_button", static::getStyles("widget_button", $this->styles), $this->renderListClass()])], $__v1);
+			$this->_e($__v0, "button", ["type" => $this->type,"class" => $this->_class_name(["widget_button", static::mergeStyles("widget_button", $data->get("styles")), $this->renderListClass()])], $__v1);
 			
 			/* Element 'a' */
-			$this->_e($__v, "a", ["href" => $this->href,"target" => $this->target,"class" => $this->_class_name(["nolink", $this->class])], $__v0);
+			$this->_e($__v, "a", ["href" => $data->get("href"),"target" => $data->get("target"),"class" => $this->_class_name(["nolink", $this->class, "widget_button__link"])], $__v0);
 		}
 		
 		return $this->_flatten($__v);
 	}
+	/**
+ * Returns props
+ */
+	function getData()
+	{
+		if ($this->model)
+		{
+			$props = $this->model->getProps($this->data);
+			$props->set("styles", $this->styles->concat($this->model->styles)->removeDuplicates());
+			return $props;
+		}
+		return \Runtime\Map::from(["content"=>$this->content,"href"=>$this->href,"styles"=>$this->styles,"target"=>$this->target]);
+	}
+	/**
+ * Button click
+ */
+	function onClick($e)
+	{
+		$e->stopPropagation();
+		$data = $this->getData();
+		if ($this->model && $data->get("href") == null)
+		{
+			$this->model->onClick($this->data);
+		}
+	}
 	static function css($vars)
 	{
 		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_button.h-8dd7{color: var(--widget-color-text);font-family: var(--widget-font-family);font-size: var(--widget-font-size);line-height: var(--widget-line-height);background-color: var(--widget-color-default);border: var(--widget-border-width) var(--widget-color-border) solid;padding: var(--widget-button-padding-y) var(--widget-button-padding-x);outline: 0;cursor: pointer;border-radius: 4px}.widget_button.h-8dd7:active{box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25)}.widget_button--small.h-8dd7{padding: var(--widget-button-padding-small-y) var(--widget-button-padding-small-x);line-height: 1.2em}.widget_button--large.h-8dd7{padding: var(--widget-button-padding-large-y) var(--widget-button-padding-large-x)}.widget_button--primary.h-8dd7{color: var(--widget-color-primary-text);background-color: var(--widget-color-primary);border-color: var(--widget-color-primary)}.widget_button--danger.h-8dd7{color: var(--widget-color-danger-text);background-color: var(--widget-color-danger);border-color: var(--widget-color-danger)}.widget_button--success.h-8dd7{color: var(--widget-color-success-text);background-color: var(--widget-color-success);border-color: var(--widget-color-success)}.widget_button--stretch.h-8dd7{width: 100%}");
+		$res .= \Runtime\rtl::toStr(".widget_button.h-8dd7{color: var(--widget-color-text);font-family: var(--widget-font-family);font-size: var(--widget-font-size);line-height: var(--widget-line-height);background-color: var(--widget-color-default);border: var(--widget-border-width) var(--widget-color-border) solid;padding: var(--widget-button-padding-y) var(--widget-button-padding-x);outline: 0;cursor: pointer;border-radius: 4px}.widget_button.h-8dd7:active{box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25)}.widget_button--bold.h-8dd7{font-weight: bold}.widget_button--small.h-8dd7{padding: var(--widget-button-padding-small-y) var(--widget-button-padding-small-x);line-height: 1.2em}.widget_button--large.h-8dd7{padding: var(--widget-button-padding-large-y) var(--widget-button-padding-large-x)}.widget_button--primary.h-8dd7{color: var(--widget-color-primary-text);background-color: var(--widget-color-primary);border-color: var(--widget-color-primary)}.widget_button--danger.h-8dd7{color: var(--widget-color-danger-text);background-color: var(--widget-color-danger);border-color: var(--widget-color-danger)}.widget_button--success.h-8dd7{color: var(--widget-color-success-text);background-color: var(--widget-color-success);border-color: var(--widget-color-success)}.widget_button--stretch.h-8dd7{width: 100%}");
 		return $res;
 	}
 	/* ======================= Class Init Functions ======================= */

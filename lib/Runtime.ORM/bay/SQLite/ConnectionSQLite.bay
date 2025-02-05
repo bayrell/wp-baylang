@@ -57,4 +57,14 @@ class ConnectionSQLite extends ConnectionMySQL
 		return this;
 	}
     
+	
+	/**
+	 * Fork connection
+	 */
+	ConnectionMySQL fork()
+	{
+		ConnectionSQLite connection = parent();
+		connection.path = this.path;
+		return connection;
+	}
 }

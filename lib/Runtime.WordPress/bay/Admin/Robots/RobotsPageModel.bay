@@ -52,7 +52,7 @@ class RobotsPageModel extends BasePageModel
 				(
 					"Runtime.Widget.Form.FormSaveStorage",
 					{
-						"api_name": "admin.wordpress.robots::save",
+						"api_name": "admin.wordpress.robots.save",
 					}
 				),
 				"pk": [],

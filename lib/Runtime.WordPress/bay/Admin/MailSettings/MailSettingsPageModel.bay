@@ -61,7 +61,7 @@ class MailSettingsPageModel extends BasePageModel
 				(
 					"Runtime.Widget.Form.FormSaveStorage",
 					{
-						"api_name": "admin.wordpress.mail.settings::save",
+						"api_name": "admin.wordpress.mail.settings.save",
 					}
 				),
 				"fields":
@@ -110,6 +110,7 @@ class MailSettingsPageModel extends BasePageModel
 							"options": [
 								{"key": "0", "value": "No"},
 								{"key": "1", "value": "Yes"},
+								{"key": "2", "value": "Yes (Disable verify)"},
 							],
 						},
 					},
@@ -149,7 +150,7 @@ class MailSettingsPageModel extends BasePageModel
 				(
 					"Runtime.Widget.Table.TableStorage",
 					{
-						"api_name": "admin.wordpress.mail.settings::search",
+						"api_name": "admin.wordpress.mail.settings.search",
 					}
 				),
 				
@@ -173,7 +174,7 @@ class MailSettingsPageModel extends BasePageModel
 						"storage": new Factory(
 							"Runtime.Widget.Form.FormDeleteStorage",
 							{
-								"api_name": "admin.wordpress.mail.settings::save"
+								"api_name": "admin.wordpress.mail.settings.save"
 							}
 						),
 					}
@@ -224,6 +225,7 @@ class MailSettingsPageModel extends BasePageModel
 							"options": [
 								{"key": "0", "value": "No"},
 								{"key": "1", "value": "Yes"},
+								{"key": "2", "value": "Yes (Disable verify)"},
 							],
 						},
 					},

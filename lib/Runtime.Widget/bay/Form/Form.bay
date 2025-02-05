@@ -24,6 +24,7 @@
 <use name="Runtime.Widget.Button" component="true" />
 <use name="Runtime.Widget.Input" component="true" />
 <use name="Runtime.Widget.RowButtons" component="true" />
+<use name="Runtime.Widget.RowButtonsModel" />
 <use name="Runtime.Widget.TextArea" component="true" />
 <use name="Runtime.Widget.WidgetResult" component="true" />
 <use name="Runtime.Widget.WidgetResultModel" />
@@ -31,18 +32,22 @@
 
 <style>
 .widget_form{
+	.widget_form__content{
+		text-align: center;
+		font-size: 16px;
+		margin-bottom: 10px;
+	}
 	.widget_form__field_row{
 		margin-bottom: 10px;
 	}
 	.widget_form__field_label{
 		display: flex;
 		align-items: center;
-		padding-bottom: 5px;
-		gap: 5px;
+		padding-bottom: 10px;
 	}
 	.widget_form__field_error{
 		color: var(--widget-color-danger);
-		margin-top: var(--widget-space);
+		margin-top: 5px;
 	}
 	.widget_form__field_error--hide{
 		display: none;
@@ -59,8 +64,17 @@
 </style>
 
 
-<template name="renderTitle">
-	%render this.renderSlot("title");
+<template name="renderContent">
+	%if (this.model.form_content != "")
+	{
+		<div class="widget_form__content">
+			{{ this.model.form_content }}
+		</div>
+	}
+	%else
+	{
+		%render this.renderSlot("content");
+	}
 </template>
 
 
@@ -146,43 +160,66 @@
 	%if (field.has("buttons"))
 	{
 		%set Collection<Dict> buttons = field.get("buttons");
-		<div class="widget_form__field_buttons">
-			%for (int i=0; i<buttons.count(); i++)
-			{
-				%set Dict settings = buttons.get(i);
-				%set Dict props = settings.get("props");
-				%set string content = settings.get("content");
-				<Button
-					@event:click={{
-						void (var e) use (field, settings)
-						{
-							string event_name = settings.get("event");
-							var component = this.getRef("field_" ~ field.get("name"));
-							fn callback = new Callback(component, event_name);
-							callback.apply();
-						}
-					}}
-					...props
-				/>
-			}
-		</div>
+		%if (buttons instanceof RowButtonsModel)
+		{
+			%render this.renderWidget(buttons);
+		}
+		%else
+		{
+			<div class="widget_form__field_buttons">
+				%for (int i=0; i<buttons.count(); i++)
+				{
+					%set Dict settings = buttons.get(i);
+					%set Dict props = settings.get("props");
+					%set string content = settings.get("content");
+					<Button
+						@event:click={{
+							void (var e) use (field, settings)
+							{
+								string event_name = settings.get("event");
+								var component = this.getRef("field_" ~ field.get("name"));
+								fn callback = new Callback(component, event_name);
+								callback.apply();
+							}
+						}}
+						...props
+					/>
+				}
+			</div>
+		}
 	}
 </template>
 
 
 <template name="renderFieldRow" args="Dict field">
+	%set bool is_show = true;
 	%set string field_name = field.get("name");
-	<div class="widget_form__field_row" data-name={{ field_name }} @key={{ field_name }}>
-		%if (field.has("label"))
+	%set string field_show = field.get("show", null);
+	%if (field_show)
+	{
+		%set Dict data =
 		{
-			<div class="widget_form__field_label">
-				%render this.renderFieldLabel(field);
-				%render this.renderFieldButtons(field);
-			</div>
-		}
-		%render this.renderField(field);
-		%render this.renderFieldResult(field);
-	</div>
+			"item": this.model.item,
+			"field_name": field_name,
+			"form": this.model,
+		};
+		%set is_show = rtl::apply(field_show, [data]);
+	}
+	%if (is_show)
+	{
+		%set bool show_label = this.model.field_settings.get("show_label", true);
+		<div class="widget_form__field_row" data-name={{ field_name }} @key={{ field_name }}>
+			%if (field.has("label") and (show_label === true or show_label == "true"))
+			{
+				<div class="widget_form__field_label">
+					%render this.renderFieldLabel(field);
+					%render this.renderFieldButtons(field);
+				</div>
+			}
+			%render this.renderField(field);
+			%render this.renderFieldResult(field);
+		</div>
+	}
 </template>
 
 
@@ -216,8 +253,10 @@
 
 
 <template>
-	<div class="widget_form" class={{ this.class }}>
-		%render this.renderTitle();
+	<div class="widget_form" class={{ this.class }}
+		class={{ static::mergeStyles("widget_form", this.model.styles) }}
+	>
+		%render this.renderContent();
 		%render this.renderFields();
 		%render this.renderBottomButtons();
 		%render this.renderResult();

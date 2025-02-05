@@ -148,7 +148,7 @@ class Dialog extends \Runtime\Web\Component
 		$this->_e($__v0, "div", ["class" => $this->_class_name(["widget_dialog__box"])], $__v1);
 		
 		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_dialog", (($this->model->is_open) ? ("widget_dialog--open") : ("widget_dialog--hide")), static::getStyles("widget_dialog", $this->model->styles)])], $__v0);
+		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_dialog", (($this->model->is_open) ? ("widget_dialog--open") : ("widget_dialog--hide")), static::mergeStyles("widget_dialog", $this->model->styles)])], $__v0);
 		
 		return $this->_flatten($__v);
 	}
@@ -215,7 +215,7 @@ class Dialog extends \Runtime\Web\Component
 	static function css($vars)
 	{
 		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_dialog__box.h-a5bc,.widget_dialog__shadow.h-a5bc{position: fixed;top: 0;left: 0;width: 100%;height: 100%;z-index: 1001}.widget_dialog__box.h-a5bc{overflow: auto;overflow-y: scroll;display: none}.widget_dialog--open.h-a5bc .widget_dialog__box{display: block}.widget_dialog__shadow.h-a5bc{background-color: #000;opacity: 0.2;overflow: hidden;display: none}.widget_dialog--open.h-a5bc .widget_dialog__shadow{display: block}.widget_dialog__wrap.h-a5bc{width: 100%;min-height: 100%}.widget_dialog__wrap.h-a5bc > tr > td{padding: 20px}.widget_dialog__container.h-a5bc{position: relative;padding: calc(var(--widget-space) * 3);background-color: white;border-radius: 4px;max-width: 600px;margin: calc(var(--widget-space) * 5) auto;width: auto;z-index: 1002;box-shadow: 2px 4px 10px 0px rgba(0,0,0,0.5);font-size: var(--widget-font-size)}.widget_dialog__title.h-a5bc{font-weight: bold;font-size: var(--widget-font-size-h2);text-align: left;margin: var(--widget-margin-h2);margin-top: 0}.widget_dialog__buttons.h-a598{margin: var(--widget-margin-h2);margin-bottom: 0}.widget_dialog__buttons.h-a598 .widget_button.h-8dd7{min-width: 70px}");
+		$res .= \Runtime\rtl::toStr(".widget_dialog.h-a5bc{text-align: left}.widget_dialog__box.h-a5bc,.widget_dialog__shadow.h-a5bc{position: fixed;top: 0;left: 0;width: 100%;height: 100%;z-index: 1001}.widget_dialog__box.h-a5bc{overflow: auto;overflow-y: scroll;display: none}.widget_dialog--open.h-a5bc .widget_dialog__box{display: block}.widget_dialog__shadow.h-a5bc{background-color: #000;opacity: 0.2;overflow: hidden;display: none}.widget_dialog--open.h-a5bc .widget_dialog__shadow{display: block}.widget_dialog__wrap.h-a5bc{width: 100%;min-height: 100%}.widget_dialog__wrap.h-a5bc > tr > td{padding: 20px}.widget_dialog__container.h-a5bc{position: relative;padding: calc(var(--widget-space) * 3);background-color: white;border-radius: 4px;max-width: 600px;margin: calc(var(--widget-space) * 5) auto;width: auto;z-index: 1002;box-shadow: 2px 4px 10px 0px rgba(0,0,0,0.5);font-size: var(--widget-font-size)}.widget_dialog__title.h-a5bc{font-weight: bold;font-size: var(--widget-font-size-h2);text-align: left;margin: var(--widget-margin-h2);margin-top: 0}.widget_dialog__buttons.h-a598{margin: var(--widget-margin-h2);margin-bottom: 0}.widget_dialog__buttons.h-a598 .widget_button.h-8dd7{min-width: 70px}");
 		return $res;
 	}
 	/* ======================= Class Init Functions ======================= */

@@ -86,7 +86,7 @@ class FormRow extends \Runtime\Web\Component
 		}
 		
 		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["form_row", $this->class, static::getStyles("form_row", $this->styles)])], $__v0);
+		$this->_e($__v, "div", ["class" => $this->_class_name(["form_row", $this->class, static::mergeStyles("form_row", $this->styles)])], $__v0);
 		
 		return $this->_flatten($__v);
 	}

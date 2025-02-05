@@ -19,18 +19,14 @@
 namespace Runtime\Web\Messages;
 class ValueChangeMessage extends \Runtime\Web\Messages\Message
 {
+	public $name;
 	public $value;
 	public $old_value;
-	function __construct($params=null)
-	{
-		parent::__construct($params);
-		/* Set message name */
-		$this->name = "valueChange";
-	}
 	/* ======================= Class Init Functions ======================= */
 	function _init()
 	{
 		parent::_init();
+		$this->name = "valueChange";
 		$this->value = null;
 		$this->old_value = null;
 	}

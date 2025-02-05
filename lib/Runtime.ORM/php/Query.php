@@ -25,9 +25,10 @@ class Query extends \Runtime\BaseObject
 	const QUERY_UPDATE="update";
 	const QUERY_DELETE="delete";
 	const QUERY_INSERT_OR_UPDATE="insert_or_update";
-	public $_class_name_relation;
 	public $_kind;
+	public $_relation_name;
 	public $_table_name;
+	public $_table_alias;
 	public $_fields;
 	public $_join;
 	public $_order;
@@ -52,15 +53,16 @@ class Query extends \Runtime\BaseObject
 	function copy()
 	{
 		$q = new \Runtime\ORM\Query();
-		$q->_class_name_relation = $this->_class_name_relation;
 		$q->_kind = $this->_kind;
+		$q->_relation_name = $this->_relation_name;
 		$q->_table_name = $this->_table_name;
+		$q->_table_alias = $this->_table_alias;
 		$q->_fields = $this->_fields->toVector();
 		$q->_join = $this->_join->toVector();
 		$q->_order = $this->_order->toVector();
 		$q->_filter = $this->_filter->toVector();
 		$q->_sql = $this->_sql;
-		$q->_data = $this->_data->toMap();
+		$q->_data = ($this->_data) ? ($this->_data->toMap()) : (null);
 		$q->_start = $this->_start;
 		$q->_limit = $this->_limit;
 		$q->_debug = $this->_debug;
@@ -79,13 +81,20 @@ class Query extends \Runtime\BaseObject
 		return $this;
 	}
 	/**
+	 * Returns relation class name
+	 */
+	function getRelationName()
+	{
+		return $this->_relation_name;
+	}
+	/**
 	 * Calc found rows
 	 */
 	function raw($sql, $data)
 	{
 		$this->_kind = static::QUERY_RAW;
 		$this->_sql = $sql;
-		$this->_data = $data->toMap();
+		$this->_data = ($data) ? ($data->toMap()) : (null);
 		return $this;
 	}
 	/**
@@ -127,17 +136,32 @@ class Query extends \Runtime\BaseObject
 	/**
 	 * Set table
 	 */
-	function table($table_name="")
+	function table($table_name="", $alias_name="")
 	{
 		$this->_table_name = ($table_name != "") ? ($table_name) : ($this->_table_name);
+		$this->_table_alias = ($alias_name == "") ? ($this->_table_name) : ($alias_name);
+		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
+		$this->_relation_name = $provider->getRelationName($this->_table_name);
+		return $this;
+	}
+	/**
+	 * Set relation
+	 */
+	function relation($class_name="", $alias_name="")
+	{
+		$table_name = (new \Runtime\Callback($class_name, "getTableName"))->apply();
+		$this->_table_name = ($table_name != "") ? ($table_name) : ($this->_table_name);
+		$this->_table_alias = ($alias_name == "") ? ($this->_table_name) : ($alias_name);
+		$this->_relation_name = $class_name;
 		return $this;
 	}
 	/**
 	 * Set table
 	 */
-	function from($table_name="")
+	function from($table_name="", $alias_name="")
 	{
 		$this->_table_name = ($table_name != "") ? ($table_name) : ($this->_table_name);
+		$this->_table_alias = ($alias_name == "") ? ($this->_table_name) : ($alias_name);
 		return $this;
 	}
 	/**
@@ -202,6 +226,10 @@ class Query extends \Runtime\BaseObject
 	function addTableFields($table_name)
 	{
 		$annotations = $this->_provider->getAnotations($table_name);
+		if (!$annotations)
+		{
+			return $this;
+		}
 		for ($i = 0; $i < $annotations->count(); $i++)
 		{
 			$annotation = \Runtime\rtl::attr($annotations, $i);
@@ -214,24 +242,33 @@ class Query extends \Runtime\BaseObject
 				$this->_fields->append($field);
 			}
 		}
+		return $this;
 	}
 	/**
 	 * Add field
 	 */
-	function addField($field_name)
+	function addField($field)
 	{
-		if ($field_name instanceof \Runtime\ORM\QueryField || $field_name instanceof \Runtime\ORM\QueryFilter)
+		if (\Runtime\rtl::isString($field))
 		{
-			$this->_fields->append($field_name);
-			return $this;
+			/* Parse field */
+			$field = \Runtime\rs::trim($field);
+			$field = \Runtime\ORM\QueryField::fromString($field);
 		}
-		$field_name = \Runtime\rs::trim($field_name);
-		$res1 = \Runtime\rs::split(" as ", $field_name);
-		$res2 = \Runtime\rs::split(".", \Runtime\rtl::attr($res1, 0));
-		if ($res2->count() > 1 && $res2->get(1) == "*")
+		/* If field name is asterisk */
+		if ($field instanceof \Runtime\ORM\QueryField && $field->field_name == "*")
 		{
-			$table_name = $res2->get(0);
+			$table_name = $field->table_name;
+			if ($table_name == "")
+			{
+				return $this;
+			}
 			$annotations = $this->_provider->getAnotations($table_name);
+			if (!$annotations)
+			{
+				return $this;
+			}
+			/* Add fields from annotation */
 			for ($i = 0; $i < $annotations->count(); $i++)
 			{
 				$annotation = \Runtime\rtl::attr($annotations, $i);
@@ -247,7 +284,6 @@ class Query extends \Runtime\BaseObject
 		}
 		else
 		{
-			$field = \Runtime\ORM\QueryField::fromString($field_name);
 			$this->_fields->append($field);
 		}
 		return $this;
@@ -459,9 +495,10 @@ class Query extends \Runtime\BaseObject
 	function _init()
 	{
 		parent::_init();
-		$this->_class_name_relation = "";
 		$this->_kind = "";
+		$this->_relation_name = "";
 		$this->_table_name = "";
+		$this->_table_alias = "";
 		$this->_fields = new \Runtime\Vector();
 		$this->_join = new \Runtime\Vector();
 		$this->_order = new \Runtime\Vector();

@@ -33,11 +33,12 @@ class RoutePage extends \Runtime\Web\RouteInfo
 	 */
 	function render($container)
 	{
-		$container->renderPage($this->page);
+		$container->layout->setPageComponent($this->page);
 		if ($this->data)
 		{
 			$title = $this->data->get("title");
-			$container->layout->setPageTitle($title);
+			$is_full_title = $this->data->get("full_title", false);
+			$container->layout->setPageTitle($title, $is_full_title);
 		}
 	}
 	/* ======================= Class Init Functions ======================= */

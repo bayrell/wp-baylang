@@ -25,17 +25,22 @@ class RenderContainer extends \Runtime\BaseObject
 	public $route;
 	public $layout;
 	public $cookies;
-	public $backend_storage;
 	/**
 	 * Create layout
 	 */
 	function createLayout($layout_name)
 	{
-		/* Get layout class name */
-		$params = \Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::LAYOUT_MODEL_NAME, \Runtime\Map::from(["class_name"=>"Runtime.Web.BaseLayoutModel","layout_name"=>$layout_name]));
+		/* Get layout params */
+		$params = \Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::LAYOUT_MODEL_NAME, \Runtime\Map::from(["class_name"=>"Runtime.Web.BaseLayoutModel","layout_name"=>$layout_name,"component_name"=>""]));
 		/* Create layout */
 		$this->layout = \Runtime\rtl::newInstance($params->get("class_name"));
 		$this->layout->setLayoutName($layout_name);
+		$this->layout->route = $this->route;
+		/* Set component name */
+		if ($params->get("component_name") != "")
+		{
+			$this->layout->component = $params->get("component_name");
+		}
 		/* Call create layout */
 		\Runtime\rtl::getContext()->callHookAsync(\Runtime\Web\Hooks\AppHook::CREATE_LAYOUT, \Runtime\Map::from(["container"=>$this]));
 	}
@@ -70,15 +75,17 @@ class RenderContainer extends \Runtime\BaseObject
 	 */
 	function resolve()
 	{
-		/* Resolve request */
-		$this->resolveRequest();
+		/* Find route */
+		$this->findRoute();
+		/* Call middleware */
+		$this->callRouteMiddleware($this);
 		/* Resolve route */
 		$this->resolveRoute();
 	}
 	/**
-	 * Resolve request and find route
+	 * Find route
 	 */
-	function resolveRequest()
+	function findRoute()
 	{
 		/* Call hook find route */
 		\Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::FIND_ROUTE_BEFORE, \Runtime\Map::from(["container"=>$this]));
@@ -96,8 +103,6 @@ class RenderContainer extends \Runtime\BaseObject
 		$this->route = $routes->findRoute($this);
 		/* Call hook found route */
 		\Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::FIND_ROUTE_AFTER, \Runtime\Map::from(["container"=>$this]));
-		/* Call middleware */
-		$this->callRouteMiddleware($this);
 	}
 	/**
 	 * Resolve route
@@ -111,9 +116,6 @@ class RenderContainer extends \Runtime\BaseObject
 		/* Create layout */
 		$layout_name = $this->getLayoutName();
 		$this->createLayout($layout_name);
-		/* Set layout params */
-		$this->layout->backend_storage = $this->backend_storage;
-		$this->layout->route = $this->route;
 		/* Call route before */
 		\Runtime\rtl::getContext()->callHookAsync(\Runtime\Web\Hooks\AppHook::ROUTE_BEFORE, \Runtime\Map::from(["container"=>$this]));
 		/* Call layout route before */
@@ -129,6 +131,11 @@ class RenderContainer extends \Runtime\BaseObject
 		$this->layout->onActionAfter($this);
 		/* Call route after */
 		\Runtime\rtl::getContext()->callHookAsync(\Runtime\Web\Hooks\AppHook::ROUTE_AFTER, \Runtime\Map::from(["container"=>$this]));
+		/* Set response */
+		if ($this->response == null)
+		{
+			$this->setResponse(new \Runtime\Web\RenderResponse($this));
+		}
 	}
 	/**
 	 * Call route middleware
@@ -147,18 +154,15 @@ class RenderContainer extends \Runtime\BaseObject
 		\Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::ROUTE_MIDDLEWARE, \Runtime\Map::from(["container"=>$this]));
 	}
 	/**
-	 * Set response
-	 */
-	function setResponse($response)
-	{
-		$this->response = $response;
-	}
-	/**
 	 * Render page model
 	 */
 	function renderPageModel($model_name)
 	{
+		/* Create response */
+		$this->setResponse(new \Runtime\Web\RenderResponse($this));
+		/* Set page model */
 		$this->layout->setPageModel($model_name);
+		/* Action index */
 		$page_model = $this->layout->getPageModel();
 		if ($page_model)
 		{
@@ -166,16 +170,11 @@ class RenderContainer extends \Runtime\BaseObject
 		}
 	}
 	/**
-	 * Render page and setup response
+	 * Set response
 	 */
-	function renderPage($page_class_name="")
+	function setResponse($response)
 	{
-		$this->response = new \Runtime\Web\RenderResponse();
-		$this->layout->current_page_class = $page_class_name;
-		if ($page_class_name != "")
-		{
-			$this->layout->addComponent($page_class_name);
-		}
+		$this->response = $response;
 	}
 	/**
 	 * Cancel route
@@ -260,7 +259,6 @@ class RenderContainer extends \Runtime\BaseObject
 		$this->route = null;
 		$this->layout = null;
 		$this->cookies = \Runtime\Map::from([]);
-		$this->backend_storage = \Runtime\Map::from([]);
 	}
 	static function getNamespace()
 	{

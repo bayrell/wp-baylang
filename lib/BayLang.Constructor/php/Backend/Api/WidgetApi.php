@@ -29,94 +29,56 @@ class WidgetApi extends \Runtime\Web\BaseApi
 	/**
 	 * Load widget
 	 */
-	static function getOpCode($api)
+	function getOpCode()
 	{
-		$project_id = $api->post_data->get("project_id");
-		$current_widget = $api->post_data->get("current_widget");
-		/* Find project */
-		$project = \BayLang\Constructor\Backend\ApiHook::getProject($project_id);
-		if (!$project)
-		{
-			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\ItemNotFound($project_id, "Project"));
-		}
+		$service = new \BayLang\Constructor\Backend\Service\WidgetService();
+		$project_id = $this->post_data->get("project_id");
+		$current_widget = $this->post_data->get("current_widget");
 		/* Load project */
-		$project->load();
-		/* Find widget */
-		$widget = $project->getWidget($current_widget);
-		if (!$widget)
-		{
-			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\ItemNotFound($current_widget, "Widget"));
-		}
+		$service->loadProject($project_id);
+		/* Load modules */
+		$service->loadItem(\Runtime\Map::from(["id"=>$current_widget]));
 		/* Load widget */
-		$widget->load();
+		$service->item->load();
 		/* Get widget op code */
-		$component = $widget->getComponentOpCode();
-		$model = $widget->getModelOpCode();
+		$component = $service->item->getComponentOpCode();
+		$model = $service->item->getModelOpCode();
 		/* Get component path */
 		if (!$component)
 		{
 			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\RuntimeException("Failed to load widget '" . \Runtime\rtl::toStr($current_widget) . \Runtime\rtl::toStr("'")));
 		}
 		/* Success */
-		$api->success(\Runtime\Map::from(["data"=>\Runtime\Map::from(["component"=>$component,"model"=>$model])]));
+		$this->success(\Runtime\Map::from(["data"=>\Runtime\Map::from(["component"=>$component,"model"=>$model])]));
 	}
 	/**
 	 * Save widget
 	 */
-	static function save($api)
+	function save()
 	{
-		$project_id = $api->post_data->get("project_id");
-		$current_widget = $api->post_data->get("current_widget");
-		/* Find project */
-		$project = \BayLang\Constructor\Backend\ApiHook::getProject($project_id);
-		if (!$project)
-		{
-			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\ItemNotFound($project_id, "Project"));
-		}
+		$service = new \BayLang\Constructor\Backend\Service\WidgetService();
+		$project_id = $this->post_data->get("project_id");
+		$current_widget = $this->post_data->get("current_widget");
 		/* Load project */
-		$project->load();
-		/* Find widget */
-		$widget = $project->getWidget($current_widget);
-		if (!$widget)
-		{
-			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\ItemNotFound($current_widget, "Widget"));
-		}
+		$service->loadProject($project_id);
+		/* Load modules */
+		$service->loadItem(\Runtime\Map::from(["id"=>$current_widget]));
 		/* Load widget */
-		$widget->load();
+		$service->item->load();
 		/* Get component path */
-		$component_path = $widget->getComponentPath();
+		$component_path = $service->item->getComponentPath();
 		if (!$component_path)
 		{
 			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\RuntimeException("Failed to load widget '" . \Runtime\rtl::toStr($current_widget) . \Runtime\rtl::toStr("'")));
 		}
 		/* Save file */
-		static::saveFile($widget, $widget->getComponentPath(), $api->post_data->get("component"));
-		static::saveFile($widget, $widget->getModelPath(), $api->post_data->get("model"));
+		$service->saveFile($service->item->getComponentPath(), $this->post_data->get("component"));
+		$service->saveFile($service->item->getModelPath(), $this->post_data->get("model"));
 		/* Update assets */
-		$widget->module->updateAssets();
+		$service->item->module->updateAssets();
 		\BayLang\Constructor\Backend\ApiHook::updateAssets();
 		/* Success */
-		$api->success();
-	}
-	/**
-	 * Save file
-	 */
-	static function saveFile($widget, $file_path, $content)
-	{
-		/* Get op_code */
-		$serializer = new \Runtime\SerializerBase64();
-		$serializer->setFlag(\Runtime\Serializer::ALLOW_OBJECTS);
-		$op_code = $serializer->decode($content);
-		/* Translate */
-		$translator = new \BayLang\LangBay\TranslatorBay();
-		$res = $translator::translate($translator, $op_code);
-		$content = $res->get(1);
-		/* Save content */
-		\Runtime\fs::saveFile($file_path, $content);
-		/* Compile file */
-		$relative_src_file_path = $widget->module->getRelativeSourcePath($file_path);
-		$widget->module->compile($relative_src_file_path);
-		/* widget.module.translateLanguages(relative_src_file_path, op_code); */
+		$this->success();
 	}
 	/* ======================= Class Init Functions ======================= */
 	static function getNamespace()

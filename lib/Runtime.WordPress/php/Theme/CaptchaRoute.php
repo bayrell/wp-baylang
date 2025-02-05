@@ -24,7 +24,7 @@ class CaptchaRoute extends \Runtime\Web\BaseRoute
 	 */
 	static function getRoutes()
 	{
-		return \Runtime\Vector::from([new \Runtime\Web\RouteInfo(\Runtime\Map::from(["uri"=>"/generate_captcha/","name"=>"site:generate_captcha","method"=>"actionIndex","enable_locale"=>false]))]);
+		return \Runtime\Vector::from([new \Runtime\Web\RouteInfo(\Runtime\Map::from(["uri"=>"/generate_captcha/","name"=>"site:generate_captcha","method"=>"actionIndex"]))]);
 	}
 	/**
 	 * Action index

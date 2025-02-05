@@ -37,12 +37,16 @@ class FormModel extends BaseModel
 {
 	string component = classof Form;
 	string widget_name = "form";
+	string form_title = "";
+	string form_content = "";
+	Collection<string> styles = [];
 	
 	/* Fields */
 	Dict foreign_key = null;
 	Dict post_data = null;
 	Vector<Map> fields = [];
 	Dict<Vector> fields_error = {};
+	Dict field_settings = {};
 	
 	/* Data */
 	int row_number = -1;
@@ -81,9 +85,13 @@ class FormModel extends BaseModel
 		parent(params);
 		
 		if (params == null) return;
+		if (params.has("field_settings")) this.field_settings = params.get("field_settings");
 		if (params.has("foreign_key")) this.foreign_key = params.get("foreign_key");
+		if (params.has("form_content")) this.form_content = params.get("form_content");
+		if (params.has("form_title")) this.form_title = params.get("form_title");
 		if (params.has("post_data")) this.post_data = params.get("post_data");
 		if (params.has("show_result")) this.show_result = params.get("show_result");
+		if (params.has("styles")) this.styles = params.get("styles");
 		
 		/* Setup params */
 		if (params.has("fields"))
@@ -146,7 +154,7 @@ class FormModel extends BaseModel
 			classof RowButtonsModel,
 			{
 				"widget_name": "bottom_buttons",
-				"styles": ["@widget_form__bottom_buttons"],
+				"styles": ["bottom_buttons", "center"],
 			}
 		);
 	}
@@ -226,9 +234,18 @@ class FormModel extends BaseModel
 	void clear()
 	{
 		this.pk = null;
-		this.fields_error = {};
 		this.row_number = -1;
+		this.clearError();
 		this.clearItem();
+	}
+	
+	
+	/**
+	 * Clear form error
+	 */
+	void clearError()
+	{
+		this.fields_error = {};
 		this.result.clear();
 	}
 	
@@ -244,7 +261,7 @@ class FormModel extends BaseModel
 			Dict field = this.fields.get(i);
 			string field_name = field.get("name");
 			var default_value = field.get("default", "");
-			this.item.set(field_name, default_value);
+			this.item.set(field_name, Serializer::copy(default_value));
 		}
 	}
 	
@@ -323,27 +340,29 @@ class FormModel extends BaseModel
 	{
 		if (res == null) return;
 		
+		/* Set data */
+		if (res.data.has("item") and res.data.has("item") != null)
+		{
+			this.item = res.data.get("item");
+		}
+		if (res.data.has("pk") and res.data.get("pk") != null)
+		{
+			this.pk = res.data.get("pk");
+		}
+		if (res.data.has("fields"))
+		{
+			this.fields_error = res.data.get("fields");
+		}
+		
 		/* Load */
 		if (action == "load")
 		{
-			if (res.data.has("item"))
-			{
-				this.item = res.data.get("item");
-			}
 			this.load.setApiResult(res);
 		}
 		
 		/* Submit */
 		if (action == "submit")
 		{
-			if (res.data.has("item"))
-			{
-				this.item = res.data.get("item");
-			}
-			if (res.data.has("fields"))
-			{
-				this.fields_error = res.data.get("fields");
-			}
 			this.result.setApiResult(res);
 		}
 	}
@@ -352,7 +371,7 @@ class FormModel extends BaseModel
 	/**
 	 * Returns post item
 	 */
-	Dict getPostItem() => this.item;
+	Dict getPostItem() => Serializer::copy(this.item);
 	
 	
 	/**

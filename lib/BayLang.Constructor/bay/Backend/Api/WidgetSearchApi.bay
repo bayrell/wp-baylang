@@ -18,26 +18,34 @@
 
 namespace BayLang.Constructor.Backend.Api;
 
-use Runtime.fs;
-use Runtime.Exceptions.ApiError;
-use Runtime.Exceptions.ItemNotFound;
 use Runtime.Web.Annotations.ApiMethod;
+use Runtime.Widget.Crud.CrudService;
 use Runtime.Widget.Crud.SearchApi;
-use BayLang.Constructor.Backend.ApiHook;
-use BayLang.Helper.Module;
-use BayLang.Helper.Project;
-use BayLang.Helper.Widget;
+use BayLang.Constructor.Backend.Service.WidgetService;
 
 
 class WidgetSearchApi extends SearchApi
 {
-	Project project = null;
-	
-	
 	/**
 	 * Returns api name
 	 */
-	static string getApiName() => "baylang.constructor.widget::search";
+	static string getApiName() => "baylang.constructor.widget.search";
+	
+	
+	/**
+	 * Returns service
+	 */
+	CrudService createService() => new WidgetService();
+	
+	
+	/**
+	 * Returns item fields
+	 */
+	Collection getItemFields() =>
+	[
+		"id",
+		"module_id",
+	];
 	
 	
 	/**
@@ -46,49 +54,16 @@ class WidgetSearchApi extends SearchApi
 	@ApiMethod
 	async void actionSearch()
 	{
-		/* Get project */
-		string project_id = this.post_data["foreign_key", "project_id"];
-		this.project = await ApiHook::getProject(project_id);
-		if (not this.project)
-		{
-			throw new ApiError(new ItemNotFound(project_id, "Project"));
-		}
+		/* Create service */
+		CrudService service = this.createService();
 		
 		/* Load project */
-		await this.project.load();
+		await service.loadProject(this.post_data["foreign_key", "project_id"]);
 		
-		/* Get widgets */
-		Collection items = this.project.modules
-			.transition(Module (Module module) => module)
-			.map(
-				Collection (Module module) => module.getWidgets()
-			)
-			.flatten()
-		;
+		/* Search items */
+		await service.search(this.post_data);
 		
-		/* Sort widgets */
-		items = items.sort(
-			int (Widget a, Widget b)
-			{
-				return rs::compare(a.name, b.name);
-			}
-		);
-		
-		/* Convert items */
-		items = items.map(
-			Dict (Widget widget) => {
-				"id": widget.name,
-				"module_id": widget.module.getName(),
-			}
-		);
-		
-		/* Set result */
-		this.success({
-			"data": {
-				"items": items,
-				"page": 0,
-				"pages": 1,
-			}
-		})
+		/* Build result */
+		this.buildResult(service);
 	}
 }

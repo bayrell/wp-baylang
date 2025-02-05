@@ -95,14 +95,17 @@ class ButtonSettings extends \Runtime\BaseObject implements \BayLang\Constructor
 	 */
 	function getParams()
 	{
-		return \Runtime\Vector::from([new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent", \Runtime\Map::from(["name"=>"content","label"=>"Content","component"=>"Runtime.Widget.Input","default"=>""])),new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent", \Runtime\Map::from(["name"=>"type","label"=>"Type","component"=>"Runtime.Widget.Input","default"=>"button"])),new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent", \Runtime\Map::from(["name"=>"target","label"=>"Target","component"=>"Runtime.Widget.Select","default"=>"_self","props"=>\Runtime\Map::from(["options"=>\Runtime\Vector::from([\Runtime\Map::from(["key"=>"_self","value"=>"self"]),\Runtime\Map::from(["key"=>"_blank","value"=>"blank"])])])]))]);
+		return \Runtime\Vector::from([new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterContent"),new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent", \Runtime\Map::from(["name"=>"type","label"=>"Type","component"=>"Runtime.Widget.Input","default"=>"button"])),new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent", \Runtime\Map::from(["name"=>"target","label"=>"Target","component"=>"Runtime.Widget.Select","default"=>"_self","props"=>\Runtime\Map::from(["options"=>\Runtime\Vector::from([\Runtime\Map::from(["key"=>"_self","value"=>"self"]),\Runtime\Map::from(["key"=>"_blank","value"=>"blank"])])])]))]);
 	}
 	/**
 	 * Returns default template
 	 */
 	function getDefaultTemplate()
 	{
-		return \Runtime\Map::from([]);
+		return \Runtime\Map::from(["default"=>function ()
+		{
+			return \Runtime\Map::from(["content"=>\Runtime\rs::join("\n", \Runtime\Vector::from(["<template>Click</template>"]))]);
+		}]);
 	}
 	/* ======================= Class Init Functions ======================= */
 	static function getNamespace()

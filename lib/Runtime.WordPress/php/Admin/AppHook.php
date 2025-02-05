@@ -90,7 +90,7 @@ class AppHook extends \Runtime\Web\Hooks\AppHook
 	 */
 	function update_assets($params)
 	{
-		\Runtime\WordPress\WP_Helper::update_option("app_js_vesion", \Runtime\DateTime::now()->getTimestamp());
+		\Runtime\WordPress\WP_Helper::setAppVersion(\Runtime\DateTime::now()->getTimestamp());
 	}
 	/* ======================= Class Init Functions ======================= */
 	static function getNamespace()

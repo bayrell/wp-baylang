@@ -19,55 +19,42 @@
 namespace BayLang\Constructor\Backend\Api;
 class WidgetSearchApi extends \Runtime\Widget\Crud\SearchApi
 {
-	public $project;
 	/**
 	 * Returns api name
 	 */
 	static function getApiName()
 	{
-		return "baylang.constructor.widget::search";
+		return "baylang.constructor.widget.search";
+	}
+	/**
+	 * Returns service
+	 */
+	function createService()
+	{
+		return new \BayLang\Constructor\Backend\Service\WidgetService();
+	}
+	/**
+	 * Returns item fields
+	 */
+	function getItemFields()
+	{
+		return \Runtime\Vector::from(["id","module_id"]);
 	}
 	/**
 	 * Action search
 	 */
 	function actionSearch()
 	{
-		/* Get project */
-		$project_id = \Runtime\rtl::attr($this->post_data, ["foreign_key", "project_id"]);
-		$this->project = \BayLang\Constructor\Backend\ApiHook::getProject($project_id);
-		if (!$this->project)
-		{
-			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\ItemNotFound($project_id, "Project"));
-		}
+		/* Create service */
+		$service = $this->createService();
 		/* Load project */
-		$this->project->load();
-		/* Get widgets */
-		$items = $this->project->modules->transition(function ($module)
-		{
-			return $module;
-		})->map(function ($module)
-		{
-			return $module->getWidgets();
-		})->flatten();
-		/* Sort widgets */
-		$items = $items->sort(function ($a, $b)
-		{
-			return \Runtime\rs::compare($a->name, $b->name);
-		});
-		/* Convert items */
-		$items = $items->map(function ($widget)
-		{
-			return \Runtime\Map::from(["id"=>$widget->name,"module_id"=>$widget->module->getName()]);
-		});
-		/* Set result */
-		$this->success(\Runtime\Map::from(["data"=>\Runtime\Map::from(["items"=>$items,"page"=>0,"pages"=>1])]));
+		$service->loadProject(\Runtime\rtl::attr($this->post_data, ["foreign_key", "project_id"]));
+		/* Search items */
+		$service->search($this->post_data);
+		/* Build result */
+		$this->buildResult($service);
 	}
 	/* ======================= Class Init Functions ======================= */
-	function _init()
-	{
-		parent::_init();
-		$this->project = null;
-	}
 	static function getNamespace()
 	{
 		return "BayLang.Constructor.Backend.Api";

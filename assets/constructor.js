@@ -175,6 +175,64 @@ Object.assign(BayLang.Constructor.WidgetPage.EditorProvider.prototype,
 		this.groups.push(group);
 	},
 	/**
+	 * Add widget
+	 */
+	addWidget: function(widget_settings)
+	{
+		/* Add widget */
+		this.widgets.push(widget_settings);
+		/* Add settings */
+		this.settings.set(widget_settings.constructor.getClassName(), widget_settings);
+		/* Add widget by model name */
+		if (widget_settings.isModel())
+		{
+			this.settings.set(widget_settings.getModelName(), widget_settings);
+		}
+		else
+		{
+			this.settings.set(widget_settings.getComponentName(), widget_settings);
+		}
+	},
+	/**
+	 * Remove widget
+	 */
+	removeWidget: function(widget_settings)
+	{
+		if (!widget_settings)
+		{
+			return ;
+		}
+		/* Find widget */
+		var pos = this.widgets.indexOf(widget_settings);
+		if (pos >= 0)
+		{
+			this.widgets.remove(pos);
+		}
+		/* Remove by class name */
+		if (this.settings.has(widget_settings.constructor.getClassName()))
+		{
+			this.settings.remove(widget_settings.constructor.getClassName());
+		}
+		/* Remove by model name */
+		if (this.settings.has(widget_settings.getModelName()))
+		{
+			this.settings.remove(widget_settings.getModelName());
+		}
+		/* Remove by component name */
+		if (this.settings.has(widget_settings.getComponentName()))
+		{
+			this.settings.remove(widget_settings.getComponentName());
+		}
+	},
+	/**
+	 * Remove widget by name
+	 */
+	remove: function(widget_name)
+	{
+		var widget_settings = this.get(widget_name);
+		this.removeWidget(widget_settings);
+	},
+	/**
 	 * Init provider
 	 */
 	init: async function()
@@ -206,18 +264,7 @@ Object.assign(BayLang.Constructor.WidgetPage.EditorProvider.prototype,
 			{
 				var widget_settings = widgets.get(j);
 				/* Add widget */
-				this.widgets.push(widget_settings);
-				/* Add settings */
-				this.settings.set(widget_settings.constructor.getClassName(), widget_settings);
-				/* Add widget by model name */
-				if (widget_settings.isModel())
-				{
-					this.settings.set(widget_settings.getModelName(), widget_settings);
-				}
-				else
-				{
-					this.settings.set(widget_settings.getComponentName(), widget_settings);
-				}
+				this.addWidget(widget_settings);
 			}
 		}
 		/* Widgets init */
@@ -1729,14 +1776,17 @@ Object.assign(Runtime.Widget.WidgetSettings.Settings.ButtonSettings.prototype,
 	 */
 	getParams: function()
 	{
-		return Runtime.Vector.from([new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent", Runtime.Map.from({"name":"content","label":"Content","component":"Runtime.Widget.Input","default":""})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent", Runtime.Map.from({"name":"type","label":"Type","component":"Runtime.Widget.Input","default":"button"})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent", Runtime.Map.from({"name":"target","label":"Target","component":"Runtime.Widget.Select","default":"_self","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"_self","value":"self"}),Runtime.Map.from({"key":"_blank","value":"blank"})])})}))]);
+		return Runtime.Vector.from([new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterContent"),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent", Runtime.Map.from({"name":"type","label":"Type","component":"Runtime.Widget.Input","default":"button"})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterComponent", Runtime.Map.from({"name":"target","label":"Target","component":"Runtime.Widget.Select","default":"_self","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"_self","value":"self"}),Runtime.Map.from({"key":"_blank","value":"blank"})])})}))]);
 	},
 	/**
 	 * Returns default template
 	 */
 	getDefaultTemplate: function()
 	{
-		return Runtime.Map.from({});
+		return Runtime.Map.from({"default":() =>
+		{
+			return Runtime.Map.from({"content":Runtime.rs.join("\n", Runtime.Vector.from(["<template>Click</template>"]))});
+		}});
 	},
 });
 Object.assign(Runtime.Widget.WidgetSettings.Settings.ButtonSettings, Runtime.BaseObject);
@@ -2267,7 +2317,7 @@ Object.assign(Runtime.Widget.WidgetSettings.Settings.FormSubmitModelSettings.pro
 	/**
 	 * On change
 	 */
-	onChange: function(iframeWindow, widget, param)
+	onChange: function(runtime, widget, param)
 	{
 		if (param.name == "submit_button_text")
 		{
@@ -2974,7 +3024,7 @@ Object.assign(Runtime.Widget.WidgetSettings.Settings.TextImageSettings.prototype
 	{
 		return Runtime.Map.from({"default":() =>
 		{
-			return Runtime.Map.from({"content":Runtime.rs.join("\n", Runtime.Vector.from(["<use name='Runtime.Widget.Image' component='true' />","<use name='Runtime.Widget.Text' component='true' />","<style>","%(TextImage)widget_text_image{","\t&__image{","\t}","\t&__text{","\t}","}","</style>"]))});
+			return Runtime.Map.from({"content":Runtime.rs.join("\n", Runtime.Vector.from(["<use name='Runtime.Widget.Image' component='true' />","<use name='Runtime.Widget.Text' component='true' />","<style>","%(Image)widget_image{","}","%(TextImage)widget_text_image__image{","}","%(TextImage)widget_text_image__text{","}","</style>"]))});
 		}});
 	},
 });
@@ -3096,7 +3146,7 @@ Object.assign(Runtime.Widget.WidgetSettings.Settings.Html.Div.prototype,
 	 */
 	getGroupName: function()
 	{
-		return "basic";
+		return "html";
 	},
 	/**
 	 * Returns true if is widget settings
@@ -3276,7 +3326,7 @@ Object.assign(Runtime.Widget.WidgetSettings.Settings.Html.Header.prototype,
 	 */
 	getGroupName: function()
 	{
-		return "basic";
+		return "html";
 	},
 	/**
 	 * Returns true if is widget settings
@@ -3428,7 +3478,7 @@ Object.assign(Runtime.Widget.WidgetSettings.Settings.Html.H1.prototype,
 	 */
 	getGroupName: function()
 	{
-		return "basic";
+		return "html";
 	},
 	/**
 	 * Returns true if is widget settings
@@ -3567,7 +3617,7 @@ Object.assign(Runtime.Widget.WidgetSettings.Settings.Html.H2.prototype,
 	 */
 	getGroupName: function()
 	{
-		return "basic";
+		return "html";
 	},
 	/**
 	 * Returns true if is widget settings
@@ -3706,7 +3756,7 @@ Object.assign(Runtime.Widget.WidgetSettings.Settings.Html.H3.prototype,
 	 */
 	getGroupName: function()
 	{
-		return "basic";
+		return "html";
 	},
 	/**
 	 * Returns true if is widget settings
@@ -3845,7 +3895,7 @@ Object.assign(Runtime.Widget.WidgetSettings.Settings.Html.H4.prototype,
 	 */
 	getGroupName: function()
 	{
-		return "basic";
+		return "html";
 	},
 	/**
 	 * Returns true if is widget settings
@@ -3984,7 +4034,7 @@ Object.assign(Runtime.Widget.WidgetSettings.Settings.Html.H5.prototype,
 	 */
 	getGroupName: function()
 	{
-		return "basic";
+		return "html";
 	},
 	/**
 	 * Returns true if is widget settings
@@ -4130,7 +4180,7 @@ Object.assign(Runtime.Widget.WidgetSettings.Settings.Html.Link.prototype,
 	 */
 	getGroupName: function()
 	{
-		return "basic";
+		return "html";
 	},
 	/**
 	 * Returns true if is widget settings
@@ -4293,7 +4343,7 @@ Object.assign(Runtime.Widget.WidgetSettings.Settings.Html.Paragraph.prototype,
 	 */
 	getGroupName: function()
 	{
-		return "basic";
+		return "html";
 	},
 	/**
 	 * Returns true if is widget settings
@@ -4456,7 +4506,7 @@ Object.assign(Runtime.Widget.WidgetSettings.Settings.Html.Span.prototype,
 	 */
 	getGroupName: function()
 	{
-		return "basic";
+		return "html";
 	},
 	/**
 	 * Returns true if is widget settings
@@ -4588,7 +4638,7 @@ Object.assign(Runtime.Widget.WidgetSettings.WidgetManager.prototype,
 	 */
 	getGroupSettings: function()
 	{
-		return Runtime.Map.from({"basic":Runtime.Map.from({"label":"Basic","priority":0}),"widget":Runtime.Map.from({"label":"Widget","priority":100}),"other":Runtime.Map.from({"label":"Basic","priority":9999})});
+		return Runtime.Map.from({"basic":Runtime.Map.from({"label":"Basic","priority":0}),"html":Runtime.Map.from({"label":"Html","priority":100}),"widget":Runtime.Map.from({"label":"Widget","priority":100}),"other":Runtime.Map.from({"label":"Basic","priority":9999})});
 	},
 	/**
 	 * Returns list of widget settings
@@ -4779,14 +4829,491 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
  */
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
-if (typeof Runtime.WordPress.Settings == 'undefined') Runtime.WordPress.Settings = {};
-Runtime.WordPress.Settings.FormModelSettings = function()
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings == 'undefined') Runtime.WordPress.Theme.WidgetSettings = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings.Button == 'undefined') Runtime.WordPress.Theme.WidgetSettings.Button = {};
+Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormModelSettings = function()
 {
 	Runtime.BaseObject.apply(this, arguments);
 };
-Runtime.WordPress.Settings.FormModelSettings.prototype = Object.create(Runtime.BaseObject.prototype);
-Runtime.WordPress.Settings.FormModelSettings.prototype.constructor = Runtime.WordPress.Settings.FormModelSettings;
-Object.assign(Runtime.WordPress.Settings.FormModelSettings.prototype,
+Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormModelSettings.prototype = Object.create(Runtime.BaseObject.prototype);
+Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormModelSettings.prototype.constructor = Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormModelSettings;
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormModelSettings.prototype,
+{
+	/**
+	 * Returns widget name
+	 */
+	getWidgetName: function()
+	{
+		return "";
+	},
+	/**
+	 * Returns alias name
+	 */
+	getAliasName: function()
+	{
+		return "WP_ButtonFormModel";
+	},
+	/**
+	 * Returns component name
+	 */
+	getComponentName: function()
+	{
+		return "";
+	},
+	/**
+	 * Returns model name
+	 */
+	getModelName: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Button.ButtonFormModel";
+	},
+	/**
+	 * Returns selector name
+	 */
+	getSelectorName: function()
+	{
+		return "button";
+	},
+	/**
+	 * Returns group name
+	 */
+	getGroupName: function()
+	{
+		return "widget";
+	},
+	/**
+	 * Returns true if model
+	 */
+	isModel: function()
+	{
+		return true;
+	},
+	/**
+	 * Returns true if is widget settings
+	 */
+	checkWidget: function(widget)
+	{
+		if (!widget.isComponent())
+		{
+			return false;
+		}
+		if (widget.model_class_name != this.getModelName())
+		{
+			return false;
+		}
+		return true;
+	},
+	/**
+	 * Can insert widget
+	 */
+	canInsert: function(widget)
+	{
+		return false;
+	},
+	/**
+	 * Load form name options
+	 */
+	loadOptions: async function(runtime, widget)
+	{
+		if (this.options)
+		{
+			return Promise.resolve();
+		}
+		var data = BayLang.Constructor.WidgetPage.ParameterFactory.copy(runtime, Runtime.Map.from({"api_name":"admin.wordpress.forms.settings.search","method_name":"actionSearch","data":Runtime.Map.from({"limit":"1000"})}));
+		var result = await widget.page_model.layout.callApi(data);
+		if (result.isSuccess())
+		{
+			var result_data = BayLang.Constructor.WidgetPage.ParameterFactory.restore(runtime, result.data);
+			this.options = result_data.get("items").map((item) =>
+			{
+				return Runtime.Map.from({"key":item.get("api_name"),"value":item.get("name")});
+			});
+		}
+		else
+		{
+			this.options = Runtime.Vector.from([]);
+		}
+	},
+	/**
+	 * Setup widget
+	 */
+	setup: async function(runtime, widget)
+	{
+		/* Load options */
+		await this.loadOptions(runtime, widget);
+		/* Add options to widget */
+		if (this.options)
+		{
+			var form_name_param = widget.params.findItem((param) =>
+			{
+				return param.name == "form_name";
+			});
+			if (form_name_param)
+			{
+				var options = BayLang.Constructor.WidgetPage.ParameterFactory.copy(runtime, this.options);
+				form_name_param.props.set("options", options);
+			}
+		}
+	},
+	/**
+	 * On change
+	 */
+	onChange: function(runtime, model, param)
+	{
+		/* Change form name */
+		if (param.name == "form_name")
+		{
+			model.form.form_name = param.value;
+			model.form.loadForm();
+			return true;
+		}
+		/* Change form content */
+		if (param.name == "form_content")
+		{
+			model.form.form_content = param.value;
+			return true;
+		}
+		/* Change form ID */
+		if (param.name == "form_id")
+		{
+			model.form.form_id = param.value;
+			return true;
+		}
+		/* Change form styles */
+		if (param.name == "form_styles")
+		{
+			model.form.styles = BayLang.Constructor.WidgetPage.ParameterFactory.restore(runtime, param.value);
+			return true;
+		}
+		/* Change button styles */
+		if (param.name == "styles")
+		{
+			model.styles = BayLang.Constructor.WidgetPage.ParameterFactory.restore(runtime, param.value);
+			return true;
+		}
+		/* Form button text */
+		if (param.name == "form_button_text")
+		{
+			var button = model.form.bottom_buttons.getWidget("submit");
+			button.content = BayLang.Constructor.WidgetPage.ParameterFactory.restore(runtime, param.value);
+			return true;
+		}
+		/* Form button styles */
+		if (param.name == "form_button_styles")
+		{
+			var button = model.form.bottom_buttons.getWidget("submit");
+			button.styles = BayLang.Constructor.WidgetPage.ParameterFactory.restore(runtime, param.value);
+			return true;
+		}
+		/* Form show label */
+		if (param.name == "form_show_label")
+		{
+			model.form.field_settings.set("show_label", param.value);
+			return true;
+		}
+		/* Change dialog styles */
+		if (param.name == "dialog_styles")
+		{
+			model.dialog.styles = BayLang.Constructor.WidgetPage.ParameterFactory.restore(runtime, param.value);
+			return true;
+		}
+		/* Change dialog title */
+		if (param.name == "dialog_title")
+		{
+			model.dialog.title = param.value;
+			return true;
+		}
+		/* Change redirect url */
+		if (param.name == "redirect_url")
+		{
+			model.form.redirect_url = param.value;
+			model.form.loadForm();
+			return true;
+		}
+		return false;
+	},
+	/**
+	 * Returns params
+	 */
+	getParams: function()
+	{
+		return Runtime.Vector.from([new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", Runtime.Map.from({"name":"styles","label":"Button styles","component":"Runtime.Widget.Tag","default":Runtime.Vector.from(["danger"])})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", Runtime.Map.from({"name":"redirect_url","path":Runtime.Vector.from(["form_settings","redirect_url"]),"label":"Redirect URL","component":"Runtime.Widget.Input","default":""})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", Runtime.Map.from({"name":"metrika_event","path":Runtime.Vector.from(["form_settings","metrika_event"]),"label":"Metrika event","component":"Runtime.Widget.Input","default":""})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", Runtime.Map.from({"name":"metrika_form_id","path":Runtime.Vector.from(["form_settings","metrika_form_id"]),"label":"Form id","component":"Runtime.Widget.Input"})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", Runtime.Map.from({"name":"form_name","path":Runtime.Vector.from(["form_settings","form_name"]),"label":"Form name","component":"Runtime.Widget.Select","default":"","props":Runtime.Map.from({"options":Runtime.Vector.from([])})})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", Runtime.Map.from({"name":"form_content","path":Runtime.Vector.from(["form_settings","form_content"]),"label":"Form content","component":"Runtime.Widget.TextEditable"})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", Runtime.Map.from({"name":"form_styles","path":Runtime.Vector.from(["form_settings","styles"]),"label":"Form styles","component":"Runtime.Widget.Tag","default":Runtime.Vector.from([])})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", Runtime.Map.from({"name":"form_show_label","path":Runtime.Vector.from(["form_settings","field_settings","show_label"]),"label":"Form show label","component":"Runtime.Widget.Select","default":"true","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"false","value":"False"}),Runtime.Map.from({"key":"true","value":"True"})])})})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", Runtime.Map.from({"name":"dialog_styles","path":Runtime.Vector.from(["dialog_settings","styles"]),"label":"Dialog styles","component":"Runtime.Widget.Tag","default":Runtime.Vector.from([])})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", Runtime.Map.from({"name":"dialog_title","path":Runtime.Vector.from(["dialog_settings","title"]),"label":"Dialog title","component":"Runtime.Widget.Input","default":""})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", Runtime.Map.from({"name":"form_button_text","path":Runtime.Vector.from(["form_settings","submit_button","text"]),"label":"Dialog button text","component":"Runtime.Widget.Input","default":"Send"})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", Runtime.Map.from({"name":"form_button_styles","path":Runtime.Vector.from(["form_settings","submit_button","styles"]),"label":"Dialog button styles","component":"Runtime.Widget.Tag","default":Runtime.Vector.from(["danger","large","stretch"])}))]);
+	},
+	/**
+	 * Returns default template
+	 */
+	getDefaultTemplate: function()
+	{
+		return Runtime.Map.from({"default":() =>
+		{
+			return Runtime.Map.from({"modules":Runtime.Vector.from(["Runtime.Entity.Factory"]),"model":Runtime.rs.join("\n", Runtime.Vector.from(["this.form = this.addWidget(classof WP_ButtonFormModel, {","\t'widget_name': 'button',","\t'form_name': 'default',","\t'form_settings':","\t{","\t},","});"]))});
+		}});
+	},
+	_init: function()
+	{
+		Runtime.BaseObject.prototype._init.call(this);
+		this.options = null;
+	},
+});
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormModelSettings, Runtime.BaseObject);
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormModelSettings,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Theme.WidgetSettings.Button";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormModelSettings";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.BaseObject";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+	__implements__:
+	[
+		BayLang.Constructor.WidgetPage.WidgetSettingsInterface,
+	],
+});
+Runtime.rtl.defClass(Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormModelSettings);
+window["Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormModelSettings"] = Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormModelSettings;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormModelSettings;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings == 'undefined') Runtime.WordPress.Theme.WidgetSettings = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings.Button == 'undefined') Runtime.WordPress.Theme.WidgetSettings.Button = {};
+Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings = function()
+{
+	Runtime.BaseObject.apply(this, arguments);
+};
+Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings.prototype = Object.create(Runtime.BaseObject.prototype);
+Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings.prototype.constructor = Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings;
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings.prototype,
+{
+	/**
+	 * Returns widget name
+	 */
+	getWidgetName: function()
+	{
+		return "Button form";
+	},
+	/**
+	 * Returns alias name
+	 */
+	getAliasName: function()
+	{
+		return "WP_ButtonForm";
+	},
+	/**
+	 * Returns component name
+	 */
+	getComponentName: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Button.ButtonForm";
+	},
+	/**
+	 * Returns model name
+	 */
+	getModelName: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Button.ButtonFormModel";
+	},
+	/**
+	 * Returns selector name
+	 */
+	getSelectorName: function()
+	{
+		return "button";
+	},
+	/**
+	 * Returns group name
+	 */
+	getGroupName: function()
+	{
+		return "widget";
+	},
+	/**
+	 * Returns true if model
+	 */
+	isModel: function()
+	{
+		return false;
+	},
+	/**
+	 * Returns true if is widget settings
+	 */
+	checkWidget: function(widget)
+	{
+		if (!widget.isComponent())
+		{
+			return false;
+		}
+		if (widget.component_class_name != this.getComponentName())
+		{
+			return false;
+		}
+		return true;
+	},
+	/**
+	 * Can insert widget
+	 */
+	canInsert: function(widget)
+	{
+		return false;
+	},
+	/**
+	 * Returns params
+	 */
+	getParams: function()
+	{
+		return Runtime.Vector.from([new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterContent")]);
+	},
+	/**
+	 * Returns default template
+	 */
+	getDefaultTemplate: function()
+	{
+		return Runtime.Map.from({"default":() =>
+		{
+			return Runtime.Map.from({"content":Runtime.rs.join("\n", Runtime.Vector.from(["<use name='Runtime.Widget.Button' component='true' />","<style>","%(Button)widget_button{","}","</style>","<template>Click</template>"]))});
+		}});
+	},
+});
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings, Runtime.BaseObject);
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Theme.WidgetSettings.Button";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.BaseObject";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+	__implements__:
+	[
+		BayLang.Constructor.WidgetPage.WidgetSettingsInterface,
+	],
+});
+Runtime.rtl.defClass(Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings);
+window["Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings"] = Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings == 'undefined') Runtime.WordPress.Theme.WidgetSettings = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings.Form == 'undefined') Runtime.WordPress.Theme.WidgetSettings.Form = {};
+Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings = function()
+{
+	Runtime.BaseObject.apply(this, arguments);
+};
+Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings.prototype = Object.create(Runtime.BaseObject.prototype);
+Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings.prototype.constructor = Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings;
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings.prototype,
 {
 	/**
 	 * Returns widget name
@@ -4814,7 +5341,7 @@ Object.assign(Runtime.WordPress.Settings.FormModelSettings.prototype,
 	 */
 	getModelName: function()
 	{
-		return "Runtime.WordPress.Components.FormModel";
+		return "Runtime.WordPress.Theme.Components.Form.FormModel";
 	},
 	/**
 	 * Returns selector name
@@ -4860,22 +5387,59 @@ Object.assign(Runtime.WordPress.Settings.FormModelSettings.prototype,
 		return false;
 	},
 	/**
-	 * Returns params
-	 */
-	getParams: function()
-	{
-		return Runtime.Vector.from([new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", Runtime.Map.from({"name":"form_name","label":"Form name","component":"Runtime.Widget.Select","default":"","props":Runtime.Map.from({"options":Runtime.Vector.from([])})}))]);
-	},
-	/**
 	 * On change
 	 */
-	onChange: function(model, param)
+	onChange: function(runtime, model, param)
 	{
 		/* Change form name */
 		if (param.name == "form_name")
 		{
 			model.form_name = param.value;
 			model.loadForm();
+			return true;
+		}
+		/* Change form title */
+		if (param.name == "form_title")
+		{
+			model.form_title = param.value;
+			return true;
+		}
+		/* Change form content */
+		if (param.name == "form_content")
+		{
+			model.form_content = param.value;
+			return true;
+		}
+		/* Change form ID */
+		if (param.name == "form_id")
+		{
+			model.form_id = param.value;
+			return true;
+		}
+		/* Change form styles */
+		if (param.name == "form_styles")
+		{
+			model.styles = BayLang.Constructor.WidgetPage.ParameterFactory.restore(runtime, param.value);
+			return true;
+		}
+		/* Form button text */
+		if (param.name == "form_button_text")
+		{
+			var button = model.bottom_buttons.getWidget("submit");
+			button.content = BayLang.Constructor.WidgetPage.ParameterFactory.restore(runtime, param.value);
+			return true;
+		}
+		/* Form button styles */
+		if (param.name == "form_button_styles")
+		{
+			var button = model.bottom_buttons.getWidget("submit");
+			button.styles = BayLang.Constructor.WidgetPage.ParameterFactory.restore(runtime, param.value);
+			return true;
+		}
+		/* Form show label */
+		if (param.name == "form_show_label")
+		{
+			model.field_settings.set("show_label", param.value);
 			return true;
 		}
 		return false;
@@ -4889,7 +5453,7 @@ Object.assign(Runtime.WordPress.Settings.FormModelSettings.prototype,
 		{
 			return Promise.resolve();
 		}
-		var data = BayLang.Constructor.WidgetPage.ParameterFactory.copy(runtime, Runtime.Map.from({"api_name":"admin.wordpress.forms.settings::search","method_name":"actionSearch","data":Runtime.Map.from({"limit":"1000"})}));
+		var data = BayLang.Constructor.WidgetPage.ParameterFactory.copy(runtime, Runtime.Map.from({"api_name":"admin.wordpress.forms.settings.search","method_name":"actionSearch","data":Runtime.Map.from({"limit":"1000"})}));
 		var result = await widget.page_model.layout.callApi(data);
 		if (result.isSuccess())
 		{
@@ -4914,16 +5478,23 @@ Object.assign(Runtime.WordPress.Settings.FormModelSettings.prototype,
 		/* Add options to widget */
 		if (this.options)
 		{
-			var options = BayLang.Constructor.WidgetPage.ParameterFactory.copy(runtime, this.options);
 			var form_name_param = widget.params.findItem((param) =>
 			{
 				return param.name == "form_name";
 			});
 			if (form_name_param)
 			{
+				var options = BayLang.Constructor.WidgetPage.ParameterFactory.copy(runtime, this.options);
 				form_name_param.props.set("options", options);
 			}
 		}
+	},
+	/**
+	 * Returns params
+	 */
+	getParams: function()
+	{
+		return Runtime.Vector.from([new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", Runtime.Map.from({"name":"form_name","label":"Form name","component":"Runtime.Widget.Select","default":"","props":Runtime.Map.from({"options":Runtime.Vector.from([])})})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", Runtime.Map.from({"name":"styles","label":"Form styles","component":"Runtime.Widget.Tag","default":Runtime.Vector.from([])})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", Runtime.Map.from({"name":"form_title","label":"Email title","component":"Runtime.Widget.Input","default":""})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", Runtime.Map.from({"name":"form_content","label":"Form content","component":"Runtime.Widget.TextEditable"})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", Runtime.Map.from({"name":"metrika_form_id","label":"Form id","component":"Runtime.Widget.Input"})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", Runtime.Map.from({"name":"metrika_event","label":"Metrika event","component":"Runtime.Widget.Input","default":""})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", Runtime.Map.from({"name":"redirect_url","label":"Redirect URL","component":"Runtime.Widget.Input"})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", Runtime.Map.from({"name":"form_show_label","path":Runtime.Vector.from(["field_settings","show_label"]),"label":"Form show label","component":"Runtime.Widget.Select","default":"true","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"false","value":"False"}),Runtime.Map.from({"key":"true","value":"True"})])})}))]);
 	},
 	/**
 	 * Returns default template
@@ -4941,17 +5512,17 @@ Object.assign(Runtime.WordPress.Settings.FormModelSettings.prototype,
 		this.options = null;
 	},
 });
-Object.assign(Runtime.WordPress.Settings.FormModelSettings, Runtime.BaseObject);
-Object.assign(Runtime.WordPress.Settings.FormModelSettings,
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings, Runtime.BaseObject);
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings,
 {
 	/* ======================= Class Init Functions ======================= */
 	getNamespace: function()
 	{
-		return "Runtime.WordPress.Settings";
+		return "Runtime.WordPress.Theme.WidgetSettings.Form";
 	},
 	getClassName: function()
 	{
-		return "Runtime.WordPress.Settings.FormModelSettings";
+		return "Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings";
 	},
 	getParentClassName: function()
 	{
@@ -4992,9 +5563,9 @@ Object.assign(Runtime.WordPress.Settings.FormModelSettings,
 		BayLang.Constructor.WidgetPage.WidgetSettingsInterface,
 	],
 });
-Runtime.rtl.defClass(Runtime.WordPress.Settings.FormModelSettings);
-window["Runtime.WordPress.Settings.FormModelSettings"] = Runtime.WordPress.Settings.FormModelSettings;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Settings.FormModelSettings;
+Runtime.rtl.defClass(Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings);
+window["Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings"] = Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings;
 "use strict;"
 /*!
  *  BayLang Technology
@@ -5015,14 +5586,16 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
  */
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
-if (typeof Runtime.WordPress.Settings == 'undefined') Runtime.WordPress.Settings = {};
-Runtime.WordPress.Settings.FormSettings = function()
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings == 'undefined') Runtime.WordPress.Theme.WidgetSettings = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings.Form == 'undefined') Runtime.WordPress.Theme.WidgetSettings.Form = {};
+Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings = function()
 {
 	Runtime.BaseObject.apply(this, arguments);
 };
-Runtime.WordPress.Settings.FormSettings.prototype = Object.create(Runtime.BaseObject.prototype);
-Runtime.WordPress.Settings.FormSettings.prototype.constructor = Runtime.WordPress.Settings.FormSettings;
-Object.assign(Runtime.WordPress.Settings.FormSettings.prototype,
+Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings.prototype = Object.create(Runtime.BaseObject.prototype);
+Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings.prototype.constructor = Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings;
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings.prototype,
 {
 	/**
 	 * Returns widget name
@@ -5043,14 +5616,14 @@ Object.assign(Runtime.WordPress.Settings.FormSettings.prototype,
 	 */
 	getComponentName: function()
 	{
-		return "Runtime.WordPress.Components.Form";
+		return "Runtime.WordPress.Theme.Components.Form.Form";
 	},
 	/**
 	 * Returns model name
 	 */
 	getModelName: function()
 	{
-		return "Runtime.WordPress.Components.FormModel";
+		return "Runtime.WordPress.Theme.Components.Form.FormModel";
 	},
 	/**
 	 * Returns selector name
@@ -5113,17 +5686,17 @@ Object.assign(Runtime.WordPress.Settings.FormSettings.prototype,
 		}});
 	},
 });
-Object.assign(Runtime.WordPress.Settings.FormSettings, Runtime.BaseObject);
-Object.assign(Runtime.WordPress.Settings.FormSettings,
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings, Runtime.BaseObject);
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings,
 {
 	/* ======================= Class Init Functions ======================= */
 	getNamespace: function()
 	{
-		return "Runtime.WordPress.Settings";
+		return "Runtime.WordPress.Theme.WidgetSettings.Form";
 	},
 	getClassName: function()
 	{
-		return "Runtime.WordPress.Settings.FormSettings";
+		return "Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings";
 	},
 	getParentClassName: function()
 	{
@@ -5164,9 +5737,9 @@ Object.assign(Runtime.WordPress.Settings.FormSettings,
 		BayLang.Constructor.WidgetPage.WidgetSettingsInterface,
 	],
 });
-Runtime.rtl.defClass(Runtime.WordPress.Settings.FormSettings);
-window["Runtime.WordPress.Settings.FormSettings"] = Runtime.WordPress.Settings.FormSettings;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Settings.FormSettings;
+Runtime.rtl.defClass(Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings);
+window["Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings"] = Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings;
 "use strict;"
 /*!
  *  BayLang Technology
@@ -5187,14 +5760,467 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
  */
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
-if (typeof Runtime.WordPress.Settings == 'undefined') Runtime.WordPress.Settings = {};
-Runtime.WordPress.Settings.ModuleDescription = function()
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings == 'undefined') Runtime.WordPress.Theme.WidgetSettings = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings.Gallery == 'undefined') Runtime.WordPress.Theme.WidgetSettings.Gallery = {};
+Runtime.WordPress.Theme.WidgetSettings.Gallery.GalleryModelSettings = function()
+{
+	Runtime.BaseObject.apply(this, arguments);
+};
+Runtime.WordPress.Theme.WidgetSettings.Gallery.GalleryModelSettings.prototype = Object.create(Runtime.BaseObject.prototype);
+Runtime.WordPress.Theme.WidgetSettings.Gallery.GalleryModelSettings.prototype.constructor = Runtime.WordPress.Theme.WidgetSettings.Gallery.GalleryModelSettings;
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Gallery.GalleryModelSettings.prototype,
+{
+	/**
+	 * Returns widget name
+	 */
+	getWidgetName: function()
+	{
+		return "";
+	},
+	/**
+	 * Returns alias name
+	 */
+	getAliasName: function()
+	{
+		return "WP_GalleryModel";
+	},
+	/**
+	 * Returns component name
+	 */
+	getComponentName: function()
+	{
+		return "";
+	},
+	/**
+	 * Returns model name
+	 */
+	getModelName: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Gallery.GalleryModel";
+	},
+	/**
+	 * Returns selector name
+	 */
+	getSelectorName: function()
+	{
+		return "gallery";
+	},
+	/**
+	 * Returns group name
+	 */
+	getGroupName: function()
+	{
+		return "widget";
+	},
+	/**
+	 * Returns true if model
+	 */
+	isModel: function()
+	{
+		return true;
+	},
+	/**
+	 * Returns true if is widget settings
+	 */
+	checkWidget: function(widget)
+	{
+		if (!widget.isComponent())
+		{
+			return false;
+		}
+		if (widget.model_class_name != this.getModelName())
+		{
+			return false;
+		}
+		return true;
+	},
+	/**
+	 * Can insert widget
+	 */
+	canInsert: function(widget)
+	{
+		return false;
+	},
+	/**
+	 * On change
+	 */
+	onChange: function(runtime, model, param)
+	{
+		/* Change api name */
+		if (param.name == "api_name")
+		{
+			model.api_name = param.value;
+			model.loadItems();
+			return true;
+		}
+		return false;
+	},
+	/**
+	 * Load form name options
+	 */
+	loadOptions: async function(runtime, widget)
+	{
+		if (!this.api_names)
+		{
+			var data = BayLang.Constructor.WidgetPage.ParameterFactory.copy(runtime, Runtime.Map.from({"api_name":"admin.wordpress.gallery.search","method_name":"actionSearch","data":Runtime.Map.from({"limit":"1000"})}));
+			var result = await widget.page_model.layout.callApi(data);
+			if (result.isSuccess())
+			{
+				var result_data = BayLang.Constructor.WidgetPage.ParameterFactory.restore(runtime, result.data);
+				this.api_names = result_data.get("items").map((item) =>
+				{
+					return Runtime.Map.from({"key":item.get("api_name"),"value":item.get("api_name")});
+				});
+			}
+			else
+			{
+				this.api_names = Runtime.Vector.from([]);
+			}
+		}
+		if (!this.image_sizes)
+		{
+			var data = BayLang.Constructor.WidgetPage.ParameterFactory.copy(runtime, Runtime.Map.from({"api_name":"admin.wordpress.gallery.search","method_name":"actionImageSizes"}));
+			var result = await widget.page_model.layout.callApi(data);
+			if (result.isSuccess())
+			{
+				var result_data = BayLang.Constructor.WidgetPage.ParameterFactory.restore(runtime, result.data);
+				this.image_sizes = result_data.get("items").map((name) =>
+				{
+					return Runtime.Map.from({"key":name,"value":name});
+				});
+			}
+			else
+			{
+				this.image_sizes = Runtime.Vector.from([]);
+			}
+		}
+	},
+	/**
+	 * Setup widget
+	 */
+	setup: async function(runtime, widget)
+	{
+		/* Load options */
+		await this.loadOptions(runtime, widget);
+		/* Add api_names to widget */
+		if (this.api_names)
+		{
+			var parameter = widget.params.findItem((param) =>
+			{
+				return param.name == "api_name";
+			});
+			if (parameter)
+			{
+				var options = BayLang.Constructor.WidgetPage.ParameterFactory.copy(runtime, this.api_names);
+				parameter.props.set("options", options);
+			}
+		}
+		/* Setup image sizes */
+		if (this.image_sizes)
+		{
+			var image_sizes = BayLang.Constructor.WidgetPage.ParameterFactory.copy(runtime, this.image_sizes);
+			/* Set big_size */
+			var parameter = widget.params.findItem((param) =>
+			{
+				return param.name == "big_size";
+			});
+			if (parameter)
+			{
+				parameter.props.set("options", image_sizes);
+			}
+			/* Set small_size */
+			var parameter = widget.params.findItem((param) =>
+			{
+				return param.name == "small_size";
+			});
+			if (parameter)
+			{
+				parameter.props.set("options", image_sizes);
+			}
+		}
+	},
+	/**
+	 * Returns params
+	 */
+	getParams: function()
+	{
+		return Runtime.Vector.from([new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", Runtime.Map.from({"name":"api_name","label":"Api name","component":"Runtime.Widget.Select","default":"","props":Runtime.Map.from({"options":Runtime.Vector.from([])})})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", Runtime.Map.from({"name":"dialog_image_contains","label":"Dialog image contains","component":"Runtime.Widget.Select","default":"","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"false","value":"No"}),Runtime.Map.from({"key":"true","value":"Yes"})])})})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", Runtime.Map.from({"name":"small_size","label":"Small image","component":"Runtime.Widget.Select","default":"","props":Runtime.Map.from({"options":Runtime.Vector.from([])})})),new BayLang.Constructor.WidgetPage.ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", Runtime.Map.from({"name":"big_size","label":"Big image","component":"Runtime.Widget.Select","default":"","props":Runtime.Map.from({"options":Runtime.Vector.from([])})}))]);
+	},
+	/**
+	 * Returns default template
+	 */
+	getDefaultTemplate: function()
+	{
+		return Runtime.Map.from({"default":() =>
+		{
+			return Runtime.Map.from({"modules":Runtime.Vector.from(["Runtime.Entity.Factory"]),"model":Runtime.rs.join("\n", Runtime.Vector.from(["this.form = this.addWidget(classof WP_GalleryModel, {","\t'widget_name': 'gallery',","\t'apiname': 'default',","});"]))});
+		}});
+	},
+	_init: function()
+	{
+		Runtime.BaseObject.prototype._init.call(this);
+		this.api_names = null;
+		this.image_sizes = null;
+	},
+});
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Gallery.GalleryModelSettings, Runtime.BaseObject);
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Gallery.GalleryModelSettings,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Theme.WidgetSettings.Gallery";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Theme.WidgetSettings.Gallery.GalleryModelSettings";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.BaseObject";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+	__implements__:
+	[
+		BayLang.Constructor.WidgetPage.WidgetSettingsInterface,
+	],
+});
+Runtime.rtl.defClass(Runtime.WordPress.Theme.WidgetSettings.Gallery.GalleryModelSettings);
+window["Runtime.WordPress.Theme.WidgetSettings.Gallery.GalleryModelSettings"] = Runtime.WordPress.Theme.WidgetSettings.Gallery.GalleryModelSettings;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.WidgetSettings.Gallery.GalleryModelSettings;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings == 'undefined') Runtime.WordPress.Theme.WidgetSettings = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings.Gallery == 'undefined') Runtime.WordPress.Theme.WidgetSettings.Gallery = {};
+Runtime.WordPress.Theme.WidgetSettings.Gallery.GallerySettings = function()
+{
+	Runtime.BaseObject.apply(this, arguments);
+};
+Runtime.WordPress.Theme.WidgetSettings.Gallery.GallerySettings.prototype = Object.create(Runtime.BaseObject.prototype);
+Runtime.WordPress.Theme.WidgetSettings.Gallery.GallerySettings.prototype.constructor = Runtime.WordPress.Theme.WidgetSettings.Gallery.GallerySettings;
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Gallery.GallerySettings.prototype,
+{
+	/**
+	 * Returns widget name
+	 */
+	getWidgetName: function()
+	{
+		return "Gallery";
+	},
+	/**
+	 * Returns alias name
+	 */
+	getAliasName: function()
+	{
+		return "WP_Gallery";
+	},
+	/**
+	 * Returns component name
+	 */
+	getComponentName: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Gallery.Gallery";
+	},
+	/**
+	 * Returns model name
+	 */
+	getModelName: function()
+	{
+		return "Runtime.WordPress.Theme.Components.Gallery.GalleryModel";
+	},
+	/**
+	 * Returns selector name
+	 */
+	getSelectorName: function()
+	{
+		return "gallery";
+	},
+	/**
+	 * Returns group name
+	 */
+	getGroupName: function()
+	{
+		return "widget";
+	},
+	/**
+	 * Returns true if model
+	 */
+	isModel: function()
+	{
+		return false;
+	},
+	/**
+	 * Returns true if is widget settings
+	 */
+	checkWidget: function(widget)
+	{
+		if (!widget.isComponent())
+		{
+			return false;
+		}
+		if (widget.component_class_name != this.getComponentName())
+		{
+			return false;
+		}
+		return true;
+	},
+	/**
+	 * Can insert widget
+	 */
+	canInsert: function(widget)
+	{
+		return false;
+	},
+	/**
+	 * Returns params
+	 */
+	getParams: function()
+	{
+		return Runtime.Vector.from([]);
+	},
+	/**
+	 * Returns default template
+	 */
+	getDefaultTemplate: function()
+	{
+		return Runtime.Map.from({"default":() =>
+		{
+			return Runtime.Map.from({"content":Runtime.rs.join("\n", Runtime.Vector.from(["<style>","%(WP_Gallery)widget_gallery{","\t&__item{","\t\tmargin: 35px;","\t}","\t&__item_title{","\t}","\t&__item_image{","\t\timg{","\t\t\tmax-width: 300px;","\t\t\tmax-height: 300px","\t\t}","\t}","}","</style>"]))});
+		}});
+	},
+});
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Gallery.GallerySettings, Runtime.BaseObject);
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.Gallery.GallerySettings,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Theme.WidgetSettings.Gallery";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Theme.WidgetSettings.Gallery.GallerySettings";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.BaseObject";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+	__implements__:
+	[
+		BayLang.Constructor.WidgetPage.WidgetSettingsInterface,
+	],
+});
+Runtime.rtl.defClass(Runtime.WordPress.Theme.WidgetSettings.Gallery.GallerySettings);
+window["Runtime.WordPress.Theme.WidgetSettings.Gallery.GallerySettings"] = Runtime.WordPress.Theme.WidgetSettings.Gallery.GallerySettings;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.WidgetSettings.Gallery.GallerySettings;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings == 'undefined') Runtime.WordPress.Theme.WidgetSettings = {};
+Runtime.WordPress.Theme.WidgetSettings.ModuleDescription = function()
 {
 };
-Object.assign(Runtime.WordPress.Settings.ModuleDescription.prototype,
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.ModuleDescription.prototype,
 {
 });
-Object.assign(Runtime.WordPress.Settings.ModuleDescription,
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.ModuleDescription,
 {
 	/**
 	 * Returns module name
@@ -5225,16 +6251,16 @@ Object.assign(Runtime.WordPress.Settings.ModuleDescription,
 	 */
 	entities: function()
 	{
-		return Runtime.Vector.from([new BayLang.Constructor.WidgetPage.WidgetManagerAnnotation("Runtime.WordPress.Settings.WidgetManager")]);
+		return Runtime.Vector.from([new BayLang.Constructor.WidgetPage.WidgetManagerAnnotation("Runtime.WordPress.Theme.WidgetSettings.WidgetManager")]);
 	},
 	/* ======================= Class Init Functions ======================= */
 	getNamespace: function()
 	{
-		return "Runtime.WordPress.Settings";
+		return "Runtime.WordPress.Theme.WidgetSettings";
 	},
 	getClassName: function()
 	{
-		return "Runtime.WordPress.Settings.ModuleDescription";
+		return "Runtime.WordPress.Theme.WidgetSettings.ModuleDescription";
 	},
 	getParentClassName: function()
 	{
@@ -5271,9 +6297,9 @@ Object.assign(Runtime.WordPress.Settings.ModuleDescription,
 		return null;
 	},
 });
-Runtime.rtl.defClass(Runtime.WordPress.Settings.ModuleDescription);
-window["Runtime.WordPress.Settings.ModuleDescription"] = Runtime.WordPress.Settings.ModuleDescription;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Settings.ModuleDescription;
+Runtime.rtl.defClass(Runtime.WordPress.Theme.WidgetSettings.ModuleDescription);
+window["Runtime.WordPress.Theme.WidgetSettings.ModuleDescription"] = Runtime.WordPress.Theme.WidgetSettings.ModuleDescription;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.WidgetSettings.ModuleDescription;
 "use strict;"
 /*!
  *  BayLang Technology
@@ -5294,20 +6320,23 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
  */
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
-if (typeof Runtime.WordPress.Settings == 'undefined') Runtime.WordPress.Settings = {};
-Runtime.WordPress.Settings.WidgetManager = function()
+if (typeof Runtime.WordPress.Theme == 'undefined') Runtime.WordPress.Theme = {};
+if (typeof Runtime.WordPress.Theme.WidgetSettings == 'undefined') Runtime.WordPress.Theme.WidgetSettings = {};
+Runtime.WordPress.Theme.WidgetSettings.WidgetManager = function()
 {
 	Runtime.BaseObject.apply(this, arguments);
 };
-Runtime.WordPress.Settings.WidgetManager.prototype = Object.create(Runtime.BaseObject.prototype);
-Runtime.WordPress.Settings.WidgetManager.prototype.constructor = Runtime.WordPress.Settings.WidgetManager;
-Object.assign(Runtime.WordPress.Settings.WidgetManager.prototype,
+Runtime.WordPress.Theme.WidgetSettings.WidgetManager.prototype = Object.create(Runtime.BaseObject.prototype);
+Runtime.WordPress.Theme.WidgetSettings.WidgetManager.prototype.constructor = Runtime.WordPress.Theme.WidgetSettings.WidgetManager;
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.WidgetManager.prototype,
 {
 	/**
 	 * Init widgets
 	 */
 	init: function(provider)
 	{
+		provider.remove("Runtime.Widget.WidgetSettings.Settings.FormSubmitSettings");
+		provider.remove("Runtime.Widget.WidgetSettings.Settings.FormSubmitModelSettings");
 	},
 	/**
 	 * Returns group settings
@@ -5321,20 +6350,20 @@ Object.assign(Runtime.WordPress.Settings.WidgetManager.prototype,
 	 */
 	getWidgetSettings: function()
 	{
-		return Runtime.Vector.from([new Runtime.WordPress.Settings.FormModelSettings(),new Runtime.WordPress.Settings.FormSettings()]);
+		return Runtime.Vector.from([new Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormModelSettings(),new Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings(),new Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings(),new Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings(),new Runtime.WordPress.Theme.WidgetSettings.Gallery.GalleryModelSettings(),new Runtime.WordPress.Theme.WidgetSettings.Gallery.GallerySettings()]);
 	},
 });
-Object.assign(Runtime.WordPress.Settings.WidgetManager, Runtime.BaseObject);
-Object.assign(Runtime.WordPress.Settings.WidgetManager,
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.WidgetManager, Runtime.BaseObject);
+Object.assign(Runtime.WordPress.Theme.WidgetSettings.WidgetManager,
 {
 	/* ======================= Class Init Functions ======================= */
 	getNamespace: function()
 	{
-		return "Runtime.WordPress.Settings";
+		return "Runtime.WordPress.Theme.WidgetSettings";
 	},
 	getClassName: function()
 	{
-		return "Runtime.WordPress.Settings.WidgetManager";
+		return "Runtime.WordPress.Theme.WidgetSettings.WidgetManager";
 	},
 	getParentClassName: function()
 	{
@@ -5375,6 +6404,6 @@ Object.assign(Runtime.WordPress.Settings.WidgetManager,
 		BayLang.Constructor.WidgetPage.WidgetManagerInterface,
 	],
 });
-Runtime.rtl.defClass(Runtime.WordPress.Settings.WidgetManager);
-window["Runtime.WordPress.Settings.WidgetManager"] = Runtime.WordPress.Settings.WidgetManager;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Settings.WidgetManager;
+Runtime.rtl.defClass(Runtime.WordPress.Theme.WidgetSettings.WidgetManager);
+window["Runtime.WordPress.Theme.WidgetSettings.WidgetManager"] = Runtime.WordPress.Theme.WidgetSettings.WidgetManager;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Theme.WidgetSettings.WidgetManager;

@@ -17,7 +17,7 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
-class Select extends \Runtime\Web\Component
+class Select extends \Runtime\Widget\Field
 {
 	public $name;
 	public $value;
@@ -109,6 +109,10 @@ class Select extends \Runtime\Web\Component
 		/* Send value change */
 		$this->emit("valueChange", new \Runtime\Web\Messages\ValueChangeMessage(\Runtime\Map::from(["value"=>$e->target->value,"old_value"=>$this->value,"data"=>$this->data])));
 	}
+	static function components()
+	{
+		return \Runtime\Vector::from(["Runtime.Widget.Field"]);
+	}
 	static function css($vars)
 	{
 		$res = "";
@@ -135,7 +139,7 @@ class Select extends \Runtime\Web\Component
 	}
 	static function getParentClassName()
 	{
-		return "Runtime.Web.Component";
+		return "Runtime.Widget.Field";
 	}
 	static function getClassInfo()
 	{

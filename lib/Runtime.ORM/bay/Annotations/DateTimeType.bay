@@ -34,12 +34,10 @@ struct DateTimeType extends BaseType
 	 */
 	async var fromDatabase(Connection conn, Dict item)
 	{
-		if (item.has(this.name))
-		{
-			string value = item[this.name];
-			item <= { this.name } <= static::convertFromDatabase(value);
-			item = await conn.fromDatabase(this, item, this.name);
-		}
+		if (not item.has(this.name)) return item;
+		string value = item[this.name];
+		item <= { this.name } <= static::convertFromDatabase(value);
+		item = await conn.fromDatabase(this, item, this.name);
 		return item;
 	}
 	
@@ -49,6 +47,7 @@ struct DateTimeType extends BaseType
 	 */
 	async var toDatabase(Connection conn, Dict item, bool is_update)
 	{
+		if (not item.has(this.name)) return item;
 		DateTime value = item[this.name];
 		item <= { this.name } <= static::convertToDatabase(value);
 		item = await conn.toDatabase(this, item, this.name);
@@ -61,6 +60,7 @@ struct DateTimeType extends BaseType
 	 */
 	static DateTime convertFromDatabase(string value)
 	{
+		if (value == null) return null;
 		return DateTime::fromString(value);
 	}
 	
@@ -70,7 +70,7 @@ struct DateTimeType extends BaseType
 	 */
 	static string convertToDatabase(DateTime value)
 	{
-		if (not(value instanceof DateTime)) return "";
+		if (not(value instanceof DateTime)) return null;
 		return value.setOffset(0).getDateTimeString();
 	}
 	

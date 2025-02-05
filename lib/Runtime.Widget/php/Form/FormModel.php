@@ -21,10 +21,14 @@ class FormModel extends \Runtime\Web\BaseModel
 {
 	public $component;
 	public $widget_name;
+	public $form_title;
+	public $form_content;
+	public $styles;
 	public $foreign_key;
 	public $post_data;
 	public $fields;
 	public $fields_error;
+	public $field_settings;
 	public $row_number;
 	public $pk;
 	public $item;
@@ -58,9 +62,21 @@ class FormModel extends \Runtime\Web\BaseModel
 		{
 			return ;
 		}
+		if ($params->has("field_settings"))
+		{
+			$this->field_settings = $params->get("field_settings");
+		}
 		if ($params->has("foreign_key"))
 		{
 			$this->foreign_key = $params->get("foreign_key");
+		}
+		if ($params->has("form_content"))
+		{
+			$this->form_content = $params->get("form_content");
+		}
+		if ($params->has("form_title"))
+		{
+			$this->form_title = $params->get("form_title");
 		}
 		if ($params->has("post_data"))
 		{
@@ -69,6 +85,10 @@ class FormModel extends \Runtime\Web\BaseModel
 		if ($params->has("show_result"))
 		{
 			$this->show_result = $params->get("show_result");
+		}
+		if ($params->has("styles"))
+		{
+			$this->styles = $params->get("styles");
 		}
 		/* Setup params */
 		if ($params->has("fields"))
@@ -123,7 +143,7 @@ class FormModel extends \Runtime\Web\BaseModel
 		/* Result */
 		$this->result = $this->addWidget("Runtime.Widget.WidgetResultModel", \Runtime\Map::from(["widget_name"=>"result","styles"=>\Runtime\Vector::from(["margin_top"])]));
 		/* Buttons */
-		$this->bottom_buttons = $this->addWidget("Runtime.Widget.RowButtonsModel", \Runtime\Map::from(["widget_name"=>"bottom_buttons","styles"=>\Runtime\Vector::from(["@widget_form__bottom_buttons"])]));
+		$this->bottom_buttons = $this->addWidget("Runtime.Widget.RowButtonsModel", \Runtime\Map::from(["widget_name"=>"bottom_buttons","styles"=>\Runtime\Vector::from(["bottom_buttons","center"])]));
 	}
 	/**
 	 * Add field
@@ -192,9 +212,16 @@ class FormModel extends \Runtime\Web\BaseModel
 	function clear()
 	{
 		$this->pk = null;
-		$this->fields_error = \Runtime\Map::from([]);
 		$this->row_number = -1;
+		$this->clearError();
 		$this->clearItem();
+	}
+	/**
+	 * Clear form error
+	 */
+	function clearError()
+	{
+		$this->fields_error = \Runtime\Map::from([]);
 		$this->result->clear();
 	}
 	/**
@@ -208,7 +235,7 @@ class FormModel extends \Runtime\Web\BaseModel
 			$field = $this->fields->get($i);
 			$field_name = $field->get("name");
 			$default_value = $field->get("default", "");
-			$this->item->set($field_name, $default_value);
+			$this->item->set($field_name, \Runtime\Serializer::copy($default_value));
 		}
 	}
 	/**
@@ -276,26 +303,27 @@ class FormModel extends \Runtime\Web\BaseModel
 		{
 			return ;
 		}
+		/* Set data */
+		if ($res->data->has("item") && $res->data->has("item") != null)
+		{
+			$this->item = $res->data->get("item");
+		}
+		if ($res->data->has("pk") && $res->data->get("pk") != null)
+		{
+			$this->pk = $res->data->get("pk");
+		}
+		if ($res->data->has("fields"))
+		{
+			$this->fields_error = $res->data->get("fields");
+		}
 		/* Load */
 		if ($action == "load")
 		{
-			if ($res->data->has("item"))
-			{
-				$this->item = $res->data->get("item");
-			}
 			$this->load->setApiResult($res);
 		}
 		/* Submit */
 		if ($action == "submit")
 		{
-			if ($res->data->has("item"))
-			{
-				$this->item = $res->data->get("item");
-			}
-			if ($res->data->has("fields"))
-			{
-				$this->fields_error = $res->data->get("fields");
-			}
 			$this->result->setApiResult($res);
 		}
 	}
@@ -304,7 +332,7 @@ class FormModel extends \Runtime\Web\BaseModel
 	 */
 	function getPostItem()
 	{
-		return $this->item;
+		return \Runtime\Serializer::copy($this->item);
 	}
 	/**
 	 * Merge post data
@@ -377,10 +405,14 @@ class FormModel extends \Runtime\Web\BaseModel
 		parent::_init();
 		$this->component = "Runtime.Widget.Form.Form";
 		$this->widget_name = "form";
+		$this->form_title = "";
+		$this->form_content = "";
+		$this->styles = \Runtime\Vector::from([]);
 		$this->foreign_key = null;
 		$this->post_data = null;
 		$this->fields = \Runtime\Vector::from([]);
 		$this->fields_error = \Runtime\Map::from([]);
+		$this->field_settings = \Runtime\Map::from([]);
 		$this->row_number = -1;
 		$this->pk = null;
 		$this->item = \Runtime\Map::from([]);

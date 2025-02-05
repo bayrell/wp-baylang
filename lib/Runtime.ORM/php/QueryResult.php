@@ -45,9 +45,9 @@ class QueryResult extends \Runtime\Vector
 	 */
 	function getRelation($index)
 	{
-		$table_name = $this->q->_table_name;
+		$class_name = $this->q->getRelationName();
 		$item = $this->get($index);
-		return \Runtime\ORM\Relation::newInstance($table_name, $item);
+		return \Runtime\ORM\Relation::newInstance($class_name, $item);
 	}
 	/**
 	 * Convert to Vector
@@ -64,10 +64,10 @@ class QueryResult extends \Runtime\Vector
 	 */
 	function toRelation()
 	{
-		$table_name = $this->q->_table_name;
-		return $this->map(function ($item) use (&$table_name)
+		$class_name = $this->q->getRelationName();
+		return $this->map(function ($item) use (&$class_name)
 		{
-			return \Runtime\ORM\Relation::newInstance($table_name, $item);
+			return \Runtime\ORM\Relation::newInstance($class_name, $item);
 		})->toVector();
 	}
 	/* ======================= Class Init Functions ======================= */

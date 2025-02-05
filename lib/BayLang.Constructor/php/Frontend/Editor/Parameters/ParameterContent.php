@@ -52,7 +52,11 @@ class ParameterContent extends \BayLang\Constructor\Frontend\Editor\Parameters\P
 		/* Set value */
 		$this->value = $value;
 		/* Set content */
-		if ($text_item instanceof \BayLang\OpCodes\OpHtmlContent)
+		if ($text_item == null)
+		{
+			$this->widget->code->items->items->push(new \BayLang\OpCodes\OpHtmlContent(\Runtime\Map::from(["value"=>$this->value])));
+		}
+		else if ($text_item instanceof \BayLang\OpCodes\OpHtmlContent)
 		{
 			$text_item->value = $this->value;
 		}

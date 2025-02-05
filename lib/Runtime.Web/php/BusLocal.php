@@ -133,7 +133,7 @@ class BusLocal extends \Runtime\BaseProvider implements \Runtime\Web\BusInterfac
 		/* Create api instance */
 		$api_instance = \Runtime\rtl::newInstance($class_name);
 		$api_instance->action = $method_name;
-		$api_instance->backend_storage = \Runtime\rtl::attr($params, "backend_storage");
+		$api_instance->layout = \Runtime\rtl::attr($params, "layout");
 		$api_instance->post_data = $data;
 		$api_instance->result = new \Runtime\Web\ApiResult();
 		$api_instance->init();

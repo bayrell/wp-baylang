@@ -391,7 +391,7 @@ class ParserBayHtml extends \Runtime\BaseObject
 				{
 					$item = $new_items->get($i);
 					$item = static::readCssBodyConcatItem($item->caret_start, $item->caret_end, $media_selector, $item);
-					$items->push($item);
+					$sub_items->push($item);
 				}
 				/* Get caret */
 				$caret = $parser->getCaret();

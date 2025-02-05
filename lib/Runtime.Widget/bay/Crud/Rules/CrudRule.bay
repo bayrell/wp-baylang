@@ -20,21 +20,32 @@ namespace Runtime.Widget.Crud.Rules;
 
 use Runtime.BaseStruct;
 use Runtime.Web.BaseApi;
-use Runtime.Widget.Crud.SaveApi;
+use Runtime.Widget.Crud.CrudService;
+use Runtime.Widget.Crud.Rules.BaseRule;
 
 
-struct CrudRule extends BaseStruct
+struct CrudRule extends BaseRule
 {
 	/**
-	 * Validate item
+	 * Before search item
 	 */
-	async Map validateItem(SaveApi api, Map data) => data;
+	async void onSearchBefore(CrudService api)
+	{
+	}
+	
+	
+	/**
+	 * After search item
+	 */
+	async void onSearchAfter(CrudService api)
+	{
+	}
 	
 	
 	/**
 	 * Before save item
 	 */
-	async void onSaveBefore(SaveApi api)
+	async void onSaveBefore(CrudService api)
 	{
 	}
 	
@@ -42,7 +53,7 @@ struct CrudRule extends BaseStruct
 	/**
 	 * After save item
 	 */
-	async void onSaveAfter(SaveApi api)
+	async void onSaveAfter(CrudService api)
 	{
 	}
 	
@@ -50,7 +61,7 @@ struct CrudRule extends BaseStruct
 	/**
 	 * Before delete item
 	 */
-	async void onDeleteBefore(SaveApi api)
+	async void onDeleteBefore(CrudService api)
 	{
 	}
 	
@@ -58,7 +69,7 @@ struct CrudRule extends BaseStruct
 	/**
 	 * After delete item
 	 */
-	async void onDeleteAfter(SaveApi api)
+	async void onDeleteAfter(CrudService api)
 	{
 	}
 }

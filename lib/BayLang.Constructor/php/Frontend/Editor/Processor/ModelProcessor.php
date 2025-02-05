@@ -61,6 +61,63 @@ class ModelProcessor extends \BayLang\Constructor\Frontend\Editor\Processor\Code
 		$widget->model_settings = $editor->getModelSettings($widget);
 	}
 	/**
+	 * Setup model params
+	 */
+	function setupParams($widget)
+	{
+		if (!$widget->model_class_name)
+		{
+			return ;
+		}
+		if (!$widget->primary_model_code)
+		{
+			return ;
+		}
+		if (!$widget->model_settings)
+		{
+			return ;
+		}
+		/* Add params */
+		$widget->params->appendItems($widget->model_settings->getParams()->map(function ($factory) use (&$widget)
+		{
+			$param = $factory->factory(new \Runtime\rtl());
+			$param->widget = $widget;
+			return $param;
+		}));
+		/* Get values */
+		$op_dict = $widget->primary_model_code->expression->args->get(1);
+		if (!$op_dict)
+		{
+			return ;
+		}
+		if (!($op_dict instanceof \BayLang\OpCodes\OpDict))
+		{
+			return ;
+		}
+		/* Add params values */
+		$values = $op_dict->values;
+		for ($i = 0; $i < $values->count(); $i++)
+		{
+			$op_dict_pair = $values->get($i);
+			for ($j = 0; $j < $widget->params->count(); $j++)
+			{
+				$param = $widget->params->get($j);
+				if ($param instanceof \BayLang\Constructor\Frontend\Editor\Parameters\ParameterModel && $param->isOpCode($op_dict_pair))
+				{
+					$param->setOpCode($op_dict_pair);
+				}
+			}
+		}
+		/* Init params values */
+		$widget->params->each(function ($param)
+		{
+			if ($param instanceof \BayLang\Constructor\Frontend\Editor\Parameters\ParameterModel)
+			{
+				$param->init();
+			}
+		});
+	}
+	/**
 	 * Check is model
 	 */
 	function checkIsModel($widget)
@@ -206,55 +263,6 @@ class ModelProcessor extends \BayLang\Constructor\Frontend\Editor\Processor\Code
 			return false;
 		}
 		return true;
-	}
-	/**
-	 * Setup model params
-	 */
-	function setupParams($widget)
-	{
-		if (!$widget->model_class_name)
-		{
-			return ;
-		}
-		if (!$widget->primary_model_code)
-		{
-			return ;
-		}
-		if (!$widget->model_settings)
-		{
-			return ;
-		}
-		/* Add params */
-		$widget->params->appendItems($widget->model_settings->getParams()->map(function ($factory) use (&$widget)
-		{
-			$param = $factory->factory(new \Runtime\rtl());
-			$param->widget = $widget;
-			return $param;
-		}));
-		/* Get values */
-		$op_dict = $widget->primary_model_code->expression->args->get(1);
-		if (!$op_dict)
-		{
-			return ;
-		}
-		if (!($op_dict instanceof \BayLang\OpCodes\OpDict))
-		{
-			return ;
-		}
-		/* Add params values */
-		$values = $op_dict->values;
-		for ($i = 0; $i < $values->count(); $i++)
-		{
-			$op_dict_pair = $values->get($i);
-			for ($j = 0; $j < $widget->params->count(); $j++)
-			{
-				$param = $widget->params->get($j);
-				if ($param instanceof \BayLang\Constructor\Frontend\Editor\Parameters\ParameterModel && $param->isOpCode($op_dict_pair))
-				{
-					$param->setOpCode($op_dict_pair);
-				}
-			}
-		}
 	}
 	/**
 	 * Set widget name

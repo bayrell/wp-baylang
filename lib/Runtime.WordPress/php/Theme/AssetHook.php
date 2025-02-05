@@ -34,18 +34,24 @@ class AssetHook extends \Runtime\Web\Hooks\AppHook
 	 */
 	function create_layout($params)
 	{
+		$layout = $params->get("container")->layout;
+		
+		/* Setup assets */
 		$template_path = parse_url(get_template_directory_uri(), PHP_URL_PATH);
 		$this->assets_path = \Runtime\rs::join_path(
 			new \Runtime\Collection($template_path, "assets")
 		);
-		$params->get("container")->layout->widgets->set("assets_path", $this->assets_path);
+		$layout->storage->params->set("assets_path", $this->assets_path);
+		
+		/* Setup site name */
+		$layout->site_name = get_bloginfo("", "name");
 	}
 	/**
 	 * Import data after
 	 */
 	function import_container_data_after($params)
 	{
-		$this->assets_path = $params->get("container")->layout->widgets->get("assets_path");
+		$this->assets_path = $params->get("container")->layout->storage->params->get("assets_path");
 	}
 	/**
 	 * Assets

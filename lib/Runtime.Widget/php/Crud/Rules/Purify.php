@@ -17,7 +17,7 @@
  *  limitations under the License.
  */
 namespace Runtime\Widget\Crud\Rules;
-class Purify extends \Runtime\Widget\Crud\Rules\CrudRule
+class Purify extends \Runtime\Widget\Crud\Rules\BaseRule
 {
 	public $__name;
 	/**
@@ -32,12 +32,12 @@ class Purify extends \Runtime\Widget\Crud\Rules\CrudRule
 	/**
 	 * Validate item
 	 */
-	function validateItem($api, $data)
+	function validate($rules, $data)
 	{
 		$value = $data->get($this->name);
 		$value = $this->purify($value);
 		$data->set($this->name, $value);
-		return $data;
+		return true;
 	}
 	/* ======================= Class Init Functions ======================= */
 	function _init()
@@ -59,7 +59,7 @@ class Purify extends \Runtime\Widget\Crud\Rules\CrudRule
 	}
 	static function getParentClassName()
 	{
-		return "Runtime.Widget.Crud.Rules.CrudRule";
+		return "Runtime.Widget.Crud.Rules.BaseRule";
 	}
 	static function getClassInfo()
 	{

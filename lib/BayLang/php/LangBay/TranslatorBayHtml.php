@@ -66,7 +66,7 @@ class TranslatorBayHtml extends \Runtime\BaseObject
 	/**
 	 * Translate attrs
 	 */
-	function OpHtmlAttrs($op_code_attrs, $result)
+	function OpHtmlAttrs($op_code_attrs, $result, $is_multiline)
 	{
 		/* Filter attrs */
 		$op_code_attrs = $op_code_attrs->filter(function ($op_code_attr)
@@ -78,10 +78,18 @@ class TranslatorBayHtml extends \Runtime\BaseObject
 			}
 			return true;
 		});
+		if ($is_multiline)
+		{
+			$this->translator->levelInc();
+		}
 		$attrs_count = $op_code_attrs->count();
 		for ($i = 0; $i < $attrs_count; $i++)
 		{
 			$op_code_attr = $op_code_attrs->get($i);
+			if ($is_multiline)
+			{
+				$result->push($this->translator->newLine());
+			}
 			$result->push($op_code_attr->key);
 			$result->push("=");
 			/* Value */
@@ -89,17 +97,67 @@ class TranslatorBayHtml extends \Runtime\BaseObject
 			{
 				$this->translator->expression->translate($op_code_attr->value, $result);
 			}
+			else if ($op_code_attr->value instanceof \BayLang\OpCodes\OpDeclareFunction)
+			{
+				$result->push("{{");
+				$this->translator->levelInc();
+				$result->push($this->translator->newLine());
+				$this->translator->expression->translate($op_code_attr->value, $result);
+				$this->translator->levelDec();
+				$result->push($this->translator->newLine());
+				$result->push("}}");
+			}
 			else
 			{
 				$result->push("{{ ");
 				$this->translator->expression->translate($op_code_attr->value, $result);
 				$result->push(" }}");
 			}
-			if ($i < $attrs_count - 1)
+			if ($i < $attrs_count - 1 && !$is_multiline)
 			{
 				$result->push(" ");
 			}
 		}
+		if ($is_multiline)
+		{
+			$this->translator->levelDec();
+			$result->push($this->translator->newLine());
+		}
+	}
+	/**
+	 * Html code multiline
+	 */
+	function isOpHtmlTagMultiline($op_code)
+	{
+		$attrs_count = 0;
+		for ($i = 0; $i < $op_code->attrs->count(); $i++)
+		{
+			$op_code_attr = $op_code->attrs->get($i);
+			if ($op_code_attr->key != "@key_debug")
+			{
+				$attrs_count++;
+			}
+			if ($op_code_attr->caret_start && $op_code_attr->caret_start->y > 0)
+			{
+				if ($op_code_attr->isMultiLine())
+				{
+					return true;
+				}
+				if ($op_code->caret_start->y > 0 && $op_code_attr->caret_start->y != $op_code->caret_start->y)
+				{
+					return true;
+				}
+			}
+			if ($op_code_attr->value instanceof \BayLang\OpCodes\OpDeclareFunction)
+			{
+				return true;
+			}
+		}
+		if ($attrs_count > 3)
+		{
+			return true;
+		}
+		return false;
 	}
 	/**
 	 * Translate html tag
@@ -107,11 +165,12 @@ class TranslatorBayHtml extends \Runtime\BaseObject
 	function OpHtmlTag($op_code, $result)
 	{
 		$is_multiline = $op_code->isMultiLine();
+		$is_multiline_attrs = $this->isOpHtmlTagMultiline($op_code);
 		/* Component attrs */
 		$args_content = \Runtime\Vector::from([]);
-		$this->OpHtmlAttrs($op_code->attrs, $args_content);
+		$this->OpHtmlAttrs($op_code->attrs, $args_content, $is_multiline_attrs);
 		$args = \Runtime\rs::join("", $args_content);
-		if ($args != "")
+		if ($args != "" && !$is_multiline_attrs)
 		{
 			$args = " " . \Runtime\rtl::toStr($args);
 		}

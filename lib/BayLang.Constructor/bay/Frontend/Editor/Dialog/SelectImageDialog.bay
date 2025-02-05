@@ -162,7 +162,7 @@ void onFileUploadChange()
 bool isImage(Dict item)
 {
 	string file_name = item.get("file_name");
-	string file_extension = rs::extname(file_name);
+	string file_extension = rs::lower(rs::extname(file_name));
 	Collection arr = ["jpg", "jpeg", "png", "svg"];
 	if (arr.indexOf(file_extension) == -1) return false;
 	return true;

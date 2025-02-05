@@ -43,6 +43,15 @@ class ConnectionSQLite extends \Runtime\ORM\MySQL\ConnectionMySQL
 		}
 		return $this;
 	}
+	/**
+	 * Fork connection
+	 */
+	function fork()
+	{
+		$connection = parent::fork();
+		$connection->path = $this->path;
+		return $connection;
+	}
 	/* ======================= Class Init Functions ======================= */
 	function _init()
 	{

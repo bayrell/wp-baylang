@@ -16,7 +16,7 @@
  *  limitations under the License.
 -->
 
-<class name="Runtime.Widget.Input">
+<class name="Runtime.Widget.Input" extends="Runtime.Widget.Field">
 
 <use name="Runtime.Web.Messages.ValueChangeMessage" />
 

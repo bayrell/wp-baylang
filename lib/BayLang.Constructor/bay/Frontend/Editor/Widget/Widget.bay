@@ -190,7 +190,7 @@ class Widget extends BaseObject
 		/* Setup widget settings */
 		if (this.settings and rtl::exists(this.settings.setup))
 		{
-			this.settings.setup(this);
+			this.settings.setup(new rtl(), this);
 		}
 	}
 	

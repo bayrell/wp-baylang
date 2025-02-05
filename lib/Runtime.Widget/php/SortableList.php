@@ -44,7 +44,7 @@ class SortableList extends \Runtime\Web\Component
 	function renderItem($pos)
 	{
 		$__v = new \Runtime\Vector();
-		$item = $this->value->get($pos);
+		$item = $this->getItems()->get($pos);
 		
 		/* Element 'div' */
 		$__v0 = new \Runtime\Vector();
@@ -87,14 +87,22 @@ class SortableList extends \Runtime\Web\Component
 		
 		/* Element 'div' */
 		$__v0 = new \Runtime\Vector();
+		$items = $this->getItems();
 		
-		if ($this->value)
+		if ($items)
 		{
-			for ($i = 0; $i < $this->value->count(); $i++)
-			{
-				/* Text */
-				$this->_t($__v0, $this->renderItem($i));
-			}
+			/* Component 'TransitionGroup' */
+			$this->_c($__v0, "TransitionGroup", ["name" => "widget_sortable_list"], function (){
+				$__v = new \Runtime\Vector();
+				
+				for ($i = 0; $i < $items->count(); $i++)
+				{
+					/* Text */
+					$this->_t($__v, $this->renderItem($i));
+				}
+				
+				return $__v;
+			});
 		}
 		
 		/* Element 'div' */
@@ -149,6 +157,27 @@ class SortableList extends \Runtime\Web\Component
 		return $this->_flatten($__v);
 	}
 	/**
+ * Returns items
+ */
+	function getItems()
+	{
+		return $this->value;
+	}
+	/**
+ * Create new item
+ */
+	function createItem()
+	{
+		return "";
+	}
+	/**
+ * Create value
+ */
+	function createValue()
+	{
+		return \Runtime\Vector::from([]);
+	}
+	/**
  * Swap items
  */
 	function swapItems($a, $b)
@@ -159,20 +188,22 @@ class SortableList extends \Runtime\Web\Component
 			$a = $b;
 			$b = $c;
 		}
-		$obj_a = $this->value->get($a);
-		$obj_b = $this->value->get($b);
-		$this->value->remove($b);
-		$this->value->insert($b, $obj_a);
-		$this->value->remove($a);
-		$this->value->insert($a, $obj_b);
+		$items = $this->getItems();
+		$obj_a = $items->get($a);
+		$obj_b = $items->get($b);
+		$items->remove($b);
+		$items->insert($b, $obj_a);
+		$items->remove($a);
+		$items->insert($a, $obj_b);
 	}
 	/**
  * Remove item
  */
 	function removeItem($pos)
 	{
-		$this->old_value = $this->value->slice();
-		$this->value->remove($pos);
+		$items = $this->getItems();
+		$this->old_value = \Runtime\Serializer::copy($this->value);
+		$items->remove($pos);
 		$this->onValueChange();
 	}
 	/**
@@ -313,7 +344,7 @@ class SortableList extends \Runtime\Web\Component
 		}
 		/* Swap items with animation */
 		$this->is_transition = true;
-		$this->old_value = $this->value->slice();
+		$this->old_value = \Runtime\Serializer::copy($this->value);
 		$this->swapItems($this->drag_item_pos, $pos);
 		$this->drag_item_pos = $pos;
 		/* Stop animation */
@@ -336,9 +367,18 @@ class SortableList extends \Runtime\Web\Component
  */
 	function onAddItemClick()
 	{
-		$this->old_value = $this->value->slice();
-		$this->value->push("");
-		$this->onValueChange();
+		$items = $this->getItems();
+		if ($items == null)
+		{
+			$this->emit("valueChange", new \Runtime\Web\Messages\ValueChangeMessage(\Runtime\Map::from(["value"=>$this->createValue(),"old_value"=>$this->old_value,"data"=>$this->data])));
+		}
+		$this->nextTick(function ()
+		{
+			$this->old_value = \Runtime\Serializer::copy($this->value);
+			$items = $this->getItems();
+			$items->push($this->createItem());
+			$this->onValueChange();
+		});
 	}
 	/**
  * Mouse down
@@ -403,7 +443,7 @@ class SortableList extends \Runtime\Web\Component
 	static function css($vars)
 	{
 		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_sortable_list.h-2647{position: relative}.widget_sortable_list__item.h-2647{display: flex;align-items: center;justify-content: flex-start;border-width: var(--widget-border-width);border-color: var(--widget-color-border);border-style: solid;border-radius: 4px;margin: 5px}.widget_sortable_list__item_drag.h-2647,.widget_sortable_list__item_remove.h-2647{cursor: pointer;padding: 0px 5px}.widget_sortable_list__item_value.h-2647{flex: 1}.widget_sortable_list__item_value.h-2647 .widget_input.h-f2df{padding: 0px 10px;border-color: transparent;border-radius: 0;border-width: 0}.widget_sortable_list__buttons.h-2647{text-align: center;margin-top: var(--widget-space)}.widget_sortable_list__shadow_elem.h-2647{position: absolute;opacity: 0.5;user-select: none;z-index: 9999999}.widget_sortable_list__shadow_elem.h-2647 .widget_sortable_list__item.h-2647{margin: 0}.widget_sortable_list__animation-move.h-2647,.widget_sortable_list__animation-enter-active.h-2647,.widget_sortable_list__animation-leave-active.h-2647{transition: all 0.3s ease}.widget_sortable_list__animation-enter-from.h-2647,.widget_sortable_list__animation-leave-to.h-2647{opacity: 0}");
+		$res .= \Runtime\rtl::toStr(".widget_sortable_list.h-2647{position: relative}.widget_sortable_list__item.h-2647{display: flex;align-items: center;justify-content: flex-start;border-width: var(--widget-border-width);border-color: var(--widget-color-border);border-style: solid;border-radius: 4px;margin: 5px}.widget_sortable_list__item_drag.h-2647,.widget_sortable_list__item_remove.h-2647{cursor: pointer;padding: 0px 5px}.widget_sortable_list__item_value.h-2647{flex: 1}.widget_sortable_list__item_value.h-2647 .widget_input.h-f2df,.widget_sortable_list__item_value.h-2647 .widget_select.h-d72d{padding: 0px 10px;border-color: transparent;border-radius: 0;border-width: 0}.widget_sortable_list__buttons.h-2647{text-align: center;margin-top: var(--widget-space)}.widget_sortable_list__shadow_elem.h-2647{position: absolute;opacity: 0.5;user-select: none;z-index: 9999999}.widget_sortable_list__shadow_elem.h-2647 .widget_sortable_list__item_drag.h-2647{cursor: grabbing}.widget_sortable_list__shadow_elem.h-2647 .widget_sortable_list__item.h-2647{margin: 0}.widget_sortable_list-move.h-2647,.widget_sortable_list-enter-active.h-2647,.widget_sortable_list-leave-active.h-2647{transition: all 0.3s ease}.widget_sortable_list-enter-from.h-2647,.widget_sortable_list-leave-to.h-2647{opacity: 0}");
 		return $res;
 	}
 	/* ======================= Class Init Functions ======================= */

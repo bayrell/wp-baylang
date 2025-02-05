@@ -30,7 +30,7 @@ class WidgetManager extends \Runtime\BaseObject implements \BayLang\Constructor\
 	 */
 	function getGroupSettings()
 	{
-		return \Runtime\Map::from(["basic"=>\Runtime\Map::from(["label"=>"Basic","priority"=>0]),"widget"=>\Runtime\Map::from(["label"=>"Widget","priority"=>100]),"other"=>\Runtime\Map::from(["label"=>"Basic","priority"=>9999])]);
+		return \Runtime\Map::from(["basic"=>\Runtime\Map::from(["label"=>"Basic","priority"=>0]),"html"=>\Runtime\Map::from(["label"=>"Html","priority"=>100]),"widget"=>\Runtime\Map::from(["label"=>"Widget","priority"=>100]),"other"=>\Runtime\Map::from(["label"=>"Basic","priority"=>9999])]);
 	}
 	/**
 	 * Returns list of widget settings

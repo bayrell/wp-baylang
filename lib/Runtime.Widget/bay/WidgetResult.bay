@@ -41,7 +41,7 @@
 <template>
 	<div class="widget_result"
 		class={{ this.getErrorClass() }}
-		class={{ static::getStyles("widget_result", this.model.styles) }}
+		class={{ static::mergeStyles("widget_result", this.model.styles) }}
 	>
 		{{ this.model.message }}
 	</div>

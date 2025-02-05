@@ -19,40 +19,48 @@
 namespace Runtime\ORM;
 class Relation extends \Runtime\BaseObject implements \Runtime\MapInterface
 {
-	public $table_name;
 	public $old_data;
 	public $new_data;
-	function __construct($table_name)
+	function __construct()
 	{
 		parent::__construct();
-		if ($table_name == "")
-		{
-			throw new \Runtime\Exceptions\RuntimeException("Table name is empty");
-		}
-		$this->table_name = $table_name;
 	}
 	/**
 	 * Returns table name
 	 */
-	function getTableName()
+	static function getTableName()
 	{
-		return $this->table_name;
+		return "";
+	}
+	/**
+     * Returns table schema
+     */
+	static function schema()
+	{
+		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.ORM.Relation.schema", func_get_args());
+		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;$__memorize_value = "";
+		\Runtime\rtl::_memorizeSave("Runtime.ORM.Relation.schema", func_get_args(), $__memorize_value);
+		return $__memorize_value;
 	}
 	/**
 	 * Create Instance of class
 	 */
-	static function newInstance($table_name, $data=null)
+	static function newInstance($class_name, $data=null)
 	{
-		$instance = \Runtime\rtl::newInstance(static::getClassName(), \Runtime\Vector::from([$table_name]));
-		$instance->_setNewData($data);
+		if ($class_name == "")
+		{
+			throw new \Runtime\Exceptions\RuntimeException("Class name does not exists");
+		}
+		$instance = \Runtime\rtl::newInstance($class_name);
+		$instance->_initData($data);
 		return $instance;
 	}
 	/**
 	 * Convert to model
 	 */
-	function toModel($class_name)
+	function toModel()
 	{
-		return \Runtime\rtl::newInstance($class_name, \Runtime\Vector::from([$this->toMap()]));
+		return static::newInstance(static::getClassName(), $this->toMap());
 	}
 	/**
 	 * Convert to Dict
@@ -60,6 +68,10 @@ class Relation extends \Runtime\BaseObject implements \Runtime\MapInterface
 	function all()
 	{
 		return $this->new_data->clone();
+	}
+	function old()
+	{
+		return $this->old_data->clone();
 	}
 	function toMap()
 	{
@@ -72,136 +84,80 @@ class Relation extends \Runtime\BaseObject implements \Runtime\MapInterface
 	/**
 	 * Returns table annotations
 	 */
-	static function getAnotations($table_name)
+	static function getAnotations()
 	{
-		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.ORM.Relation.getAnotations", func_get_args());
-		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;
 		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
-		$__memorize_value = $provider->getAnotations($table_name);
-		\Runtime\rtl::_memorizeSave("Runtime.ORM.Relation.getAnotations", func_get_args(), $__memorize_value);
-		return $__memorize_value;
+		return $provider->getAnotations(static::getTableName());
 	}
 	/**
 	 * To database
 	 */
-	static function toDatabase($table_name, $conn, $data, $is_update)
+	static function toDatabase($conn, $data, $is_update)
 	{
-		if ($data == null)
-		{
-			return null;
-		}
-		$annotations = static::getAnotations($table_name);
-		for ($i = 0; $i < $annotations->count(); $i++)
-		{
-			$annotation = \Runtime\rtl::attr($annotations, $i);
-			if ($annotation instanceof \Runtime\ORM\Annotations\BaseType)
-			{
-				$data = $annotation->toDatabase($conn, $data, $is_update);
-			}
-		}
-		return $data;
+		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
+		return $provider->toDatabase(static::getTableName(), $conn, $data, $is_update);
 	}
 	/**
 	 * From database
 	 */
-	static function fromDatabase($table_name, $conn, $data)
+	static function fromDatabase($conn, $data)
 	{
-		if ($data == null)
-		{
-			return null;
-		}
-		$annotations = static::getAnotations($table_name);
-		for ($i = 0; $i < $annotations->count(); $i++)
-		{
-			$annotation = \Runtime\rtl::attr($annotations, $i);
-			if ($annotation instanceof \Runtime\ORM\Annotations\BaseType)
-			{
-				$data = $annotation->fromDatabase($conn, $data);
-			}
-		}
-		return $data;
+		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
+		return $provider->fromDatabase(static::getTableName(), $conn, $data);
 	}
 	/**
 	 * Returns true if primary key is auto increment
 	 */
-	static function getAutoIncrement($table_name)
+	static function getAutoIncrement()
 	{
-		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.ORM.Relation.getAutoIncrement", func_get_args());
-		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;
-		$annotations = static::getAnotations($table_name);
-		$annotation = $annotations->findItem(\Runtime\lib::isInstance("Runtime.ORM.Annotations.AutoIncrement"));
-		$__memorize_value = $annotation;
-		\Runtime\rtl::_memorizeSave("Runtime.ORM.Relation.getAutoIncrement", func_get_args(), $__memorize_value);
-		return $__memorize_value;
+		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
+		return $provider->getAutoIncrement(static::getTableName());
 	}
 	/**
-	 * Returns primary keys of table
+	 * Returns primary key names of table
 	 */
-	static function getPrimaryKeys($table_name)
+	static function getPrimaryKeyNames()
 	{
-		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.ORM.Relation.getPrimaryKeys", func_get_args());
-		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;
-		/* Get primary annotation */
-		$annotations = static::getAnotations($table_name);
-		$primary = $annotations->findItem(\Runtime\lib::isInstance("Runtime.ORM.Annotations.Primary"));
-		if ($primary == null)
-		{
-			$__memorize_value = null;
-			\Runtime\rtl::_memorizeSave("Runtime.ORM.Relation.getPrimaryKeys", func_get_args(), $__memorize_value);
-			return $__memorize_value;
-		}
-		$__memorize_value = $primary->keys;
-		\Runtime\rtl::_memorizeSave("Runtime.ORM.Relation.getPrimaryKeys", func_get_args(), $__memorize_value);
-		return $__memorize_value;
+		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
+		return $provider->getPrimaryKeyNames(static::getTableName());
 	}
 	/**
 	 * Returns primary data
 	 */
-	static function getPrimaryFromData($table_name, $data)
+	static function getPrimaryFromData($data)
 	{
-		/* Get primary annotation */
-		$primary_keys = static::getPrimaryKeys($table_name);
-		/* Check if primary keys if exists */
-		if ($primary_keys == null)
-		{
-			throw new \Runtime\Exceptions\ItemNotFound($table_name, "Primary keys");
-		}
-		/* Intersect values */
-		return ($data) ? ($data->intersect($primary_keys, false)) : (\Runtime\Map::from([]));
+		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
+		return $provider->getPrimaryFromData(static::getTableName(), $data);
 	}
 	/**
 	 * Returns primary filter by data
 	 */
-	static function getPrimaryFilter($table_name, $data, $use_alias=true)
+	static function getPrimaryFilter($data, $use_full_key=true)
 	{
-		$pk = static::getPrimaryFromData($table_name, $data);
-		$filter = $pk->transition(function ($value, $key) use (&$table_name,&$use_alias)
-		{
-			$item = new \Runtime\ORM\QueryFilter();
-			$item->key = $key;
-			$item->op = "=";
-			$item->value = $value;
-			if ($use_alias)
-			{
-				$item->key = $table_name . \Runtime\rtl::toStr(".") . \Runtime\rtl::toStr($key);
-			}
-			return $item;
-		});
-		return $filter;
+		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
+		return $provider->getPrimaryFilter(static::getTableName(), $data, $use_full_key);
 	}
 	/**
 	 * Returns primary key
 	 */
 	function getPrimaryKey()
 	{
-		return static::getPrimaryFromData($this->table_name, $this->new_data);
+		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
+		return $provider->getPrimaryFromData(static::getTableName(), $this->new_data);
 	}
 	/**
-	 * Returns primary key
+	 * Returns value
 	 */
-	function pk()
+	function get($name, $def_value=null)
 	{
-		return static::getPrimaryFromData($this->table_name, $this->new_data);
+		return $this->new_data->get($name, $def_value);
+	}
+	/**
+	 * Set new value
+	 */
+	function set($name, $value)
+	{
+		$this->new_data->set($name, $value);
 	}
 	/**
 	 * Get updated data
@@ -241,12 +197,22 @@ class Relation extends \Runtime\BaseObject implements \Runtime\MapInterface
 		return $res;
 	}
 	/**
-	 * Set new data
+	 * Init data
 	 */
-	function _setNewData($data=null)
+	function _initData($data=null)
 	{
 		$this->old_data = ($data != null) ? (new \Runtime\Map($data)) : (null);
 		$this->new_data = ($data != null) ? (new \Runtime\Map($data)) : (new \Runtime\Map());
+	}
+	/**
+	 * Set data
+	 */
+	function setData($item)
+	{
+		$item->each(function ($value, $key)
+		{
+			$this->set($key, $value);
+		});
 	}
 	/**
 	 * Returns true if object is new
@@ -304,20 +270,12 @@ class Relation extends \Runtime\BaseObject implements \Runtime\MapInterface
 		return false;
 	}
 	/**
-	 * Update data
-	 */
-	function updateData($item)
-	{
-		$item->each(function ($value, $key)
-		{
-			$this->set($key, $value);
-		});
-	}
-	/**
 	 * Save model
 	 */
 	function save($conn, $params=null)
 	{
+		$table_name = static::getTableName();
+		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
 		/* Call before save */
 		\Runtime\rtl::getContext()->callHookAsync(\Runtime\ORM\DatabaseSchema::SAVE_BEFORE, \Runtime\Map::from(["item"=>$this]));
 		$is_update = $this->isUpdate();
@@ -327,15 +285,15 @@ class Relation extends \Runtime\BaseObject implements \Runtime\MapInterface
 			$updated_data_keys = $updated_data->keys();
 			if ($updated_data_keys->count() > 0)
 			{
-				$filter = static::getPrimaryFilter($this->table_name, $this->old_data, false);
+				$filter = $provider->getPrimaryFilter($table_name, $this->old_data, false);
 				if ($filter->count() > 0)
 				{
-					$db_updated_data = static::toDatabase($this->table_name, $conn, $updated_data, $is_update);
-					$conn->update($this->table_name, $filter, $db_updated_data, $params);
+					$db_updated_data = $provider->toDatabase($table_name, $conn, $updated_data, $is_update);
+					$conn->update($table_name, $filter, $db_updated_data, $params);
 				}
 				else
 				{
-					throw new \Runtime\Exceptions\RuntimeException("Primary key does not exists in " . \Runtime\rtl::toStr($this->table_name));
+					throw new \Runtime\Exceptions\RuntimeException("Primary key does not exists in " . \Runtime\rtl::toStr($table_name));
 				}
 				for ($i = 0; $i < $updated_data_keys->count(); $i++)
 				{
@@ -346,10 +304,10 @@ class Relation extends \Runtime\BaseObject implements \Runtime\MapInterface
 		}
 		else
 		{
-			$db_updated_data = static::toDatabase($this->table_name, $conn, $updated_data, $is_update);
-			$last_id = $conn->insert($this->table_name, $db_updated_data, true, $params);
-			$this->_setNewData($this->new_data);
-			$auto_increment = static::getAutoIncrement($this->table_name);
+			$db_updated_data = $provider->toDatabase($table_name, $conn, $updated_data, $is_update);
+			$last_id = $conn->insert($table_name, $db_updated_data, true, $params);
+			$this->_initData($this->new_data);
+			$auto_increment = $provider->getAutoIncrement($table_name);
 			if ($auto_increment && $auto_increment->name)
 			{
 				$this->old_data->set($auto_increment->name, $last_id);
@@ -368,14 +326,19 @@ class Relation extends \Runtime\BaseObject implements \Runtime\MapInterface
 		{
 			return ;
 		}
-		$filter = static::getPrimaryFilter($this->table_name, $this->old_data, false);
+		/* Get provider */
+		$table_name = static::getTableName();
+		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
+		/* Get primary filter */
+		$filter = $provider->getPrimaryFilter($table_name, $this->old_data, false);
+		/* Delete record */
 		if ($filter->count() > 0)
 		{
-			$conn->delete($this->table_name, $filter, $params);
+			$conn->delete($table_name, $filter, $params);
 		}
 		else
 		{
-			throw new \Runtime\Exceptions\RuntimeException("Primary key does not exists in " . \Runtime\rtl::toStr($this->table_name));
+			throw new \Runtime\Exceptions\RuntimeException("Primary key does not exists in " . \Runtime\rtl::toStr($table_name));
 		}
 		return $this;
 	}
@@ -384,38 +347,104 @@ class Relation extends \Runtime\BaseObject implements \Runtime\MapInterface
 	 */
 	function refresh($conn, $params=null)
 	{
+		$table_name = static::getTableName();
+		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
 		$item = null;
-		$filter = static::getPrimaryFilter($this->table_name, $this->old_data, false);
+		$filter = $provider->getPrimaryFilter($table_name, $this->old_data, false);
 		if ($filter->count() > 0)
 		{
-			$q = (new \Runtime\ORM\Query())->select(\Runtime\Vector::from([$this->table_name . \Runtime\rtl::toStr(".*")]))->from($this->table_name)->setFilter($filter)->limit(1);
+			$q = (new \Runtime\ORM\Query())->select(\Runtime\Vector::from([$table_name . \Runtime\rtl::toStr(".*")]))->from($table_name)->setFilter($filter)->limit(1);
 			$item = $conn->fetchOne($q, $params);
 		}
 		if ($item)
 		{
-			$this->_setNewData($item->toDict());
+			$this->_initData($item->toDict());
 		}
 		return $this;
 	}
 	/**
-	 * Returns value
+	 * Returns query
 	 */
-	function get($name, $def_value=null)
+	static function query()
 	{
-		return $this->new_data->get($name, $def_value);
+		return (new \Runtime\ORM\Query())->relation(static::getClassName());
 	}
 	/**
-	 * Set new value
+	 * Returns select query
 	 */
-	function set($name, $value)
+	static function select()
 	{
-		$this->new_data->set($name, $value);
+		return (new \Runtime\ORM\Query())->relation(static::getClassName())->select(\Runtime\Vector::from([static::getTableName() . \Runtime\rtl::toStr(".*")]));
+	}
+	/**
+	 * Find relations by filter
+	 */
+	static function findItems($conn, $filter, $params=null)
+	{
+		$table_name = static::getTableName();
+		$q = static::query()->select(\Runtime\Vector::from([$table_name . \Runtime\rtl::toStr(".*")]))->setFilter($filter);
+		return $conn->findRelations($q, $params);
+	}
+	/**
+	 * Find relation by filter
+	 */
+	static function findByFilter($conn, $filter, $params=null)
+	{
+		$table_name = static::getTableName();
+		$q = static::query()->select(\Runtime\Vector::from([$table_name . \Runtime\rtl::toStr(".*")]))->setFilter($filter)->limit(1);
+		return $conn->findRelation($q, $params);
+	}
+	/**
+	 * Find relation by primary key
+	 */
+	static function findByPk($conn, $pk, $params=null)
+	{
+		/* Returns primary filter */
+		$filter = static::getPrimaryFilter($pk, false);
+		/* Find relation */
+		return static::findByFilter($conn, $filter, $params);
+	}
+	/**
+	 * Find relation by object
+	 */
+	static function findById($conn, $id, $params=null)
+	{
+		/* Get primary keys */
+		$pk = static::getPrimaryKeyNames();
+		$pk_name = $pk->get(0);
+		/* Build filter */
+		$filter = \Runtime\Vector::from([new \Runtime\ORM\QueryFilter($pk_name, "=", $id)]);
+		/* Find relation */
+		return static::findByFilter($conn, $filter, $params);
+	}
+	/**
+	 * Find or create
+	 */
+	static function findOrCreate($conn, $filter, $update, $params=null)
+	{
+		$class_name = static::getClassName();
+		/* Build filter */
+		$search = $filter->transition(function ($value, $key)
+		{
+			return new \Runtime\ORM\QueryFilter($key, "=", $value);
+		});
+		/* Find item */
+		$relation = static::findByFilter($conn, $search, $params);
+		if ($relation)
+		{
+			return $relation;
+		}
+		/* Create if not found */
+		$relation = \Runtime\ORM\Relation::newInstance($class_name);
+		/* Set new data */
+		$relation->setData($filter);
+		$relation->setData($update);
+		return $relation;
 	}
 	/* ======================= Class Init Functions ======================= */
 	function _init()
 	{
 		parent::_init();
-		$this->table_name = "";
 		$this->old_data = null;
 		$this->new_data = new \Runtime\Map();
 	}

@@ -50,6 +50,13 @@ class Parameter extends \Runtime\BaseObject
 		$this->setValue($this->default);
 	}
 	/**
+	 * Returns attribute name
+	 */
+	function getAttributeName()
+	{
+		return $this->name;
+	}
+	/**
 	 * Is op_code
 	 */
 	function isOpCode($op_code)

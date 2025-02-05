@@ -22,6 +22,7 @@ use Runtime.lib;
 use Runtime.Exceptions.RuntimeException;
 use Runtime.BaseObject;
 use Runtime.BaseStruct;
+use Runtime.Callback;
 use Runtime.Math;
 use Runtime.ORM.Annotations.BaseType;
 use Runtime.ORM.Annotations.Primary;
@@ -46,9 +47,10 @@ class Query extends BaseObject
 	static const string QUERY_DELETE = "delete";
 	static const string QUERY_INSERT_OR_UPDATE = "insert_or_update";
 	
-	string _class_name_relation = "";
 	string _kind = "";
+	string _relation_name = "";
 	string _table_name = "";
+	string _table_alias = "";
 	Vector<string> _fields = new Vector();
 	Vector<Dict> _join = new Vector();
 	Vector<Collection> _order = new Vector();
@@ -80,15 +82,16 @@ class Query extends BaseObject
 	Query copy()
 	{
 		Query q = new Query();
-		q._class_name_relation = this._class_name_relation;
 		q._kind = this._kind;
+		q._relation_name = this._relation_name;
 		q._table_name = this._table_name;
+		q._table_alias = this._table_alias;
 		q._fields = this._fields.toVector();
 		q._join = this._join.toVector();
 		q._order = this._order.toVector();
 		q._filter = this._filter.toVector();
 		q._sql = this._sql;
-		q._data = this._data.toMap();
+		q._data = this._data ? this._data.toMap() : null;
 		q._start = this._start;
 		q._limit = this._limit;
 		q._debug = this._debug;
@@ -111,13 +114,19 @@ class Query extends BaseObject
 	
 	
 	/**
+	 * Returns relation class name
+	 */
+	string getRelationName() => this._relation_name;
+	
+	
+	/**
 	 * Calc found rows
 	 */
 	Query raw(string sql, Dict data)
 	{
 		this._kind = static::QUERY_RAW;
 		this._sql = sql;
-		this._data = data.toMap();
+		this._data = data ? data.toMap() : null;
 		return this;
 	}
 	
@@ -166,9 +175,27 @@ class Query extends BaseObject
 	/**
 	 * Set table
 	 */
-	Query table(string table_name = "")
+	Query table(string table_name = "", string alias_name = "")
 	{
 		this._table_name = table_name != "" ? table_name : this._table_name;
+		this._table_alias = alias_name == "" ? this._table_name : alias_name;
+		
+		Provider provider = @.provider(classof Provider);
+		this._relation_name = provider.getRelationName(this._table_name);
+		
+		return this;
+	}
+	
+	
+	/**
+	 * Set relation
+	 */
+	Query relation(string class_name = "", string alias_name = "")
+	{
+		string table_name = new Callback(class_name, "getTableName").apply();
+		this._table_name = table_name != "" ? table_name : this._table_name;
+		this._table_alias = alias_name == "" ? this._table_name : alias_name;
+		this._relation_name = class_name;
 		return this;
 	}
 	
@@ -176,9 +203,10 @@ class Query extends BaseObject
 	/**
 	 * Set table
 	 */
-	Query from(string table_name = "")
+	Query from(string table_name = "", string alias_name = "")
 	{
 		this._table_name = table_name != "" ? table_name : this._table_name;
+		this._table_alias = alias_name == "" ? this._table_name : alias_name;
 		return this;
 	}
 	
@@ -257,6 +285,7 @@ class Query extends BaseObject
 	Query addTableFields(string table_name)
 	{
 		Collection<BaseStruct> annotations = this._provider.getAnotations(table_name);
+		if (not annotations) return this;
 		for (int i=0; i<annotations.count(); i++)
 		{
 			BaseStruct annotation = annotations[i];
@@ -269,29 +298,32 @@ class Query extends BaseObject
 				this._fields.append(field);
 			}
 		}
+		return this;
 	}
 	
 	
 	/**
 	 * Add field
 	 */
-	Query addField(string field_name)
+	Query addField(QueryField field)
 	{
-		if (field_name instanceof QueryField or field_name instanceof QueryFilter)
+		if (rtl::isString(field))
 		{
-			this._fields.append(field_name);
-			return this;
+			/* Parse field */
+			field = rs::trim(field);
+			field = QueryField::fromString(field);
 		}
 		
-		field_name = rs::trim(field_name);
-		
-		Collection res1 = rs::split(" as ", field_name);
-		Collection res2 = rs::split(".", res1[0]);
-		
-		if (res2.count() > 1 and res2.get(1) == "*")
+		/* If field name is asterisk */
+		if (field instanceof QueryField and field.field_name == "*")
 		{
-			string table_name = res2.get(0);
+			string table_name = field.table_name;
+			if (table_name == "") return this;
+			
 			Collection<BaseStruct> annotations = this._provider.getAnotations(table_name);
+			if (not annotations) return this;
+			
+			/* Add fields from annotation */
 			for (int i=0; i<annotations.count(); i++)
 			{
 				BaseStruct annotation = annotations[i];
@@ -305,10 +337,8 @@ class Query extends BaseObject
 				}
 			}
 		}
-		
 		else
 		{
-			QueryField field = QueryField::fromString(field_name);
 			this._fields.append(field);
 		}
 		

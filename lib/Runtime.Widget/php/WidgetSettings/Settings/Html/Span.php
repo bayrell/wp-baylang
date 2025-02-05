@@ -59,7 +59,7 @@ class Span extends \Runtime\Widget\WidgetSettings\Settings\ContainerSettings
 	 */
 	function getGroupName()
 	{
-		return "basic";
+		return "html";
 	}
 	/**
 	 * Returns true if is widget settings

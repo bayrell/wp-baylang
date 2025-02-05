@@ -341,6 +341,7 @@ class CodeApi extends BaseApi
 					{
 						await module.compile(relative_src_file_path);
 						await module.updateAssets();
+						await ApiHook::updateAssets();
 					}
 					catch (ParserUnknownError e)
 					{

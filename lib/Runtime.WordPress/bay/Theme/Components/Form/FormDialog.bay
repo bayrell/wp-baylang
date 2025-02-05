@@ -1,0 +1,100 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.WordPress.Theme.Components.Form.FormDialog"
+	extends="Runtime.Widget.Dialog.Dialog"
+>
+
+<use name="Runtime.Widget.Button" component="true" />
+
+
+<style>
+.widget_dialog__shadow{
+	opacity: 0.5;
+}
+.widget_dialog__title{
+	display: flex;
+	align-items: center;
+	span{
+		flex: 1;
+	}
+	%(Button)widget_button{
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 42px;
+		height: 34px;
+		font-size: 20px;
+		font-weight: bold;
+		text-transform: uppercase;
+		background-color: #fff;
+		border: 1px #d9d9d9 solid;
+		cursor: pointer;
+		border-radius: 5px;
+	}
+}
+.widget_dialog %(Form)widget_form__button %(Button)widget_button{
+	width: 100%;
+}
+.widget_dialog %(Input)widget_input, .widget_dialog %(TextArea)widget_textarea{
+	padding: 10px;
+	font-size: 16px;
+	border-radius: 5px;
+}
+.widget_dialog %(TextArea)widget_textarea{
+	min-height: 150px;
+}
+</style>
+
+
+<template name="renderTitle">
+	%if (this.model.title != "")
+	{
+		<div class="widget_dialog__title">
+			<span class="widget_dialog__title__text">{{ this.model.title }}</span>
+			<Button class="widget_dialog__title__close"
+				@event:click={{ void(){ this.model.hide(); } }}
+			>x</Button>
+		</div>
+	}
+</template>
+
+
+<template name="renderContent">
+	%render this.renderWidget(this.model.form);
+</template>
+
+
+<template name="renderButtons">
+</template>
+
+
+<script>
+
+/**
+ * On shadow click
+ */
+void onShadowClick()
+{
+	this.model.hide();
+}
+
+</script>
+
+
+</class>

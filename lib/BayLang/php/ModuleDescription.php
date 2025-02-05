@@ -33,7 +33,7 @@ class ModuleDescription
 	 */
 	static function getModuleVersion()
 	{
-		return "0.12.3";
+		return "0.12.4";
 	}
 	/**
 	 * Returns required modules

@@ -34,6 +34,13 @@ class TableStorage extends \Runtime\BaseObject implements \Runtime\Widget\Table\
 		return $this->api_name;
 	}
 	/**
+	 * Returns items
+	 */
+	function getItems()
+	{
+		return $this->table->items;
+	}
+	/**
 	 * Set table
 	 */
 	function setTable($table)

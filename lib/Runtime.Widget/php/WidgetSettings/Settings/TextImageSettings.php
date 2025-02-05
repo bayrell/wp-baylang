@@ -104,7 +104,7 @@ class TextImageSettings extends \Runtime\BaseObject implements \BayLang\Construc
 	{
 		return \Runtime\Map::from(["default"=>function ()
 		{
-			return \Runtime\Map::from(["content"=>\Runtime\rs::join("\n", \Runtime\Vector::from(["<use name='Runtime.Widget.Image' component='true' />","<use name='Runtime.Widget.Text' component='true' />","<style>","%(TextImage)widget_text_image{","\t&__image{","\t}","\t&__text{","\t}","}","</style>"]))]);
+			return \Runtime\Map::from(["content"=>\Runtime\rs::join("\n", \Runtime\Vector::from(["<use name='Runtime.Widget.Image' component='true' />","<use name='Runtime.Widget.Text' component='true' />","<style>","%(Image)widget_image{","}","%(TextImage)widget_text_image__image{","}","%(TextImage)widget_text_image__text{","}","</style>"]))]);
 		}]);
 	}
 	/* ======================= Class Init Functions ======================= */

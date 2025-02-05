@@ -130,7 +130,7 @@ class AppHook extends BaseAppHook
 	 */
 	async void update_assets(Dict params)
 	{
-		WP_Helper::update_option("app_js_vesion", DateTime::now().getTimestamp());
+		WP_Helper::setAppVersion(DateTime::now().getTimestamp());
 	}
 	
 	#endif

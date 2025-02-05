@@ -191,7 +191,7 @@ class BaseModel extends \Runtime\BaseObject implements \Runtime\SerializeInterfa
 			return ;
 		}
 		$chain = $this->listeners->get($message_name);
-		$chain->apply($message);
+		$chain->apply(\Runtime\Vector::from([$message]));
 	}
 	/**
 	 * Async emit message
@@ -215,7 +215,7 @@ class BaseModel extends \Runtime\BaseObject implements \Runtime\SerializeInterfa
 			return ;
 		}
 		$chain = $this->listeners->get($message_name);
-		$chain->applyAsync($message);
+		$chain->applyAsync(\Runtime\Vector::from([$message]));
 	}
 	/**
 	 * Load data

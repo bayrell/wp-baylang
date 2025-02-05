@@ -595,6 +595,10 @@ class TranslatorBayExpression extends \Runtime\BaseObject
 		{
 			$this->OpDict($op_code, $result);
 		}
+		else if ($op_code instanceof \BayLang\OpCodes\OpDeclareFunction)
+		{
+			$this->translator->program->OpDeclareFunction($op_code, $result);
+		}
 		else if ($op_code instanceof \BayLang\OpCodes\OpCall)
 		{
 			$this->OpCall($op_code, $result);

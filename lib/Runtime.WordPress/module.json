@@ -2,12 +2,6 @@
 	"name": "Runtime.WordPress",
 	"assets":
 	[
-		"Components/CKEditor.bay",
-		"Components/Form.bay",
-		"Components/FormModel.bay",
-		"Components/Image.bay",
-		"Theme/AssetHook.bay",
-		"Theme/ModuleDescription.bay",
 		"WP_App.bay"
 	],
 	"modules":
@@ -17,7 +11,7 @@
 			"type": "module"
 		},
 		{
-			"src": "bay/Settings",
+			"src": "bay/Theme",
 			"type": "module"
 		}
 	],
@@ -35,6 +29,7 @@
 	],
 	"exclude":
 	[
-		"Admin/"
+		"Admin/",
+		"Theme/"
 	]
 }

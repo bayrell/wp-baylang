@@ -5151,7 +5151,7 @@ Object.assign(BayLang.LangBay.ParserBayHtml,
 				{
 					var item = new_items.get(i);
 					item = this.readCssBodyConcatItem(item.caret_start, item.caret_end, media_selector, item);
-					items.push(item);
+					sub_items.push(item);
 				}
 				/* Get caret */
 				caret = parser.getCaret();
@@ -9624,6 +9624,10 @@ Object.assign(BayLang.LangBay.TranslatorBayExpression.prototype,
 		{
 			this.OpDict(op_code, result);
 		}
+		else if (op_code instanceof BayLang.OpCodes.OpDeclareFunction)
+		{
+			this.translator.program.OpDeclareFunction(op_code, result);
+		}
 		else if (op_code instanceof BayLang.OpCodes.OpCall)
 		{
 			this.OpCall(op_code, result);
@@ -9780,7 +9784,7 @@ Object.assign(BayLang.LangBay.TranslatorBayHtml.prototype,
 	/**
 	 * Translate attrs
 	 */
-	OpHtmlAttrs: function(op_code_attrs, result)
+	OpHtmlAttrs: function(op_code_attrs, result, is_multiline)
 	{
 		/* Filter attrs */
 		op_code_attrs = op_code_attrs.filter((op_code_attr) =>
@@ -9792,10 +9796,18 @@ Object.assign(BayLang.LangBay.TranslatorBayHtml.prototype,
 			}
 			return true;
 		});
+		if (is_multiline)
+		{
+			this.translator.levelInc();
+		}
 		var attrs_count = op_code_attrs.count();
 		for (var i = 0; i < attrs_count; i++)
 		{
 			var op_code_attr = op_code_attrs.get(i);
+			if (is_multiline)
+			{
+				result.push(this.translator.newLine());
+			}
 			result.push(op_code_attr.key);
 			result.push("=");
 			/* Value */
@@ -9803,17 +9815,67 @@ Object.assign(BayLang.LangBay.TranslatorBayHtml.prototype,
 			{
 				this.translator.expression.translate(op_code_attr.value, result);
 			}
+			else if (op_code_attr.value instanceof BayLang.OpCodes.OpDeclareFunction)
+			{
+				result.push("{{");
+				this.translator.levelInc();
+				result.push(this.translator.newLine());
+				this.translator.expression.translate(op_code_attr.value, result);
+				this.translator.levelDec();
+				result.push(this.translator.newLine());
+				result.push("}}");
+			}
 			else
 			{
 				result.push("{{ ");
 				this.translator.expression.translate(op_code_attr.value, result);
 				result.push(" }}");
 			}
-			if (i < attrs_count - 1)
+			if (i < attrs_count - 1 && !is_multiline)
 			{
 				result.push(" ");
 			}
 		}
+		if (is_multiline)
+		{
+			this.translator.levelDec();
+			result.push(this.translator.newLine());
+		}
+	},
+	/**
+	 * Html code multiline
+	 */
+	isOpHtmlTagMultiline: function(op_code)
+	{
+		var attrs_count = 0;
+		for (var i = 0; i < op_code.attrs.count(); i++)
+		{
+			var op_code_attr = op_code.attrs.get(i);
+			if (op_code_attr.key != "@key_debug")
+			{
+				attrs_count++;
+			}
+			if (op_code_attr.caret_start && op_code_attr.caret_start.y > 0)
+			{
+				if (op_code_attr.isMultiLine())
+				{
+					return true;
+				}
+				if (op_code.caret_start.y > 0 && op_code_attr.caret_start.y != op_code.caret_start.y)
+				{
+					return true;
+				}
+			}
+			if (op_code_attr.value instanceof BayLang.OpCodes.OpDeclareFunction)
+			{
+				return true;
+			}
+		}
+		if (attrs_count > 3)
+		{
+			return true;
+		}
+		return false;
 	},
 	/**
 	 * Translate html tag
@@ -9821,11 +9883,12 @@ Object.assign(BayLang.LangBay.TranslatorBayHtml.prototype,
 	OpHtmlTag: function(op_code, result)
 	{
 		var is_multiline = op_code.isMultiLine();
+		var is_multiline_attrs = this.isOpHtmlTagMultiline(op_code);
 		/* Component attrs */
 		var args_content = Runtime.Vector.from([]);
-		this.OpHtmlAttrs(op_code.attrs, args_content);
+		this.OpHtmlAttrs(op_code.attrs, args_content, is_multiline_attrs);
 		var args = Runtime.rs.join("", args_content);
-		if (args != "")
+		if (args != "" && !is_multiline_attrs)
 		{
 			args = " " + Runtime.rtl.toStr(args);
 		}
@@ -10678,7 +10741,7 @@ Object.assign(BayLang.LangBay.TranslatorBayProgram.prototype,
 		var flags = Runtime.Vector.from(["async","static","pure"]);
 		flags = flags.filter((flag_name) =>
 		{
-			return op_code.flags.isFlag(flag_name);
+			return (op_code.flags) ? (op_code.flags.isFlag(flag_name)) : (false);
 		});
 		result.push(Runtime.rs.join(" ", flags));
 		if (flags.count() > 0)
@@ -23332,16 +23395,11 @@ Object.assign(BayLang.OpCodes.OpHtmlStyle.prototype,
 	{
 		reader.matchToken("{");
 		var caret = reader.main_caret;
-		caret.skipSpace();
 		var level = 0;
 		var items = Runtime.Vector.from([]);
 		while (!caret.eof() && (caret.nextChar() != "}" && level == 0 || level > 0))
 		{
 			var ch = caret.readChar();
-			if (ch != "\t")
-			{
-				items.push(ch);
-			}
 			if (ch == "{")
 			{
 				level = level + 1;
@@ -23350,10 +23408,11 @@ Object.assign(BayLang.OpCodes.OpHtmlStyle.prototype,
 			{
 				level = level - 1;
 			}
+			items.push(ch);
 		}
 		reader.init(caret);
 		reader.matchToken("}");
-		return Runtime.rs.trim(Runtime.rs.join("", items));
+		return Runtime.rs.join("", items);
 	},
 	_init: function()
 	{
@@ -26905,7 +26964,7 @@ Object.assign(BayLang.ModuleDescription,
 	 */
 	getModuleVersion: function()
 	{
-		return "0.12.3";
+		return "0.12.4";
 	},
 	/**
 	 * Returns required modules
@@ -27107,8 +27166,8 @@ BayLang.Constructor.Frontend.Code.CodeEditor = {
 				/* Element 'div' */
 				let __v1 = this._e(__v0, "div", {"class":this._class_name(["code_editor__file", ((item == this.model.selected_tab) ? ("") : ("hide"))]),"key":item.file_path});
 				
-				/* Component 'TextEditable' */
-				let __v2 = this._c(__v1, "BayLang.Constructor.Frontend.Code.TextEditable", {"value":item.content,"reference":item.code_editor,"onValueChange":(e) =>
+				/* Component 'Editor' */
+				let __v2 = this._c(__v1, "Runtime.Widget.Editor.Editor", {"value":item.content,"reference":item.code_editor,"onValueChange":(e) =>
 				{
 					item.content = e.value;
 				},"class":this._class_name(["wrap"])});
@@ -27179,12 +27238,12 @@ Object.assign(BayLang.Constructor.Frontend.Code.CodeEditor,
 {
 	components: function()
 	{
-		return Runtime.Vector.from(["BayLang.Constructor.Frontend.Code.TextEditable"]);
+		return Runtime.Vector.from(["Runtime.Widget.Editor.Editor"]);
 	},
 	css: function(vars)
 	{
 		var res = "";
-		res += Runtime.rtl.toStr(".code_editor.h-fd5f{display: flex;position: relative;flex-direction: column;overflow-y: hidden;height: 100vh}.code_editor__menu.h-fd5f{display: flex;border-bottom: 1px var(--widget-color-border) solid}.code_editor__menu_item.h-fd5f{cursor: pointer;user-select: none;padding: 10px}.code_editor_menu_item_file_name.h-fd5f{display: flex;align-items: center;justify-content: center;flex: 1}.code_editor__main.h-fd5f{display: flex;height: calc(100% - 37px)}.code_editor__file_manager.h-fd5f{position: relative;border-right: 1px var(--widget-color-border) solid;overflow-x: auto;padding-left: 5px;width: 300px;overflow-x: auto;padding-left: 5px}.code_editor__content.h-fd5f{display: flex;flex-direction: column;height: 100%;width: calc(100% - 300px)}.code_editor__tabs.h-fd5f{display: flex;height: 32px;border-bottom: 1px var(--widget-color-border) solid;overflow-x: auto;scrollbar-width: none}.code_editor__tab.h-fd5f{display: flex;border-right: 1px var(--widget-color-border) solid;padding: 5px;cursor: pointer;user-select: none}.code_editor__tab.selected.h-fd5f{background-color: var(--widget-color-primary);color: var(--widget-color-primary-text)}.code_editor__label.h-fd5f{display: flex;align-items: center;padding-left: 5px;flex: 1}.code_editor__icon.h-fd5f{display: flex;align-items: center;justify-content: center;padding-top: 3px;width: 24px}.code_editor__icon.h-fd5f span{padding: 1px}.code_editor__icon.h-fd5f:hover span{background-color: #f0f0f0}.code_editor__tab.selected.h-fd5f .code_editor__icon:hover span{background-color: var(--widget-color-primary)}.code_editor__file_edit.h-fd5f{position: relative;height: calc(100% - 56px)}.code_editor__file.h-fd5f{overflow-y: auto;height: 100%}.code_editor__file.h-fd5f .widget_text_editable.h-6975{border-width: 0px;padding: 5px}.code_editor__file.hide.h-fd5f{display: none}.code_editor__status_bar.h-fd5f{display: flex;align-items: center;padding: 2px;padding-left: 5px;border-top: 1px var(--widget-color-border) solid;height: 24px}");
+		res += Runtime.rtl.toStr(".code_editor.h-fd5f{display: flex;position: relative;flex-direction: column;overflow-y: hidden;height: 100vh}.code_editor__menu.h-fd5f{display: flex;border-bottom: 1px var(--widget-color-border) solid}.code_editor__menu_item.h-fd5f{cursor: pointer;user-select: none;padding: 10px}.code_editor_menu_item_file_name.h-fd5f{display: flex;align-items: center;justify-content: center;flex: 1}.code_editor__main.h-fd5f{display: flex;height: calc(100% - 37px)}.code_editor__file_manager.h-fd5f{position: relative;border-right: 1px var(--widget-color-border) solid;overflow-x: auto;padding-left: 5px;width: 300px;overflow-x: auto;padding-left: 5px}.code_editor__content.h-fd5f{display: flex;flex-direction: column;height: 100%;width: calc(100% - 300px)}.code_editor__tabs.h-fd5f{display: flex;height: 32px;border-bottom: 1px var(--widget-color-border) solid;overflow-x: auto;scrollbar-width: none}.code_editor__tab.h-fd5f{display: flex;border-right: 1px var(--widget-color-border) solid;padding: 5px;cursor: pointer;user-select: none}.code_editor__tab.selected.h-fd5f{background-color: var(--widget-color-primary);color: var(--widget-color-primary-text)}.code_editor__label.h-fd5f{display: flex;align-items: center;padding-left: 5px;flex: 1}.code_editor__icon.h-fd5f{display: flex;align-items: center;justify-content: center;padding-top: 3px;width: 24px}.code_editor__icon.h-fd5f span{padding: 1px}.code_editor__icon.h-fd5f:hover span{background-color: #f0f0f0}.code_editor__tab.selected.h-fd5f .code_editor__icon:hover span{background-color: var(--widget-color-primary)}.code_editor__file_edit.h-fd5f{position: relative;height: calc(100% - 56px)}.code_editor__file.h-fd5f{overflow-y: auto;height: 100%}.code_editor__file.h-fd5f .widget_text.h-7a02{height: 100%;border-width: 0px}.code_editor__file.h-fd5f .widget_text__lines.h-7a02{width: 30px}.code_editor__file.h-fd5f .widget_text__editable.h-7a02{width: calc(100% - 30px)}.code_editor__file.hide.h-fd5f{display: none}.code_editor__status_bar.h-fd5f{display: flex;align-items: center;padding: 2px;padding-left: 5px;border-top: 1px var(--widget-color-border) solid;height: 24px}");
 		res += Runtime.rtl.toStr(".code_editor__tabs.h-fd5f::-webkit-scrollbar{width: 0}");
 		return res;
 	},
@@ -27668,510 +27727,6 @@ Object.assign(BayLang.Constructor.Frontend.Code.CodeEditorModel,
 Runtime.rtl.defClass(BayLang.Constructor.Frontend.Code.CodeEditorModel);
 window["BayLang.Constructor.Frontend.Code.CodeEditorModel"] = BayLang.Constructor.Frontend.Code.CodeEditorModel;
 if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = BayLang.Constructor.Frontend.Code.CodeEditorModel;
-"use strict;"
-/*
- *  BayLang Technology
- *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
-*/
-if (typeof BayLang == 'undefined') BayLang = {};
-if (typeof BayLang.Constructor == 'undefined') BayLang.Constructor = {};
-if (typeof BayLang.Constructor.Frontend == 'undefined') BayLang.Constructor.Frontend = {};
-if (typeof BayLang.Constructor.Frontend.Code == 'undefined') BayLang.Constructor.Frontend.Code = {};
-BayLang.Constructor.Frontend.Code.TextEditable = {
-	name: "BayLang.Constructor.Frontend.Code.TextEditable",
-	extends: Runtime.Web.Component,
-	props: {
-		"reference": {
-			default: null,
-		},
-		"readonly": {
-			default: false,
-		},
-		"timeout": {
-			default: 500,
-		},
-		"name": {
-			default: "",
-		},
-		"value": {
-			default: "",
-		},
-	},
-	data: function ()
-	{
-		return {
-			lines: Runtime.Vector.from([]),
-			change_timer: null,
-			old_value: null,
-		};
-	},
-	methods:
-	{
-		render: function()
-		{
-			let __v = [];
-			let props = this.getProps();
-			
-			/* Element 'div' */
-			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_text"])});
-			
-			/* Element 'div' */
-			let __v1 = this._e(__v0, "div", {"class":this._class_name(["widget_text__lines"])});
-			
-			for (let i = 0; i < this.lines.count(); i++)
-			{
-				/* Element 'div' */
-				let __v2 = this._e(__v1, "div", {"style":"width: " + Runtime.rtl.toStr(this.lines.get(i)) + Runtime.rtl.toStr("px"),"class":this._class_name(["line"]),"key":i});
-				
-				/* Render */
-				this._t(__v2, i + 1);
-			}
-			
-			/* Element 'div' */
-			let __v3 = this._e(__v0, "div", this._merge_attrs({"name":this.name,"contenteditable":"plaintext-only","onKeydown":this.onKeyDown,"onInput":this.onInput,"onPaste":this.onPaste,"ref":"text","class":this._class_name(["widget_text__editable", this.class])}, props));
-			
-			return this._flatten(__v);
-		},
-		/**
- * Returns value
- */
-		getValue: function()
-		{
-			var nodes = this.getRef("text").childNodes;
-			var content = Runtime.Vector.from([]);
-			for (var i = 0; i < nodes.length; i++)
-			{
-				var item = nodes.item(i).innerText.trimRight();
-				content.push(item);
-			}
-			return Runtime.rs.join("\n", content);
-		},
-		/**
- * Set value
- */
-		setValue: function(content)
-		{
-			var text = this.getRef("text");
-			this.old_value = content;
-			/* Add lines */
-			text.innerHTML = "";
-			var lines = Runtime.rs.split("\n", content);
-			for (var i = 0; i < lines.count(); i++)
-			{
-				var line_text = lines.get(i).trimRight();
-				var line_elem = this.createNewLine(line_text);
-				text.append(line_elem);
-			}
-			/* Update lines */
-			this.updateLinesCount();
-		},
-		/**
- * Returns textarea props
- */
-		getProps: function()
-		{
-			if (this.readonly)
-			{
-				return Runtime.Map.from({"readonly":true});
-			}
-			return Runtime.Map.from({});
-		},
-		/**
- * Returns new line
- */
-		createNewLine: function(text)
-		{
-			if (text == undefined) text = "";
-			var div = document.createElement("div");
-			div.classList.add("line");
-			div.innerText = text;
-			return div;
-		},
-		/**
- * Returns line
- */
-		findLine: function(node)
-		{
-			while (node && (node.nodeType == 3 || !node.classList.contains("line")))
-			{
-				node = node.parentElement;
-			}
-			return node;
-		},
-		/**
- * Returns line element
- */
-		getLineElement: function(pos)
-		{
-			return this.getRef("text").childNodes.item(pos);
-		},
-		/**
- * Returns line element
- */
-		getLinePosition: function(line)
-		{
-			var nodes = this.getRef("text").childNodes;
-			for (var i = 0; i < nodes.length; i++)
-			{
-				if (nodes.item(i) == line)
-				{
-					return i;
-				}
-			}
-			return -1;
-		},
-		/**
- * Returns node offset
- */
-		getNodeOffset: function(line, node, offset)
-		{
-			var pos = 0;
-			var is_line = line == node;
-			var current = line.firstChild;
-			while (current)
-			{
-				if (is_line && offset == 0)
-				{
-					break;
-				}
-				if (current.nodeType == 3)
-				{
-					if (is_line)
-					{
-						offset = offset - 1;
-					}
-					else
-					{
-						if (current == node)
-						{
-							return pos + offset;
-						}
-					}
-					pos = pos + current.textContent.length;
-				}
-				current = current.nextSibling;
-			}
-			return pos;
-		},
-		/**
- * Returns selection
- */
-		getSelection: function()
-		{
-			return this.getRef("text").ownerDocument.defaultView.getSelection();
-		},
-		/**
- * Returns cursor position
- */
-		getCursorPos: function()
-		{
-			var selection = this.getSelection();
-			var range = selection.getRangeAt(0);
-			/* Get range start */
-			var start_line = this.findLine(range.startContainer);
-			var start_y = this.getLinePosition(start_line);
-			var start_x = this.getNodeOffset(start_line, range.startContainer, range.startOffset);
-			/* Get range end */
-			var end_line = this.findLine(range.endContainer);
-			var end_y = this.getLinePosition(end_line);
-			var end_x = this.getNodeOffset(end_line, range.endContainer, range.endOffset);
-			return Runtime.Map.from({"start_y":start_y,"start_x":start_x,"end_y":end_y,"end_x":end_x});
-		},
-		/**
- * Set cursor position
- */
-		setCursorPos: function(x, y)
-		{
-			var selection = this.getSelection();
-			var range = document.createRange();
-			/* Get first node of line */
-			var line_elem = this.getLineElement(y);
-			var current = line_elem.firstChild;
-			/* Find node contains x */
-			var pos = 0;
-			var offset = 0;
-			while (current)
-			{
-				if (current.nodeType == 3)
-				{
-					var node_size = current.textContent.length;
-					if (pos + node_size >= x)
-					{
-						offset = x - pos;
-						break;
-					}
-					pos = pos + node_size;
-				}
-				current = current.nextSibling;
-			}
-			/* If node not found */
-			if (current == null)
-			{
-				current = line_elem;
-				offset = line_elem.childNodes.length;
-			}
-			/* Set cursor */
-			range.setStart(current, offset);
-			range.setEnd(current, offset);
-			selection.removeAllRanges();
-			selection.addRange(range);
-			return range;
-		},
-		/**
- * Update lines count
- */
-		updateLinesCount: function()
-		{
-			this.lines = Runtime.Vector.from([]);
-			var nodes = this.getRef("text").childNodes;
-			for (var i = 0; i < nodes.length; i++)
-			{
-				var item = nodes.item(i);
-				this.lines.push(item.getBoundingClientRect().height);
-			}
-		},
-		/**
- * Mounted event
- */
-		onMounted: function()
-		{
-			if (this.reference)
-			{
-				this.reference.setValue(this);
-			}
-			this.setValue(this.value);
-		},
-		/**
- * Updated event
- */
-		onUpdated: function()
-		{
-			if (this.old_value == this.value)
-			{
-				return ;
-			}
-			if (this.change_timer)
-			{
-				return ;
-			}
-			this.setValue(this.value);
-		},
-		/**
- * Paste text to current position
- */
-		pasteText: function(text)
-		{
-			var cursor = this.getCursorPos();
-			var line_pos = cursor.get("end_y");
-			var line_offset = cursor.get("end_x");
-			var line_offset_new = 0;
-			var line_elem = this.getLineElement(line_pos);
-			var line_text = line_elem.innerText;
-			var lines = Runtime.rs.split("\n", text);
-			if (lines.count() > 1)
-			{
-				/* Change first line */
-				var first_line = lines.shift();
-				line_elem.innerText = line_text.slice(0, line_offset) + Runtime.rtl.toStr(first_line);
-				/* Change last line */
-				var lines_last_pos = lines.count() - 1;
-				lines.set(lines_last_pos, lines.get(lines_last_pos) + Runtime.rtl.toStr(line_text.slice(line_offset)));
-			}
-			else
-			{
-				var first_line = line_text.slice(0, line_offset) + Runtime.rtl.toStr(lines.pop());
-				line_elem.innerText = first_line + Runtime.rtl.toStr(line_text.slice(line_offset));
-				line_offset_new = Runtime.rs.strlen(first_line);
-			}
-			/* Insert lines after line_elem */
-			var lines_count = lines.count();
-			for (var i = 0; i < lines_count; i++)
-			{
-				var line_content = lines.get(i);
-				var line_new = this.createNewLine(line_content);
-				line_elem = line_elem.insertAdjacentElement("afterend", line_new);
-				if (i == lines_count - 1)
-				{
-					line_offset_new = Runtime.rs.strlen(line_content);
-				}
-			}
-			this.setCursorPos(line_offset_new, line_pos + lines.count());
-			this.updateLinesCount();
-		},
-		/**
- * Key down event
- */
-		onKeyDown: function(e)
-		{
-			if (e.key == "Enter")
-			{
-				e.preventDefault();
-				e.stopPropagation();
-				this.pasteText("\n");
-			}
-			else if (e.key == "Backspace")
-			{
-				var cursor = this.getCursorPos();
-				if (cursor.get("start_x") == 0)
-				{
-					window.setTimeout(() =>
-					{
-						this.updateLinesCount();
-					}, 10);
-				}
-			}
-			else if (e.key == "Delete")
-			{
-				var cursor = this.getCursorPos();
-				var line = this.getLineElement(cursor.get("start_y"));
-				if (cursor.get("start_x") == line.innerText.length)
-				{
-					window.setTimeout(() =>
-					{
-						this.updateLinesCount();
-					}, 10);
-				}
-			}
-			else if (e.key == "Tab")
-			{
-				e.preventDefault();
-				e.stopPropagation();
-				/* Shift + Tab */
-				if (e.shiftKey)
-				{
-					var cursor = this.getCursorPos();
-					var line = this.getLineElement(cursor.get("start_y"));
-					var offset = cursor.get("start_x");
-					if (offset == 0)
-					{
-						return ;
-					}
-					var text = line.innerText;
-					var last_char = Runtime.rs.charAt(text, offset - 1);
-					if (last_char != "\t")
-					{
-						return ;
-					}
-					line.innerText = text.slice(0, offset - 1) + Runtime.rtl.toStr(text.slice(offset));
-					this.setCursorPos(offset - 1, cursor.get("start_y"));
-				}
-				else
-				{
-					var node = document.createTextNode("\t");
-					var selection = this.getSelection();
-					var range = selection.getRangeAt(0);
-					range.insertNode(node);
-					range.setStartAfter(node);
-					range.setEndAfter(node);
-				}
-			}
-		},
-		/**
- * Paste event
- */
-		onPaste: function(e)
-		{
-			e.preventDefault();
-			e.stopPropagation();
-			var text = e.clipboardData.getData("text");
-			this.pasteText(text);
-		},
-		/**
- * Input event
- */
-		onInput: function(e)
-		{
-			if (this.change_timer != null)
-			{
-				window.clearTimeout(this.change_timer);
-				this.change_timer = null;
-			}
-			this.change_timer = window.setTimeout(() =>
-			{
-				this.onChange();
-			}, this.timeout);
-		},
-		/**
- * Change event
- */
-		onChange: function(e)
-		{
-			var value = this.getValue();
-			/* Send value change */
-			this.emit("valueChange", new Runtime.Web.Messages.ValueChangeMessage(Runtime.Map.from({"value":value,"old_value":this.old_value,"data":this.data})));
-			/* Set old value */
-			this.old_value = value;
-			this.change_timer = null;
-		},
-	},
-};
-Object.assign(BayLang.Constructor.Frontend.Code.TextEditable,
-{
-	css: function(vars)
-	{
-		var res = "";
-		res += Runtime.rtl.toStr(".widget_text.h-6975{display: flex;align-items: stretch;width: 100%;max-width: 100%;border-width: var(--widget-border-width);border-color: var(--widget-color-border);border-style: solid;border-radius: 4px;overflow: auto}.widget_text__lines.h-6975{width: 20px;padding-top: 7px;border-right-width: var(--widget-border-width);border-right-color: var(--widget-color-border);border-right-style: solid}.widget_text__lines.h-6975 .line{display: flex;align-items: center;justify-content: center;min-height: 21px}.widget_text__editable.h-6975{width: calc(100% - 20px);font-family: monospace;font-size: var(--widget-font-size);padding: var(--widget-button-padding-y) var(--widget-button-padding-x);margin: 0;background-color: var(--widget-color-default);box-shadow: none;outline: transparent;line-height: 1.5;tab-size: 4;text-wrap: balance;white-space: pre}.widget_text__editable.h-6975 .line{min-height: 21px}.widget_text__editable.wrap.h-6975{overflow-wrap: break-word;text-wrap: wrap}.widget_text__editable.overflow.h-6975{overflow: auto;text-wrap: nowrap}");
-		return res;
-	},
-	getNamespace: function()
-	{
-		return "BayLang.Constructor.Frontend.Code";
-	},
-	getClassName: function()
-	{
-		return "BayLang.Constructor.Frontend.Code.TextEditable";
-	},
-	getParentClassName: function()
-	{
-		return "Runtime.Web.Component";
-	},
-	getClassInfo: function()
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return Map.from({
-			"annotations": Vector.from([
-			]),
-		});
-	},
-	getFieldsList: function()
-	{
-		var a = [];
-		return Runtime.Vector.from(a);
-	},
-	getFieldInfoByName: function(field_name)
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return null;
-	},
-	getMethodsList: function()
-	{
-		var a=[
-		];
-		return Runtime.Vector.from(a);
-	},
-	getMethodInfoByName: function(field_name)
-	{
-		return null;
-	},
-});
-Runtime.rtl.defClass(BayLang.Constructor.Frontend.Code.TextEditable);
-window["BayLang.Constructor.Frontend.Code.TextEditable"] = BayLang.Constructor.Frontend.Code.TextEditable;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = BayLang.Constructor.Frontend.Code.TextEditable;
 "use strict;"
 /*!
  *  BayLang Technology
@@ -28803,7 +28358,7 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Dialog.AddItemDialog,
 	css: function(vars)
 	{
 		var res = "";
-		res += Runtime.rtl.toStr(".widget_dialog__content.h-864d{display: flex;min-height: 250px}.list_title.h-864d{margin-bottom: 10px}.list_item.h-864d{cursor: pointer;padding: 10px}.list_item.h-864d:hover{background-color: var(--widget-color-hover)}.list_item.selected.h-864d{background-color: var(--widget-color-primary);color: var(--widget-color-primary-text)}.widget_dialog__content.h-864d .groups{width: 30%;padding-right: 10px}.widget_dialog__content.h-864d .groups .list_items.h-864d{border: var(--widget-border-width) var(--widget-color-border) solid;border-radius: 4px}.widget_dialog__content.h-864d .groups .list_item.h-864d{border-bottom: var(--widget-border-width) var(--widget-color-border) solid}.widget_dialog__content.h-864d .groups .list_item.h-864d:last-child{border-bottom-width: 0px}.widget_dialog__content.h-864d .widgets{width: 70%}.widget_dialog__content.h-864d .widgets .list_items.h-864d{display: flex;align-items: stretch;justify-content: space-between;flex-wrap: wrap;gap: 15px}.widget_dialog__content.h-864d .widgets .list_item.h-864d{border: var(--widget-border-width) var(--widget-color-border) solid;border-radius: 4px;text-align: center;flex: 1 1 30%}");
+		res += Runtime.rtl.toStr(".widget_dialog__content.h-864d{display: flex;min-height: 250px}.list_title.h-864d{margin-bottom: 10px}.list_item.h-864d{cursor: pointer;padding: 10px}.list_item.h-864d:hover{background-color: var(--widget-color-hover)}.list_item.selected.h-864d{background-color: var(--widget-color-primary);color: var(--widget-color-primary-text)}.widget_dialog__content.h-864d .groups{width: 30%;padding-right: 10px}.widget_dialog__content.h-864d .groups .list_items.h-864d{border: var(--widget-border-width) var(--widget-color-border) solid;border-radius: 4px}.widget_dialog__content.h-864d .groups .list_item.h-864d{border-bottom: var(--widget-border-width) var(--widget-color-border) solid}.widget_dialog__content.h-864d .groups .list_item.h-864d:last-child{border-bottom-width: 0px}.widget_dialog__content.h-864d .widgets{width: 70%}.widget_dialog__content.h-864d .widgets .list_items.h-864d{display: flex;align-items: stretch;justify-content: space-between;flex-wrap: wrap;gap: 15px}.widget_dialog__content.h-864d .widgets .list_item.h-864d{border: var(--widget-border-width) var(--widget-color-border) solid;border-radius: 4px;text-align: center;width: calc((100% - 30px) / 3)}");
 		return res;
 	},
 	getNamespace: function()
@@ -28960,18 +28515,14 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Dialog.AddItemDialogModel.prot
 		});
 		/* Get groups used */
 		var groups = Runtime.Map.from({});
-		this.selected_group_name = "";
 		for (var i = 0; i < this.current_widgets.count(); i++)
 		{
 			var group_name = this.current_widgets.get(i).getGroupName();
 			groups.set(group_name, 1);
-			if (this.selected_group_name == "")
-			{
-				this.selected_group_name = group_name;
-			}
 		}
 		/* Update groups */
 		this.current_groups = Runtime.Vector.from([]);
+		this.selected_group_name = "";
 		var group_settings = editor.getGroups();
 		for (var i = 0; i < group_settings.count(); i++)
 		{
@@ -28980,6 +28531,11 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Dialog.AddItemDialogModel.prot
 			if (groups.has(group_name))
 			{
 				this.current_groups.push(group);
+				/* Default selected group */
+				if (this.selected_group_name == "")
+				{
+					this.selected_group_name = group_name;
+				}
 			}
 		}
 	},
@@ -29409,7 +28965,7 @@ BayLang.Constructor.Frontend.Editor.Dialog.SelectImageDialog = {
 		isImage: function(item)
 		{
 			var file_name = item.get("file_name");
-			var file_extension = Runtime.rs.extname(file_name);
+			var file_extension = Runtime.rs.lower(Runtime.rs.extname(file_name));
 			var arr = Runtime.Vector.from(["jpg","jpeg","png","svg"]);
 			if (arr.indexOf(file_extension) == -1)
 			{
@@ -29749,6 +29305,13 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Parameters.Parameter.prototype
 			return ;
 		}
 		this.setValue(this.default);
+	},
+	/**
+	 * Returns attribute name
+	 */
+	getAttributeName: function()
+	{
+		return this.name;
 	},
 	/**
 	 * Is op_code
@@ -30195,7 +29758,11 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Parameters.ParameterContent.pr
 		/* Set value */
 		this.value = value;
 		/* Set content */
-		if (text_item instanceof BayLang.OpCodes.OpHtmlContent)
+		if (text_item == null)
+		{
+			this.widget.code.items.items.push(new BayLang.OpCodes.OpHtmlContent(Runtime.Map.from({"value":this.value})));
+		}
+		else if (text_item instanceof BayLang.OpCodes.OpHtmlContent)
 		{
 			text_item.value = this.value;
 		}
@@ -30314,10 +29881,86 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel.prot
 		this.value = BayLang.Constructor.Frontend.Editor.Processor.CodeProcessor.getValueFromOpCode(op_dict_pair.value);
 	},
 	/**
+	 * Find code
+	 */
+	findOpCode: function()
+	{
+		if (this.op_code != null)
+		{
+			return ;
+		}
+		/* Find code */
+		var op_dict = this.getModelCodes();
+		this.op_code = op_dict.values.findItem(this.isOpCode.bind(this));
+	},
+	/**
+	 * Returns model codes
+	 */
+	getModelCodes: function()
+	{
+		/* Get values */
+		var op_dict = this.widget.primary_model_code.expression.args.get(1);
+		if (!op_dict)
+		{
+			return ;
+		}
+		if (!(op_dict instanceof BayLang.OpCodes.OpDict))
+		{
+			return ;
+		}
+		return op_dict;
+	},
+	/**
+	 * Create attribute
+	 */
+	createModelAttribute: function()
+	{
+		if (this.op_code != null)
+		{
+			return ;
+		}
+		this.op_code = new BayLang.OpCodes.OpDictPair(Runtime.Map.from({"key":this.getAttributeName()}));
+		var op_dict = this.getModelCodes();
+		op_dict.values.append(this.op_code);
+	},
+	/**
+	 * Remove attribute
+	 */
+	removeModelAttribute: function()
+	{
+		if (this.op_code == null)
+		{
+			return ;
+		}
+		/* Clear code */
+		this.op_code = null;
+		/* Remove attribute */
+		var op_dict = this.getModelCodes();
+		var pos = op_dict.values.find(Runtime.lib.equalAttr("key", this.getAttributeName()));
+		if (pos >= 0)
+		{
+			op_dict.values.remove(pos);
+		}
+	},
+	/**
 	 * Set value
 	 */
 	setValue: function(value)
 	{
+		if (value === "")
+		{
+			this.removeModelAttribute();
+			this.value = "";
+			return ;
+		}
+		/* Find item */
+		this.findOpCode();
+		/* Create html attribute */
+		if (this.op_code == null)
+		{
+			this.createModelAttribute();
+		}
+		/* Set value */
 		this.value = value;
 		this.op_code.value = BayLang.Constructor.Frontend.Editor.Processor.CodeProcessor.getOpCodeByValue(value);
 	},
@@ -30344,7 +29987,7 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel.prot
 		/* Model settings onChange event */
 		if (Runtime.rtl.exists(this.widget.model_settings.onChange))
 		{
-			var is_updated = this.widget.model_settings.onChange(model, this);
+			var is_updated = this.widget.model_settings.onChange(new Runtime.rtl(), model, this);
 			if (is_updated)
 			{
 				return ;
@@ -30455,6 +30098,13 @@ BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel.prototype.cons
 Object.assign(BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel.prototype,
 {
 	/**
+	 * Returns attribute name
+	 */
+	getAttributeName: function()
+	{
+		return this.path.first();
+	},
+	/**
 	 * Is op_code
 	 */
 	isOpCode: function(op_attr)
@@ -30467,7 +30117,19 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel.
 		{
 			return false;
 		}
-		return op_attr instanceof BayLang.OpCodes.OpDictPair && this.path.first() == op_attr.key;
+		return op_attr instanceof BayLang.OpCodes.OpDictPair && this.getAttributeName() == op_attr.key;
+	},
+	/**
+	 * Set op_code
+	 */
+	setOpCode: function(op_dict_pair)
+	{
+		this.op_code = op_dict_pair;
+		var code = this.getCode();
+		if (code)
+		{
+			this.value = BayLang.Constructor.Frontend.Editor.Processor.CodeProcessor.getValueFromOpCode(code.value);
+		}
 	},
 	/**
 	 * Get OpDictPair from OpDict by name
@@ -30476,7 +30138,7 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel.
 	{
 		if (!(code instanceof BayLang.OpCodes.OpDict))
 		{
-			return false;
+			return null;
 		}
 		for (var i = 0; i < code.values.count(); i++)
 		{
@@ -30487,6 +30149,31 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel.
 			}
 		}
 		return null;
+	},
+	/**
+	 * Create code
+	 */
+	createCode: function()
+	{
+		var code = this.op_code;
+		var path = this.path.slice(1);
+		while (path.count() > 0 && code != null)
+		{
+			var name = path.first();
+			var find_code = this.findCodeByName(code.value, name);
+			if (!find_code)
+			{
+				find_code = new BayLang.OpCodes.OpDictPair(Runtime.Map.from({"key":name}));
+				if (code.value == null)
+				{
+					code.value = new BayLang.OpCodes.OpDict(Runtime.Map.from({"values":Runtime.Vector.from([])}));
+				}
+				code.value.values.append(find_code);
+			}
+			code = find_code;
+			path = path.slice(1);
+		}
+		return code;
 	},
 	/**
 	 * Find OpDictPair by path
@@ -30504,28 +30191,37 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel.
 		return code;
 	},
 	/**
-	 * Set op_code
+	 * Remove attribute
 	 */
-	setOpCode: function(op_dict_pair)
+	removeModelAttribute: function()
 	{
-		this.op_code = op_dict_pair;
-		var code = this.getCode();
-		if (code)
-		{
-			this.value = BayLang.Constructor.Frontend.Editor.Processor.CodeProcessor.getValueFromOpCode(code.value);
-		}
 	},
 	/**
 	 * Set value
 	 */
 	setValue: function(value)
 	{
-		this.value = value;
-		var code = this.getCode();
-		if (code)
+		if (value === "")
 		{
-			code.value = BayLang.Constructor.Frontend.Editor.Processor.CodeProcessor.getOpCodeByValue(value);
+			this.value = "";
+			return ;
 		}
+		/* Find item */
+		this.findOpCode();
+		/* Create html attribute */
+		if (this.op_code == null)
+		{
+			this.createModelAttribute();
+		}
+		/* Find or create code */
+		var code = this.getCode();
+		if (!code)
+		{
+			code = this.createCode();
+		}
+		/* Set value */
+		this.value = value;
+		code.value = BayLang.Constructor.Frontend.Editor.Processor.CodeProcessor.getOpCodeByValue(value);
 	},
 	_init: function()
 	{
@@ -32016,6 +31712,63 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Processor.ModelProcessor.proto
 		widget.model_settings = editor.getModelSettings(widget);
 	},
 	/**
+	 * Setup model params
+	 */
+	setupParams: function(widget)
+	{
+		if (!widget.model_class_name)
+		{
+			return ;
+		}
+		if (!widget.primary_model_code)
+		{
+			return ;
+		}
+		if (!widget.model_settings)
+		{
+			return ;
+		}
+		/* Add params */
+		widget.params.appendItems(widget.model_settings.getParams().map((factory) =>
+		{
+			var param = factory.factory(new Runtime.rtl());
+			param.widget = widget;
+			return param;
+		}));
+		/* Get values */
+		var op_dict = widget.primary_model_code.expression.args.get(1);
+		if (!op_dict)
+		{
+			return ;
+		}
+		if (!(op_dict instanceof BayLang.OpCodes.OpDict))
+		{
+			return ;
+		}
+		/* Add params values */
+		var values = op_dict.values;
+		for (var i = 0; i < values.count(); i++)
+		{
+			var op_dict_pair = values.get(i);
+			for (var j = 0; j < widget.params.count(); j++)
+			{
+				var param = widget.params.get(j);
+				if (param instanceof BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel && param.isOpCode(op_dict_pair))
+				{
+					param.setOpCode(op_dict_pair);
+				}
+			}
+		}
+		/* Init params values */
+		widget.params.each((param) =>
+		{
+			if (param instanceof BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel)
+			{
+				param.init();
+			}
+		});
+	},
+	/**
 	 * Check is model
 	 */
 	checkIsModel: function(widget)
@@ -32092,55 +31845,6 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Processor.ModelProcessor.proto
 			else if (op_code_model_name instanceof BayLang.OpCodes.OpString)
 			{
 				widget.model_class_name = op_code_model_name.value;
-			}
-		}
-	},
-	/**
-	 * Setup model params
-	 */
-	setupParams: function(widget)
-	{
-		if (!widget.model_class_name)
-		{
-			return ;
-		}
-		if (!widget.primary_model_code)
-		{
-			return ;
-		}
-		if (!widget.model_settings)
-		{
-			return ;
-		}
-		/* Add params */
-		widget.params.appendItems(widget.model_settings.getParams().map((factory) =>
-		{
-			var param = factory.factory(new Runtime.rtl());
-			param.widget = widget;
-			return param;
-		}));
-		/* Get values */
-		var op_dict = widget.primary_model_code.expression.args.get(1);
-		if (!op_dict)
-		{
-			return ;
-		}
-		if (!(op_dict instanceof BayLang.OpCodes.OpDict))
-		{
-			return ;
-		}
-		/* Add params values */
-		var values = op_dict.values;
-		for (var i = 0; i < values.count(); i++)
-		{
-			var op_dict_pair = values.get(i);
-			for (var j = 0; j < widget.params.count(); j++)
-			{
-				var param = widget.params.get(j);
-				if (param instanceof BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel && param.isOpCode(op_dict_pair))
-				{
-					param.setOpCode(op_dict_pair);
-				}
 			}
 		}
 	},
@@ -33487,9 +33191,34 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Styles.StylesModel.prototype,
 				continue;
 			}
 			/* Set CSS Value */
-			var source = styles.get(selector_name);
+			var source = this.filterContent(styles.get(selector_name));
 			this.setSelectorContent(selector_name, source, op_code);
 		}
+	},
+	/**
+	 * Filter CSS content
+	 */
+	filterContent: function(source)
+	{
+		var lines = Runtime.rs.split("\n", source);
+		lines = lines.map((line) =>
+		{
+			line = Runtime.rs.trim(line, "\r");
+			if (Runtime.rs.charAt(line, 0) == "\t")
+			{
+				line = Runtime.rs.substr(line, 1);
+			}
+			return line;
+		});
+		while (lines.count() > 0 && lines.get(0) == "")
+		{
+			lines.remove(0);
+		}
+		while (lines.count() > 0 && lines.last() == "")
+		{
+			lines.remove(lines.count() - 1);
+		}
+		return Runtime.rs.join("\n", lines);
 	},
 	/**
 	 * Update HTML Style
@@ -33627,7 +33356,7 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Styles.BackgroundImage.prototy
 	 */
 	buildValue: function()
 	{
-		return "url(${ static::assets(\"" + Runtime.rtl.toStr(this.value) + Runtime.rtl.toStr("\")})");
+		return "url(${ Component::assets(\"" + Runtime.rtl.toStr(this.value) + Runtime.rtl.toStr("\")})");
 	},
 	/**
 	 * Init value
@@ -33644,7 +33373,7 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Styles.BackgroundImage.prototy
 			reader.matchToken("(");
 			reader.matchToken("$");
 			reader.matchToken("{");
-			reader.matchToken("static");
+			reader.matchToken("Component");
 			reader.matchToken(":");
 			reader.matchToken(":");
 			reader.matchToken("assets");
@@ -33926,7 +33655,7 @@ Object.assign(BayLang.Constructor.Frontend.Editor.Widget.Widget.prototype,
 		/* Setup widget settings */
 		if (this.settings && Runtime.rtl.exists(this.settings.setup))
 		{
-			this.settings.setup(this);
+			this.settings.setup(new Runtime.rtl(), this);
 		}
 	},
 	_init: function()
@@ -35420,6 +35149,12 @@ BayLang.Constructor.Frontend.Editor.SelectedItem = {
 			this._t(__v2, this.renderInput(selector, "height", ""));
 			
 			/* Render */
+			this._t(__v2, this.renderInput(selector, "max-width", ""));
+			
+			/* Render */
+			this._t(__v2, this.renderInput(selector, "max-height", ""));
+			
+			/* Render */
 			this._t(__v2, this.renderInput(selector, "min-width", ""));
 			
 			/* Render */
@@ -36164,6 +35899,7 @@ Object.assign(BayLang.Constructor.Frontend.Editor.WidgetEditPage,
 	css: function(vars)
 	{
 		var res = "";
+		res += Runtime.rtl.toStr(".scroll-lock .core_ui_root{padding-right: 0px}");
 		res += Runtime.rtl.toStr(".index_page.h-c72c{display: flex;flex-direction: column;height: 100vh}.widget_edit_page__menu.h-c72c{display: flex;justify-content: flex-start;border-bottom: 1px var(--widget-color-border) solid}.widget_edit_page__menu--right.h-c72c{justify-content: right}.widget_edit_page__menu_item.h-c72c{cursor: pointer;user-select: none;padding: 10px}.widget_edit_page__menu_item--button.h-c72c{text-align: center;min-width: 40px}.widget_edit_page__menu_item--error.h-c72c{color: var(--widget-color-danger)}.widget_edit_page__menu_item--select_size.h-c72c{display: flex;padding: 0px}.widget_edit_page__menu_item--select_size.h-c72c .widget_edit_page__iframe_size.h-c72c{display: flex;justify-content: center;align-items: center;width: 40px;padding: 10px}.widget_edit_page__menu_item--select_size.h-c72c .widget_edit_page__iframe_size.selected.h-c72c{background-color: var(--widget-color-primary);color: var(--widget-color-primary-text)}.widget_edit_page__menu_item--selected.h-c72c{background-color: var(--widget-color-primary);color: var(--widget-color-primary-text)}.widget_edit_page__menu_item_gap.h-c72c{display: flex;flex: 1}.widget_edit_page__content.h-c72c{display: flex;flex: 1;height: calc(100vh - 41px)}.widget_edit_page__frame.h-c72c{display: flex;flex-direction: column;justify-content: stretch;align-items: stretch;width: calc(100% - 300px);position: relative;padding: 0px;flex: 1}.widget_edit_page__frame_wrap.h-c72c{display: flex;justify-content: center;flex: 1}.widget_edit_page__frame.h-c72c iframe{border-style: none;overflow: visible;width: 100%}");
 		res += Runtime.rtl.toStr(".scroll-lock{overflow: hidden;padding-right: 0px}");
 		return res;
@@ -36724,7 +36460,6 @@ Object.assign(BayLang.Constructor.Frontend.Editor.WidgetEditPageModel.prototype,
 			iframe_page_model.widgets.set(new_widget_name, iframe_page_model.widgets.get(old_widget_name));
 			iframe_page_model.widgets.remove(old_widget_name);
 			iframe_page_model[new_widget_name] = iframe_page_model[old_widget_name];
-			iframe_page_model[old_widget_name] = null;
 		}
 		/* Create new style */
 		if (!this.styles.selectors.has(new_selector_name))
@@ -37327,6 +37062,515 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
 if (typeof BayLang == 'undefined') BayLang = {};
 if (typeof BayLang.Constructor == 'undefined') BayLang.Constructor = {};
 if (typeof BayLang.Constructor.Frontend == 'undefined') BayLang.Constructor.Frontend = {};
+if (typeof BayLang.Constructor.Frontend.Fonts == 'undefined') BayLang.Constructor.Frontend.Fonts = {};
+BayLang.Constructor.Frontend.Fonts.FontPage = {
+	name: "BayLang.Constructor.Frontend.Fonts.FontPage",
+	extends: Runtime.Web.Component,
+	methods:
+	{
+		render: function()
+		{
+			let __v = [];
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["widgets_list"])});
+			
+			/* Component 'RowButtons' */
+			let __v1 = this._c(__v0, "Runtime.Widget.RowButtons", {"model":this._model(this.model.top_buttons),"class":this._class_name(["top_buttons"])});
+			
+			/* Component 'Table' */
+			let __v2 = this._c(__v0, "Runtime.Widget.Table.Table", {"model":this._model(this.model.table),"class":this._class_name(["widgets_table"])});
+			
+			return this._flatten(__v);
+		},
+	},
+};
+Object.assign(BayLang.Constructor.Frontend.Fonts.FontPage,
+{
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.RowButtons","Runtime.Widget.Table.Table"]);
+	},
+	css: function(vars)
+	{
+		var res = "";
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "BayLang.Constructor.Frontend.Fonts";
+	},
+	getClassName: function()
+	{
+		return "BayLang.Constructor.Frontend.Fonts.FontPage";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.Component";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(BayLang.Constructor.Frontend.Fonts.FontPage);
+window["BayLang.Constructor.Frontend.Fonts.FontPage"] = BayLang.Constructor.Frontend.Fonts.FontPage;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = BayLang.Constructor.Frontend.Fonts.FontPage;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof BayLang == 'undefined') BayLang = {};
+if (typeof BayLang.Constructor == 'undefined') BayLang.Constructor = {};
+if (typeof BayLang.Constructor.Frontend == 'undefined') BayLang.Constructor.Frontend = {};
+if (typeof BayLang.Constructor.Frontend.Fonts == 'undefined') BayLang.Constructor.Frontend.Fonts = {};
+BayLang.Constructor.Frontend.Fonts.FontPageModel = function()
+{
+	Runtime.Web.BasePageModel.apply(this, arguments);
+};
+BayLang.Constructor.Frontend.Fonts.FontPageModel.prototype = Object.create(Runtime.Web.BasePageModel.prototype);
+BayLang.Constructor.Frontend.Fonts.FontPageModel.prototype.constructor = BayLang.Constructor.Frontend.Fonts.FontPageModel;
+Object.assign(BayLang.Constructor.Frontend.Fonts.FontPageModel.prototype,
+{
+	/**
+	 * Init widget settings
+	 */
+	initWidget: function(params)
+	{
+		Runtime.Web.BasePageModel.prototype.initWidget.call(this, params);
+		/* Set route matches */
+		this.project_id = this.layout.route.matches.get("project_id");
+		/* Add table */
+		this.table = this.addWidget("Runtime.Widget.Table.TableDialogModel", Runtime.Map.from({"widget_name":"table","get_title":(params) =>
+		{
+			var action = params.get("action");
+			var item = params.get("item");
+			if (action == "add")
+			{
+				return "Add font";
+			}
+			if (action == "edit")
+			{
+				return "Edit font " + Runtime.rtl.toStr(item.get("name"));
+			}
+			if (action == "delete")
+			{
+				return "Delete font " + Runtime.rtl.toStr(item.get("name"));
+			}
+			return "";
+		},"styles":Runtime.Vector.from(["border"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"baylang.constructor.fonts.search"})),"add_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"add_form","primary_key":Runtime.Vector.from(["name"]),"foreign_key":Runtime.Map.from({"project_id":this.project_id}),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSubmitStorage", Runtime.Map.from({"api_name":"baylang.constructor.fonts.save"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Input"})])})),"delete_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"delete_form","primary_key":Runtime.Vector.from(["name"]),"foreign_key":Runtime.Map.from({"project_id":this.project_id}),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormDeleteStorage", Runtime.Map.from({"api_name":"baylang.constructor.fonts.save"}))})),"foreign_key":Runtime.Map.from({"project_id":this.project_id}),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"name","label":"Font name","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel", Runtime.Map.from({"edit":false,"buttons":Runtime.Vector.from([Runtime.Map.from({"widget_name":"edit_button","dest":"delete_button","kind":"before","href":(data) =>
+		{
+			var item = data.get("item");
+			return this.layout.url("baylang:project:fonts:edit", Runtime.Map.from({"project_id":this.project_id,"name":item.get("name")}));
+		},"content":"Edit","styles":Runtime.Vector.from(["default","small"])})])}))})])}));
+		/* Add top buttons */
+		this.top_buttons = this.addWidget("Runtime.Widget.RowButtonsModel", Runtime.Map.from({"widget_name":"top_buttons","buttons":Runtime.Vector.from([new Runtime.Web.ModelFactory("Runtime.Widget.Table.AddButtonModel", Runtime.Map.from({"table":this.table}))])}));
+	},
+	/**
+	 * Build title
+	 */
+	buildTitle: function(container)
+	{
+		this.layout.setPageTitle("Fonts");
+	},
+	_init: function()
+	{
+		Runtime.Web.BasePageModel.prototype._init.call(this);
+		this.component = "BayLang.Constructor.Frontend.Fonts.FontPage";
+		this.project_id = "";
+		this.table = null;
+		this.top_buttons = null;
+	},
+});
+Object.assign(BayLang.Constructor.Frontend.Fonts.FontPageModel, Runtime.Web.BasePageModel);
+Object.assign(BayLang.Constructor.Frontend.Fonts.FontPageModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "BayLang.Constructor.Frontend.Fonts";
+	},
+	getClassName: function()
+	{
+		return "BayLang.Constructor.Frontend.Fonts.FontPageModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.BasePageModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(BayLang.Constructor.Frontend.Fonts.FontPageModel);
+window["BayLang.Constructor.Frontend.Fonts.FontPageModel"] = BayLang.Constructor.Frontend.Fonts.FontPageModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = BayLang.Constructor.Frontend.Fonts.FontPageModel;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof BayLang == 'undefined') BayLang = {};
+if (typeof BayLang.Constructor == 'undefined') BayLang.Constructor = {};
+if (typeof BayLang.Constructor.Frontend == 'undefined') BayLang.Constructor.Frontend = {};
+if (typeof BayLang.Constructor.Frontend.Fonts == 'undefined') BayLang.Constructor.Frontend.Fonts = {};
+BayLang.Constructor.Frontend.Fonts.FontSave = {
+	name: "BayLang.Constructor.Frontend.Fonts.FontSave",
+	extends: Runtime.Web.Component,
+	methods:
+	{
+		render: function()
+		{
+			let __v = [];
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["widgets_list"])});
+			
+			/* Render */
+			this._t(__v0, this.renderWidget(this.model.top_buttons));
+			
+			if (this.model.form.load.isSuccess())
+			{
+				/* Render */
+				this._t(__v0, this.renderWidget(this.model.form));
+			}
+			else
+			{
+				/* Element 'div' */
+				let __v1 = this._e(__v0, "div", {"class":this._class_name(["center"])});
+				
+				/* Render */
+				this._t(__v1, this.model.form.load.message);
+			}
+			
+			return this._flatten(__v);
+		},
+	},
+};
+Object.assign(BayLang.Constructor.Frontend.Fonts.FontSave,
+{
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.RowButtons","Runtime.Widget.Table.Table"]);
+	},
+	css: function(vars)
+	{
+		var res = "";
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "BayLang.Constructor.Frontend.Fonts";
+	},
+	getClassName: function()
+	{
+		return "BayLang.Constructor.Frontend.Fonts.FontSave";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.Component";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(BayLang.Constructor.Frontend.Fonts.FontSave);
+window["BayLang.Constructor.Frontend.Fonts.FontSave"] = BayLang.Constructor.Frontend.Fonts.FontSave;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = BayLang.Constructor.Frontend.Fonts.FontSave;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof BayLang == 'undefined') BayLang = {};
+if (typeof BayLang.Constructor == 'undefined') BayLang.Constructor = {};
+if (typeof BayLang.Constructor.Frontend == 'undefined') BayLang.Constructor.Frontend = {};
+if (typeof BayLang.Constructor.Frontend.Fonts == 'undefined') BayLang.Constructor.Frontend.Fonts = {};
+BayLang.Constructor.Frontend.Fonts.FontSaveModel = function()
+{
+	Runtime.Web.BasePageModel.apply(this, arguments);
+};
+BayLang.Constructor.Frontend.Fonts.FontSaveModel.prototype = Object.create(Runtime.Web.BasePageModel.prototype);
+BayLang.Constructor.Frontend.Fonts.FontSaveModel.prototype.constructor = BayLang.Constructor.Frontend.Fonts.FontSaveModel;
+Object.assign(BayLang.Constructor.Frontend.Fonts.FontSaveModel.prototype,
+{
+	/**
+	 * Init widget settings
+	 */
+	initWidget: function(params)
+	{
+		Runtime.Web.BasePageModel.prototype.initWidget.call(this, params);
+		/* Set route matches */
+		this.project_id = this.layout.route.matches.get("project_id");
+		/* Add top buttons */
+		this.top_buttons = this.addWidget("Runtime.Widget.RowButtonsModel", Runtime.Map.from({"widget_name":"top_buttons","styles":Runtime.Vector.from(["@top_buttons"]),"buttons":Runtime.Vector.from([new Runtime.Web.ModelFactory("Runtime.Widget.BackButtonModel", Runtime.Map.from({"href":this.layout.url("baylang:project:fonts:index")}))])}));
+		/* Add files */
+		this.files = this.addWidget("Runtime.Widget.Table.TableDialogModel", Runtime.Map.from({"widget_name":"files","get_title":(params) =>
+		{
+			var action = params.get("action");
+			var item = params.get("item");
+			if (action == "add")
+			{
+				return "Add files";
+			}
+			if (action == "edit")
+			{
+				return "Edit files '" + Runtime.rtl.toStr(item.get("name")) + Runtime.rtl.toStr("'");
+			}
+			if (action == "delete")
+			{
+				return "Delete files '" + Runtime.rtl.toStr(item.get("name")) + Runtime.rtl.toStr("'");
+			}
+			return "";
+		},"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableProxyStorage", Runtime.Map.from({"container":this,"path":Runtime.Vector.from(["form","item","files"])})),"delete_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"delete_form","primary_key":Runtime.Vector.from(["name"]),"foreign_key":Runtime.Map.from({"project_id":this.project_id,"name":this.layout.request_query.get("name")}),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormDeleteStorage", Runtime.Map.from({"api_name":"baylang.constructor.fonts.save","method_name":"deleteFile"})),"events":Runtime.Map.from({"submit":new Runtime.Callback(this, "onDeleteFile")})})),"foreign_key":Runtime.Map.from({"project_id":this.project_id}),"top_buttons":Runtime.Vector.from([Runtime.Map.from({"widget_name":"add","content":"Add file","styles":Runtime.Vector.from(["small","primary"]),"component":"Runtime.Widget.UploadFileButton","events":Runtime.Map.from({"file":new Runtime.Callback(this, "onUploadFile")})})]),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"name","label":"Font name","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel", Runtime.Map.from({"edit":false}))})])}));
+		/* Add form */
+		this.form = this.addWidget("Runtime.Widget.Form.FormSubmitModel", Runtime.Map.from({"widget_name":"form","primary_key":Runtime.Vector.from(["name"]),"pk":Runtime.Map.from({"name":this.layout.request_query.get("name")}),"submit_button":Runtime.Map.from({"text":"Save","styles":Runtime.Vector.from(["success","large"])}),"foreign_key":Runtime.Map.from({"project_id":this.project_id}),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSaveStorage", Runtime.Map.from({"api_name":"baylang.constructor.fonts.save"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"files","label":"Files","model":this.files}),Runtime.Map.from({"name":"css","label":"CSS","component":"Runtime.Widget.Editor.Editor"})])}));
+	},
+	/**
+	 * Upload file event
+	 */
+	onUploadFile: async function(e)
+	{
+		var file = e.value;
+		var foreign_key = this.form.pk.copy();
+		foreign_key.set("project_id", this.project_id);
+		var result = await this.layout.callApi(Runtime.Map.from({"api_name":"baylang.constructor.fonts.save","method_name":"uploadFile","data":Runtime.Map.from({"foreign_key":foreign_key,"file":file})}));
+		if (result.isSuccess())
+		{
+			var files = this.form.item.get("files");
+			var index = files.find(Runtime.lib.equalAttr("name", file.name));
+			if (index == -1)
+			{
+				files.push(Runtime.Map.from({"name":file.name}));
+			}
+			files = files.sort(Runtime.lib.comparator(Runtime.lib.sortAsc.bind(Runtime.lib), Runtime.lib.attr("name")));
+			this.form.item.set("files", files);
+		}
+	},
+	/**
+	 * Delete file event
+	 */
+	onDeleteFile: function(message)
+	{
+		if (message.result.isSuccess())
+		{
+			var files = this.form.item.get("files");
+			var file_name = message.widget.item.get("name");
+			var index = files.find(Runtime.lib.equalAttr("name", file_name));
+			if (index >= 0)
+			{
+				files.remove(index);
+			}
+		}
+	},
+	/**
+	 * Build title
+	 */
+	buildTitle: function(container)
+	{
+		this.layout.setPageTitle("Edit font");
+	},
+	_init: function()
+	{
+		Runtime.Web.BasePageModel.prototype._init.call(this);
+		this.component = "BayLang.Constructor.Frontend.Fonts.FontSave";
+		this.project_id = "";
+		this.files = null;
+		this.form = null;
+		this.top_buttons = null;
+	},
+});
+Object.assign(BayLang.Constructor.Frontend.Fonts.FontSaveModel, Runtime.Web.BasePageModel);
+Object.assign(BayLang.Constructor.Frontend.Fonts.FontSaveModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "BayLang.Constructor.Frontend.Fonts";
+	},
+	getClassName: function()
+	{
+		return "BayLang.Constructor.Frontend.Fonts.FontSaveModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.BasePageModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(BayLang.Constructor.Frontend.Fonts.FontSaveModel);
+window["BayLang.Constructor.Frontend.Fonts.FontSaveModel"] = BayLang.Constructor.Frontend.Fonts.FontSaveModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = BayLang.Constructor.Frontend.Fonts.FontSaveModel;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof BayLang == 'undefined') BayLang = {};
+if (typeof BayLang.Constructor == 'undefined') BayLang.Constructor = {};
+if (typeof BayLang.Constructor.Frontend == 'undefined') BayLang.Constructor.Frontend = {};
 if (typeof BayLang.Constructor.Frontend.Layout == 'undefined') BayLang.Constructor.Frontend.Layout = {};
 BayLang.Constructor.Frontend.Layout.ProjectLayout = {
 	name: "BayLang.Constructor.Frontend.Layout.ProjectLayout",
@@ -37827,569 +38071,6 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
 if (typeof BayLang == 'undefined') BayLang = {};
 if (typeof BayLang.Constructor == 'undefined') BayLang.Constructor = {};
 if (typeof BayLang.Constructor.Frontend == 'undefined') BayLang.Constructor.Frontend = {};
-if (typeof BayLang.Constructor.Frontend.Project == 'undefined') BayLang.Constructor.Frontend.Project = {};
-BayLang.Constructor.Frontend.Project.ProjectList = {
-	name: "BayLang.Constructor.Frontend.Project.ProjectList",
-	extends: Runtime.Web.Component,
-	methods:
-	{
-		render: function()
-		{
-			let __v = [];
-			
-			/* Element 'div' */
-			let __v0 = this._e(__v, "div", {"class":this._class_name(["project_list"])});
-			
-			/* Element 'h1' */
-			let __v1 = this._e(__v0, "h1", {});
-			
-			/* Text */
-			this._t(__v1, "Projects");
-			
-			/* Component 'RowButtons' */
-			let __v2 = this._c(__v0, "Runtime.Widget.RowButtons", {"model":this._model(this.model.top_buttons),"class":this._class_name(["top_buttons"])});
-			
-			/* Component 'Table' */
-			let __v3 = this._c(__v0, "Runtime.Widget.Table.Table", {"model":this._model(this.model.table),"class":this._class_name(["projects_table"])});
-			
-			return this._flatten(__v);
-		},
-	},
-};
-Object.assign(BayLang.Constructor.Frontend.Project.ProjectList,
-{
-	components: function()
-	{
-		return Runtime.Vector.from(["Runtime.Widget.RowButtons","Runtime.Widget.Table.Table"]);
-	},
-	css: function(vars)
-	{
-		var res = "";
-		res += Runtime.rtl.toStr(".top_buttons.h-c43e{margin-bottom: 10px}");
-		return res;
-	},
-	getNamespace: function()
-	{
-		return "BayLang.Constructor.Frontend.Project";
-	},
-	getClassName: function()
-	{
-		return "BayLang.Constructor.Frontend.Project.ProjectList";
-	},
-	getParentClassName: function()
-	{
-		return "Runtime.Web.Component";
-	},
-	getClassInfo: function()
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return Map.from({
-			"annotations": Vector.from([
-			]),
-		});
-	},
-	getFieldsList: function()
-	{
-		var a = [];
-		return Runtime.Vector.from(a);
-	},
-	getFieldInfoByName: function(field_name)
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return null;
-	},
-	getMethodsList: function()
-	{
-		var a=[
-		];
-		return Runtime.Vector.from(a);
-	},
-	getMethodInfoByName: function(field_name)
-	{
-		return null;
-	},
-});
-Runtime.rtl.defClass(BayLang.Constructor.Frontend.Project.ProjectList);
-window["BayLang.Constructor.Frontend.Project.ProjectList"] = BayLang.Constructor.Frontend.Project.ProjectList;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = BayLang.Constructor.Frontend.Project.ProjectList;
-"use strict;"
-/*!
- *  BayLang Technology
- *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-if (typeof BayLang == 'undefined') BayLang = {};
-if (typeof BayLang.Constructor == 'undefined') BayLang.Constructor = {};
-if (typeof BayLang.Constructor.Frontend == 'undefined') BayLang.Constructor.Frontend = {};
-if (typeof BayLang.Constructor.Frontend.Project == 'undefined') BayLang.Constructor.Frontend.Project = {};
-BayLang.Constructor.Frontend.Project.ProjectListModel = function()
-{
-	Runtime.Web.BasePageModel.apply(this, arguments);
-};
-BayLang.Constructor.Frontend.Project.ProjectListModel.prototype = Object.create(Runtime.Web.BasePageModel.prototype);
-BayLang.Constructor.Frontend.Project.ProjectListModel.prototype.constructor = BayLang.Constructor.Frontend.Project.ProjectListModel;
-Object.assign(BayLang.Constructor.Frontend.Project.ProjectListModel.prototype,
-{
-	/**
-	 * Init widget settings
-	 */
-	initWidget: function(params)
-	{
-		Runtime.Web.BasePageModel.prototype.initWidget.call(this, params);
-		/* Add table */
-		this.table = this.addWidget("Runtime.Widget.Table.TableDialogModel", Runtime.Map.from({"widget_name":"table","get_title":(params) =>
-		{
-			var action = params.get("action");
-			var item = params.get("item");
-			if (action == "add")
-			{
-				return "Add item";
-			}
-			if (action == "edit")
-			{
-				return "Edit item " + Runtime.rtl.toStr(item.get("id"));
-			}
-			if (action == "delete")
-			{
-				return "Delete item " + Runtime.rtl.toStr(item.get("id"));
-			}
-			return "";
-		},"styles":Runtime.Vector.from(["border"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"baylang.constructor.project::search"})),"add_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"add_form","primary_key":Runtime.Vector.from(["id"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSubmitStorage", Runtime.Map.from({"api_name":"baylang.constructor.project::save"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"id","label":"ID","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"template","label":"Template","component":"Runtime.Widget.Select","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"web","value":"Web project"})])})}),Runtime.Map.from({"name":"description","label":"Description","component":"Runtime.Widget.TextArea"})])})),"edit_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"edit_form","primary_key":Runtime.Vector.from(["id"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSubmitStorage", Runtime.Map.from({"api_name":"baylang.constructor.project::save"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"id","label":"ID","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"description","label":"Description","component":"Runtime.Widget.TextArea"})])})),"delete_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"delete_form","primary_key":Runtime.Vector.from(["id"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormDeleteStorage", Runtime.Map.from({"api_name":"baylang.constructor.project::save"}))})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"id","label":"ID","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel", Runtime.Map.from({"buttons":Runtime.Vector.from([Runtime.Map.from({"href":(data) =>
-		{
-			var item = data.get("item");
-			return this.layout.url("baylang:project:settings", Runtime.Map.from({"project_id":item.get("id")}));
-		},"kind":"before","dest":"edit_button","content":"Open","widget_name":"open","styles":Runtime.Vector.from(["default","small"])})])}))})])}));
-		/* Add top buttons */
-		this.top_buttons = this.addWidget("Runtime.Widget.RowButtonsModel", Runtime.Map.from({"widget_name":"top_buttons","buttons":Runtime.Vector.from([new Runtime.Web.ModelFactory("Runtime.Widget.Table.AddButtonModel", Runtime.Map.from({"table":this.table}))])}));
-	},
-	/**
-	 * Build title
-	 */
-	buildTitle: function(container)
-	{
-		this.layout.setPageTitle("Projects");
-	},
-	_init: function()
-	{
-		Runtime.Web.BasePageModel.prototype._init.call(this);
-		this.component = "BayLang.Constructor.Frontend.Project.ProjectList";
-	},
-});
-Object.assign(BayLang.Constructor.Frontend.Project.ProjectListModel, Runtime.Web.BasePageModel);
-Object.assign(BayLang.Constructor.Frontend.Project.ProjectListModel,
-{
-	/* ======================= Class Init Functions ======================= */
-	getNamespace: function()
-	{
-		return "BayLang.Constructor.Frontend.Project";
-	},
-	getClassName: function()
-	{
-		return "BayLang.Constructor.Frontend.Project.ProjectListModel";
-	},
-	getParentClassName: function()
-	{
-		return "Runtime.Web.BasePageModel";
-	},
-	getClassInfo: function()
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return Map.from({
-			"annotations": Vector.from([
-			]),
-		});
-	},
-	getFieldsList: function()
-	{
-		var a = [];
-		return Runtime.Vector.from(a);
-	},
-	getFieldInfoByName: function(field_name)
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return null;
-	},
-	getMethodsList: function()
-	{
-		var a=[
-		];
-		return Runtime.Vector.from(a);
-	},
-	getMethodInfoByName: function(field_name)
-	{
-		return null;
-	},
-});
-Runtime.rtl.defClass(BayLang.Constructor.Frontend.Project.ProjectListModel);
-window["BayLang.Constructor.Frontend.Project.ProjectListModel"] = BayLang.Constructor.Frontend.Project.ProjectListModel;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = BayLang.Constructor.Frontend.Project.ProjectListModel;
-"use strict;"
-/*
- *  BayLang Technology
- *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
-*/
-if (typeof BayLang == 'undefined') BayLang = {};
-if (typeof BayLang.Constructor == 'undefined') BayLang.Constructor = {};
-if (typeof BayLang.Constructor.Frontend == 'undefined') BayLang.Constructor.Frontend = {};
-if (typeof BayLang.Constructor.Frontend.Settings == 'undefined') BayLang.Constructor.Frontend.Settings = {};
-BayLang.Constructor.Frontend.Settings.ReloadCache = {
-	name: "BayLang.Constructor.Frontend.Settings.ReloadCache",
-	extends: Runtime.Web.Component,
-	data: function ()
-	{
-		return {
-			result: new Runtime.Widget.WidgetResultModel(),
-		};
-	},
-	methods:
-	{
-		render: function()
-		{
-			let __v = [];
-			
-			/* Element 'div' */
-			let __v0 = this._e(__v, "div", {"class":this._class_name(["reload_cache"])});
-			
-			/* Component 'Button' */
-			let __v1 = this._c(__v0, "Runtime.Widget.Button", {"onClick":this.onRefresh}, () => {
-				let __v = [];
-				
-				/* Text */
-				this._t(__v, "Reload");
-				
-				return this._flatten(__v);
-			});
-			
-			/* Component 'WidgetResult' */
-			let __v2 = this._c(__v0, "Runtime.Widget.WidgetResult", {"model":this._model(this.result)});
-			
-			return this._flatten(__v);
-		},
-		/**
- * Refresh item
- */
-		onRefresh: async function()
-		{
-			this.result.clear();
-			this.result.setWaitMessage();
-			/* Get primary key */
-			var form = this.data.get("form");
-			var pk = form.getPrimaryKey(form.item);
-			/* Reload cache */
-			var res = await this.layout.callApi(Runtime.Map.from({"api_name":"baylang.constructor.project::save","method_name":"reloadCache","data":Runtime.Map.from({"pk":pk})}));
-			this.result.setApiResult(res);
-		},
-	},
-};
-Object.assign(BayLang.Constructor.Frontend.Settings.ReloadCache,
-{
-	components: function()
-	{
-		return Runtime.Vector.from(["Runtime.Widget.Button"]);
-	},
-	css: function(vars)
-	{
-		var res = "";
-		res += Runtime.rtl.toStr(".reload_cache.h-5951{display: flex;align-items: center;gap: 5px}.reload_cache.h-5951 .widget_result.h-e870{margin-top: 0}");
-		return res;
-	},
-	getNamespace: function()
-	{
-		return "BayLang.Constructor.Frontend.Settings";
-	},
-	getClassName: function()
-	{
-		return "BayLang.Constructor.Frontend.Settings.ReloadCache";
-	},
-	getParentClassName: function()
-	{
-		return "Runtime.Web.Component";
-	},
-	getClassInfo: function()
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return Map.from({
-			"annotations": Vector.from([
-			]),
-		});
-	},
-	getFieldsList: function()
-	{
-		var a = [];
-		return Runtime.Vector.from(a);
-	},
-	getFieldInfoByName: function(field_name)
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return null;
-	},
-	getMethodsList: function()
-	{
-		var a=[
-		];
-		return Runtime.Vector.from(a);
-	},
-	getMethodInfoByName: function(field_name)
-	{
-		return null;
-	},
-});
-Runtime.rtl.defClass(BayLang.Constructor.Frontend.Settings.ReloadCache);
-window["BayLang.Constructor.Frontend.Settings.ReloadCache"] = BayLang.Constructor.Frontend.Settings.ReloadCache;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = BayLang.Constructor.Frontend.Settings.ReloadCache;
-"use strict;"
-/*
- *  BayLang Technology
- *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
-*/
-if (typeof BayLang == 'undefined') BayLang = {};
-if (typeof BayLang.Constructor == 'undefined') BayLang.Constructor = {};
-if (typeof BayLang.Constructor.Frontend == 'undefined') BayLang.Constructor.Frontend = {};
-if (typeof BayLang.Constructor.Frontend.Settings == 'undefined') BayLang.Constructor.Frontend.Settings = {};
-BayLang.Constructor.Frontend.Settings.Settings = {
-	name: "BayLang.Constructor.Frontend.Settings.Settings",
-	extends: Runtime.Web.Component,
-	methods:
-	{
-		render: function()
-		{
-			let __v = [];
-			
-			/* Element 'div' */
-			let __v0 = this._e(__v, "div", {"class":this._class_name(["settings"])});
-			
-			/* Render */
-			this._t(__v0, this.renderWidget(this.model.edit_form));
-			
-			return this._flatten(__v);
-		},
-	},
-};
-Object.assign(BayLang.Constructor.Frontend.Settings.Settings,
-{
-	css: function(vars)
-	{
-		var res = "";
-		res += Runtime.rtl.toStr("");
-		return res;
-	},
-	getNamespace: function()
-	{
-		return "BayLang.Constructor.Frontend.Settings";
-	},
-	getClassName: function()
-	{
-		return "BayLang.Constructor.Frontend.Settings.Settings";
-	},
-	getParentClassName: function()
-	{
-		return "Runtime.Web.Component";
-	},
-	getClassInfo: function()
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return Map.from({
-			"annotations": Vector.from([
-			]),
-		});
-	},
-	getFieldsList: function()
-	{
-		var a = [];
-		return Runtime.Vector.from(a);
-	},
-	getFieldInfoByName: function(field_name)
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return null;
-	},
-	getMethodsList: function()
-	{
-		var a=[
-		];
-		return Runtime.Vector.from(a);
-	},
-	getMethodInfoByName: function(field_name)
-	{
-		return null;
-	},
-});
-Runtime.rtl.defClass(BayLang.Constructor.Frontend.Settings.Settings);
-window["BayLang.Constructor.Frontend.Settings.Settings"] = BayLang.Constructor.Frontend.Settings.Settings;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = BayLang.Constructor.Frontend.Settings.Settings;
-"use strict;"
-/*!
- *  BayLang Technology
- *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-if (typeof BayLang == 'undefined') BayLang = {};
-if (typeof BayLang.Constructor == 'undefined') BayLang.Constructor = {};
-if (typeof BayLang.Constructor.Frontend == 'undefined') BayLang.Constructor.Frontend = {};
-if (typeof BayLang.Constructor.Frontend.Settings == 'undefined') BayLang.Constructor.Frontend.Settings = {};
-BayLang.Constructor.Frontend.Settings.SettingsModel = function()
-{
-	Runtime.Web.BasePageModel.apply(this, arguments);
-};
-BayLang.Constructor.Frontend.Settings.SettingsModel.prototype = Object.create(Runtime.Web.BasePageModel.prototype);
-BayLang.Constructor.Frontend.Settings.SettingsModel.prototype.constructor = BayLang.Constructor.Frontend.Settings.SettingsModel;
-Object.assign(BayLang.Constructor.Frontend.Settings.SettingsModel.prototype,
-{
-	/**
-	 * Init widget settings
-	 */
-	initWidget: function(params)
-	{
-		Runtime.Web.BasePageModel.prototype.initWidget.call(this, params);
-		/* Project id */
-		this.project_id = this.layout.route.matches.get("project_id");
-		/* Edit form */
-		this.edit_form = this.addWidget("Runtime.Widget.Form.FormSubmitModel", Runtime.Map.from({"widget_name":"edit_form","primary_key":Runtime.Vector.from(["id"]),"pk":Runtime.Map.from({"id":this.project_id}),"submit_button":Runtime.Map.from({"text":"Save","styles":Runtime.Vector.from(["success","large"])}),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSaveStorage", Runtime.Map.from({"api_name":"baylang.constructor.project::save"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"description","label":"Description","component":"Runtime.Widget.TextArea","props":Runtime.Map.from({"height":"150px"})}),Runtime.Map.from({"name":"reload_cache","label":"Reload cache","component":"BayLang.Constructor.Frontend.Settings.ReloadCache"})])}));
-	},
-	/**
-	 * Build title
-	 */
-	buildTitle: function(container)
-	{
-		this.layout.setPageTitle("Settings");
-	},
-	_init: function()
-	{
-		Runtime.Web.BasePageModel.prototype._init.call(this);
-		this.component = "BayLang.Constructor.Frontend.Settings.Settings";
-		this.project_id = "";
-		this.edit_form = null;
-	},
-});
-Object.assign(BayLang.Constructor.Frontend.Settings.SettingsModel, Runtime.Web.BasePageModel);
-Object.assign(BayLang.Constructor.Frontend.Settings.SettingsModel,
-{
-	/* ======================= Class Init Functions ======================= */
-	getNamespace: function()
-	{
-		return "BayLang.Constructor.Frontend.Settings";
-	},
-	getClassName: function()
-	{
-		return "BayLang.Constructor.Frontend.Settings.SettingsModel";
-	},
-	getParentClassName: function()
-	{
-		return "Runtime.Web.BasePageModel";
-	},
-	getClassInfo: function()
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return Map.from({
-			"annotations": Vector.from([
-			]),
-		});
-	},
-	getFieldsList: function()
-	{
-		var a = [];
-		return Runtime.Vector.from(a);
-	},
-	getFieldInfoByName: function(field_name)
-	{
-		var Vector = Runtime.Vector;
-		var Map = Runtime.Map;
-		return null;
-	},
-	getMethodsList: function()
-	{
-		var a=[
-		];
-		return Runtime.Vector.from(a);
-	},
-	getMethodInfoByName: function(field_name)
-	{
-		return null;
-	},
-});
-Runtime.rtl.defClass(BayLang.Constructor.Frontend.Settings.SettingsModel);
-window["BayLang.Constructor.Frontend.Settings.SettingsModel"] = BayLang.Constructor.Frontend.Settings.SettingsModel;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = BayLang.Constructor.Frontend.Settings.SettingsModel;
-"use strict;"
-/*
- *  BayLang Technology
- *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
-*/
-if (typeof BayLang == 'undefined') BayLang = {};
-if (typeof BayLang.Constructor == 'undefined') BayLang.Constructor = {};
-if (typeof BayLang.Constructor.Frontend == 'undefined') BayLang.Constructor.Frontend = {};
 if (typeof BayLang.Constructor.Frontend.Widget == 'undefined') BayLang.Constructor.Frontend.Widget = {};
 BayLang.Constructor.Frontend.Widget.WidgetList = {
 	name: "BayLang.Constructor.Frontend.Widget.WidgetList",
@@ -38422,7 +38103,6 @@ Object.assign(BayLang.Constructor.Frontend.Widget.WidgetList,
 	css: function(vars)
 	{
 		var res = "";
-		res += Runtime.rtl.toStr(".top_buttons.h-1ea1{margin-bottom: 10px}");
 		return res;
 	},
 	getNamespace: function()
@@ -38510,7 +38190,7 @@ Object.assign(BayLang.Constructor.Frontend.Widget.WidgetListModel.prototype,
 		/* Set route matches */
 		this.project_id = this.layout.route.matches.get("project_id");
 		/* Modules */
-		this.modules = this.addWidget("Runtime.Widget.SelectModel", Runtime.Map.from({"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"baylang.constructor.module::search"})),"widget_name":"modules","transform":(item) =>
+		this.modules = this.addWidget("Runtime.Widget.SelectModel", Runtime.Map.from({"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"baylang.constructor.module.search"})),"widget_name":"modules","transform":(item) =>
 		{
 			return Runtime.Map.from({"key":item.get("id"),"value":item.get("id")});
 		},"foreign_key":Runtime.Map.from({"project_id":this.project_id})}));
@@ -38532,7 +38212,7 @@ Object.assign(BayLang.Constructor.Frontend.Widget.WidgetListModel.prototype,
 				return "Delete widget " + Runtime.rtl.toStr(item.get("id"));
 			}
 			return "";
-		},"styles":Runtime.Vector.from(["border"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"baylang.constructor.widget::search"})),"add_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"add_form","primary_key":Runtime.Vector.from(["id"]),"foreign_key":Runtime.Map.from({"project_id":this.project_id}),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSubmitStorage", Runtime.Map.from({"api_name":"baylang.constructor.widget::save"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"module_id","label":"Modules","model":this.modules}),Runtime.Map.from({"name":"id","label":"Name","component":"Runtime.Widget.Input","default":"WidgetModel"})]),"events":Runtime.Map.from({"field_change":new Runtime.Callback(this, "onFormFieldChange")})})),"delete_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"delete_form","primary_key":Runtime.Vector.from(["id"]),"foreign_key":Runtime.Map.from({"project_id":this.project_id}),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormDeleteStorage", Runtime.Map.from({"api_name":"baylang.constructor.widget::save"}))})),"foreign_key":Runtime.Map.from({"project_id":this.project_id,"module_id":this.module_id}),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"id","label":"Widget name","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel", Runtime.Map.from({"edit":false,"buttons":Runtime.Vector.from([Runtime.Map.from({"widget_name":"edit_button","dest":"delete_button","kind":"before","href":(data) =>
+		},"styles":Runtime.Vector.from(["border"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"baylang.constructor.widget.search"})),"add_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"add_form","primary_key":Runtime.Vector.from(["id"]),"foreign_key":Runtime.Map.from({"project_id":this.project_id}),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSubmitStorage", Runtime.Map.from({"api_name":"baylang.constructor.widget.save"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"module_id","label":"Modules","model":this.modules}),Runtime.Map.from({"name":"id","label":"Name","component":"Runtime.Widget.Input","default":"WidgetModel"})]),"events":Runtime.Map.from({"field_change":new Runtime.Callback(this, "onFormFieldChange")})})),"delete_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"delete_form","primary_key":Runtime.Vector.from(["id"]),"foreign_key":Runtime.Map.from({"project_id":this.project_id}),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormDeleteStorage", Runtime.Map.from({"api_name":"baylang.constructor.widget.save"}))})),"foreign_key":Runtime.Map.from({"project_id":this.project_id,"module_id":this.module_id}),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"id","label":"Widget name","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel", Runtime.Map.from({"edit":false,"buttons":Runtime.Vector.from([Runtime.Map.from({"widget_name":"edit_button","dest":"delete_button","kind":"before","href":(data) =>
 		{
 			var item = data.get("item");
 			return this.layout.url("baylang:project:widget:edit", Runtime.Map.from({"project_id":this.project_id,"module_id":this.module_id,"widget_name":item.get("id")}));
@@ -38905,6 +38585,237 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
 if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.Components == 'undefined') Runtime.WordPress.Admin.Components = {};
+Runtime.WordPress.Admin.Components.Image = {
+	name: "Runtime.WordPress.Admin.Components.Image",
+	extends: Runtime.Web.Component,
+	props: {
+		"styles": {
+			default: Runtime.Vector.from([]),
+		},
+		"name": {
+			default: "",
+		},
+		"value": {
+			default: "",
+		},
+		"size": {
+			default: "medium",
+		},
+		"upload": {
+			default: false,
+		},
+		"center": {
+			default: false,
+		},
+	},
+	methods:
+	{
+		render: function()
+		{
+			let __v = [];
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["widget_image", this.getStyles()]),"key":"widget_image_" + Runtime.rtl.toStr(this.name)});
+			
+			if (this.upload)
+			{
+				/* Element 'div' */
+				let __v1 = this._e(__v0, "div", {"class":this._class_name(["widget_image__upload_button"])});
+				
+				/* Component 'Button' */
+				let __v2 = this._c(__v1, "Runtime.Widget.Button", {"type":"small","onClick":this.onUploadImage}, () => {
+					let __v = [];
+					
+					/* Text */
+					this._t(__v, "Upload image");
+					
+					return this._flatten(__v);
+				});
+			}
+			let image = this.getImage();
+			
+			if (image)
+			{
+				if (this.center)
+				{
+					/* Element 'center' */
+					let __v3 = this._e(__v0, "center", {});
+					
+					/* Element 'img' */
+					let __v4 = this._e(__v3, "img", {"src":image});
+				}
+				else
+				{
+					/* Element 'img' */
+					let __v5 = this._e(__v0, "img", {"src":image});
+				}
+			}
+			
+			return this._flatten(__v);
+		},
+		/**
+ * Returns styles
+ */
+		getStyles: function()
+		{
+			if (this.styles == null)
+			{
+				return "";
+			}
+			var styles = this.styles.map((name) =>
+			{
+				return "widget_image--" + Runtime.rtl.toStr(name);
+			});
+			return Runtime.rs.join(" ", styles);
+		},
+		/**
+ * Return image
+ */
+		getImage: function()
+		{
+			if (!(this.value instanceof Runtime.Dict))
+			{
+				return ;
+			}
+			var image = this.value.get("file");
+			/* Resolve size */
+			var sizes = this.value.get("sizes");
+			if (sizes && sizes.has(this.size))
+			{
+				image = sizes.get(this.size).get("file");
+			}
+			return image;
+		},
+		/**
+ * On upload image
+ */
+		onUploadImage: function()
+		{
+			var uploader = wp.media
+	({
+		title: "Файлы",
+		button: {
+			text: "Выбрать файл"
+		},
+		multiple: false
+	})
+	.on('select', () => {
+		let attachments = uploader.state().get('selection').toJSON();
+		let attachment = attachments[0];
+		
+		let sizes = {};
+		for (let size_name in attachment.sizes)
+		{
+			let size = attachment.sizes[size_name];
+			sizes[size_name] = Runtime.Dict.from({
+				"size": size_name,
+				"file": size.url,
+				"width": size.width,
+				"height": size.height,
+				"mime_type": "",
+			});
+		}
+		
+		let image = Runtime.Dict.from({
+			"id": attachment.id,
+			"width": attachment.width,
+			"height": attachment.height,
+			"file": attachment.url,
+			"sizes": Runtime.Dict.from(sizes),
+		});
+		
+		/* Send value change */
+		var message_data = Runtime.Dict.from({
+			"value": image,
+			"old_value": this.value,
+			"data": this.data,
+		});
+		this.emit("valueChange", new Runtime.Web.Messages.ValueChangeMessage(message_data));
+	})
+	.open();
+		},
+	},
+};
+Object.assign(Runtime.WordPress.Admin.Components.Image,
+{
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.Button"]);
+	},
+	css: function(vars)
+	{
+		var res = "";
+		res += Runtime.rtl.toStr(".widget_image.h-0c6e img{max-width: 200px;max-height: 200px}.widget_image--small.h-0c6e img{max-width: 100px;max-height: 100px}.widget_image__upload_button.h-0c6e{padding-bottom: 10px}");
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.Components";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.Components.Image";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.Component";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.Components.Image);
+window["Runtime.WordPress.Admin.Components.Image"] = Runtime.WordPress.Admin.Components.Image;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.Components.Image;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
 if (typeof Runtime.WordPress.Admin.FormData == 'undefined') Runtime.WordPress.Admin.FormData = {};
 Runtime.WordPress.Admin.FormData.FormDataPage = {
 	name: "Runtime.WordPress.Admin.FormData.FormDataPage",
@@ -39035,7 +38946,7 @@ Object.assign(Runtime.WordPress.Admin.FormData.FormDataPageModel.prototype,
 		/* Add form */
 		this.form = this.addWidget("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"form","primary_key":Runtime.Vector.from(["id"]),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"form_title","label":"Title","component":"Runtime.Widget.Input","props":Runtime.Map.from({"readonly":true})}),Runtime.Map.from({"name":"data","label":"Data","component":"Runtime.Widget.TextArea","calculate":calculateData,"props":Runtime.Map.from({"readonly":true})}),Runtime.Map.from({"name":"gmtime_add","label":"Data","component":"Runtime.Widget.Input","calculate":Runtime.lib.pipe().add(Runtime.lib.attr(Runtime.Vector.from(["item","gmtime_add"]))).add(Runtime.lib.normalizeDateTime()),"props":Runtime.Map.from({"readonly":true})})])}));
 		/* Add table */
-		this.table = this.addWidget("Runtime.Widget.Table.TableDialogModel", Runtime.Map.from({"widget_name":"table","styles":Runtime.Vector.from(["border"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"admin.wordpress.forms.data::search"})),"page":this.layout.request_query.get("p", 1) - 1,"pagination_props":Runtime.Map.from({"name":"p"}),"edit_form":this.form,"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"form_title","label":"Title","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"data","label":"Data","calculate":calculateData,"component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"send_email_error","label":"Mail error","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"gmtime_add","label":"Date","calculate":Runtime.lib.pipe().add(Runtime.lib.attr(Runtime.Vector.from(["item","gmtime_add"]))).add(Runtime.lib.normalizeDateTime()),"component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel", Runtime.Map.from({"delete":false}))})])}));
+		this.table = this.addWidget("Runtime.Widget.Table.TableDialogModel", Runtime.Map.from({"widget_name":"table","styles":Runtime.Vector.from(["border"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"admin.wordpress.forms.data.search"})),"page":this.layout.request_query.get("p", 1) - 1,"pagination_props":Runtime.Map.from({"name":"p"}),"edit_form":this.form,"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"form_title","label":"Title","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"metrika_id","label":"Form id","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"data","label":"Data","calculate":calculateData,"component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"gmtime_add","label":"Date","calculate":Runtime.lib.pipe().add(Runtime.lib.attr(Runtime.Vector.from(["item","gmtime_add"]))).add(Runtime.lib.normalizeDateTime()),"component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel", Runtime.Map.from({"delete":false}))})])}));
 		/* Remove save button */
 		var save_dialog = this.table.getWidget("save_dialog");
 		save_dialog.buttons.removeItemByName("confirm_button");
@@ -39112,6 +39023,241 @@ Object.assign(Runtime.WordPress.Admin.FormData.FormDataPageModel,
 Runtime.rtl.defClass(Runtime.WordPress.Admin.FormData.FormDataPageModel);
 window["Runtime.WordPress.Admin.FormData.FormDataPageModel"] = Runtime.WordPress.Admin.FormData.FormDataPageModel;
 if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.FormData.FormDataPageModel;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.FormSettings == 'undefined') Runtime.WordPress.Admin.FormSettings = {};
+Runtime.WordPress.Admin.FormSettings.FieldSettings = {
+	name: "Runtime.WordPress.Admin.FormSettings.FieldSettings",
+	extends: Runtime.Widget.SortableFieldList,
+	data: function ()
+	{
+		return {
+			fields: Runtime.Vector.from([Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"type","label":"Type","component":"Runtime.Widget.Select","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"input","value":"input"}),Runtime.Map.from({"key":"textarea","value":"textarea"})])})}),Runtime.Map.from({"name":"title","label":"Title","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"placeholder","label":"Placeholder","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"required","label":"Required","component":"Runtime.Widget.Select","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":0,"value":"No"}),Runtime.Map.from({"key":1,"value":"Yes"})])})})]),
+		};
+	},
+	methods:
+	{
+		/**
+ * Create value
+ */
+		createValue: function()
+		{
+			return Runtime.Map.from({"fields":Runtime.Vector.from([])});
+		},
+		/**
+ * Returns items
+ */
+		getItems: function()
+		{
+			if (!this.value)
+			{
+				return null;
+			}
+			if (!(this.value instanceof Runtime.Dict))
+			{
+				return null;
+			}
+			if (!this.value.has("fields"))
+			{
+				return null;
+			}
+			return this.value.get("fields");
+		},
+		/**
+ * Create new item
+ */
+		createItem: function()
+		{
+			return Runtime.Map.from({"name":"","title":"","type":"input","placeholder":"","required":true});
+		},
+	},
+};
+Object.assign(Runtime.WordPress.Admin.FormSettings.FieldSettings,
+{
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.SortableFieldList","Runtime.Widget.Input","Runtime.Widget.Select"]);
+	},
+	css: function(vars)
+	{
+		var res = "";
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.FormSettings";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.FormSettings.FieldSettings";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Widget.SortableFieldList";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.FormSettings.FieldSettings);
+window["Runtime.WordPress.Admin.FormSettings.FieldSettings"] = Runtime.WordPress.Admin.FormSettings.FieldSettings;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.FormSettings.FieldSettings;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.FormSettings == 'undefined') Runtime.WordPress.Admin.FormSettings = {};
+Runtime.WordPress.Admin.FormSettings.FormSaveModel = function()
+{
+	Runtime.Widget.Form.FormModel.apply(this, arguments);
+};
+Runtime.WordPress.Admin.FormSettings.FormSaveModel.prototype = Object.create(Runtime.Widget.Form.FormModel.prototype);
+Runtime.WordPress.Admin.FormSettings.FormSaveModel.prototype.constructor = Runtime.WordPress.Admin.FormSettings.FormSaveModel;
+Object.assign(Runtime.WordPress.Admin.FormSettings.FormSaveModel.prototype,
+{
+	/**
+	 * Merge post data
+	 */
+	mergePostData: function(post_data, action)
+	{
+		Runtime.Widget.Form.FormModel.prototype.mergePostData.call(this, post_data, action);
+		if (post_data.has("item"))
+		{
+			var item = post_data.get("item");
+			if (item && item.has("settings"))
+			{
+				var settings = item.get("settings");
+				item.set("settings", Runtime.rtl.json_encode(settings));
+			}
+		}
+		return post_data;
+	},
+	/**
+	 * Set item
+	 */
+	setItem: function(item)
+	{
+		Runtime.Widget.Form.FormModel.prototype.setItem.call(this, item);
+		if (this.item && this.item.has("settings"))
+		{
+			var settings = this.item.get("settings");
+			this.item.set("settings", Runtime.rtl.json_decode(settings));
+		}
+	},
+});
+Object.assign(Runtime.WordPress.Admin.FormSettings.FormSaveModel, Runtime.Widget.Form.FormModel);
+Object.assign(Runtime.WordPress.Admin.FormSettings.FormSaveModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.FormSettings";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.FormSettings.FormSaveModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Widget.Form.FormModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.FormSettings.FormSaveModel);
+window["Runtime.WordPress.Admin.FormSettings.FormSaveModel"] = Runtime.WordPress.Admin.FormSettings.FormSaveModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.FormSettings.FormSaveModel;
 "use strict;"
 /*
  *  BayLang Technology
@@ -39246,7 +39392,7 @@ Object.assign(Runtime.WordPress.Admin.FormSettings.FormSettingsPageModel.prototy
 	{
 		Runtime.Web.BasePageModel.prototype.initWidget.call(this, params);
 		/* Add form */
-		this.form = this.addWidget("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"form","primary_key":Runtime.Vector.from(["id"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSaveStorage", Runtime.Map.from({"api_name":"admin.wordpress.forms.settings::save"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"api_name","label":"Api name","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"email_to","label":"Email to","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"settings","label":"Settings","component":"Runtime.Widget.TextArea"})])}));
+		this.form = this.addWidget("Runtime.WordPress.Admin.FormSettings.FormSaveModel", Runtime.Map.from({"widget_name":"form","primary_key":Runtime.Vector.from(["id"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSaveStorage", Runtime.Map.from({"api_name":"admin.wordpress.forms.settings.save"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"api_name","label":"Api name","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"email_to","label":"Email to","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"settings","label":"Settings","component":"Runtime.WordPress.Admin.FormSettings.FieldSettings","default":Runtime.Map.from({"fields":Runtime.Vector.from([Runtime.Map.from({"name":"name","title":"Name","placeholder":"","required":true}),Runtime.Map.from({"name":"phone","title":"Phone","placeholder":""}),Runtime.Map.from({"name":"email","title":"E-mail","placeholder":"","required":true}),Runtime.Map.from({"name":"message","title":"Message","placeholder":"","type":"textarea"})])})})])}));
 		/* Add table */
 		this.table = this.addWidget("Runtime.Widget.Table.TableDialogModel", Runtime.Map.from({"widget_name":"table","styles":Runtime.Vector.from(["border"]),"get_title":(params) =>
 		{
@@ -39265,7 +39411,7 @@ Object.assign(Runtime.WordPress.Admin.FormSettings.FormSettingsPageModel.prototy
 				return "Delete form '" + Runtime.rtl.toStr(item.get("api_name")) + Runtime.rtl.toStr("'");
 			}
 			return "";
-		},"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"admin.wordpress.forms.settings::search"})),"page":this.layout.request_query.get("p", 1) - 1,"pagination_props":Runtime.Map.from({"name":"p"}),"add_form":this.form,"edit_form":this.form,"delete_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"delete_form","primary_key":Runtime.Vector.from(["id"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormDeleteStorage", Runtime.Map.from({"api_name":"admin.wordpress.forms.settings::save"}))})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"api_name","label":"Api name","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"email_to","label":"Email to","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel")})])}));
+		},"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"admin.wordpress.forms.settings.search"})),"page":this.layout.request_query.get("p", 1) - 1,"pagination_props":Runtime.Map.from({"name":"p"}),"add_form":this.form,"edit_form":this.form,"delete_form":new Runtime.Web.ModelFactory("Runtime.WordPress.Admin.FormSettings.FormSaveModel", Runtime.Map.from({"widget_name":"delete_form","primary_key":Runtime.Vector.from(["id"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormDeleteStorage", Runtime.Map.from({"api_name":"admin.wordpress.forms.settings.save"}))})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"api_name","label":"Api name","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"email_to","label":"Email to","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel")})])}));
 		/* Add top buttons */
 		this.top_buttons = this.addWidget("Runtime.Widget.RowButtonsModel", Runtime.Map.from({"widget_name":"top_buttons","styles":Runtime.Vector.from(["top_buttons"]),"buttons":Runtime.Vector.from([new Runtime.Web.ModelFactory("Runtime.Widget.Table.AddButtonModel", Runtime.Map.from({"table":this.table}))])}));
 	},
@@ -39335,6 +39481,456 @@ Object.assign(Runtime.WordPress.Admin.FormSettings.FormSettingsPageModel,
 Runtime.rtl.defClass(Runtime.WordPress.Admin.FormSettings.FormSettingsPageModel);
 window["Runtime.WordPress.Admin.FormSettings.FormSettingsPageModel"] = Runtime.WordPress.Admin.FormSettings.FormSettingsPageModel;
 if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.FormSettings.FormSettingsPageModel;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.Gallery == 'undefined') Runtime.WordPress.Admin.Gallery = {};
+Runtime.WordPress.Admin.Gallery.GalleryPage = {
+	name: "Runtime.WordPress.Admin.Gallery.GalleryPage",
+	extends: Runtime.Web.Component,
+	methods:
+	{
+		render: function()
+		{
+			let __v = [];
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["form_settings_page"])});
+			
+			/* Render */
+			this._t(__v0, this.renderWidget(this.model.top_buttons));
+			
+			/* Render */
+			this._t(__v0, this.renderWidget(this.model.table));
+			
+			return this._flatten(__v);
+		},
+	},
+};
+Object.assign(Runtime.WordPress.Admin.Gallery.GalleryPage,
+{
+	css: function(vars)
+	{
+		var res = "";
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.Gallery";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.Gallery.GalleryPage";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.Component";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.Gallery.GalleryPage);
+window["Runtime.WordPress.Admin.Gallery.GalleryPage"] = Runtime.WordPress.Admin.Gallery.GalleryPage;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.Gallery.GalleryPage;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.Gallery == 'undefined') Runtime.WordPress.Admin.Gallery = {};
+Runtime.WordPress.Admin.Gallery.GalleryPageModel = function()
+{
+	Runtime.Web.BasePageModel.apply(this, arguments);
+};
+Runtime.WordPress.Admin.Gallery.GalleryPageModel.prototype = Object.create(Runtime.Web.BasePageModel.prototype);
+Runtime.WordPress.Admin.Gallery.GalleryPageModel.prototype.constructor = Runtime.WordPress.Admin.Gallery.GalleryPageModel;
+Object.assign(Runtime.WordPress.Admin.Gallery.GalleryPageModel.prototype,
+{
+	/**
+	 * Init widget settings
+	 */
+	initWidget: function(params)
+	{
+		Runtime.Web.BasePageModel.prototype.initWidget.call(this, params);
+		/* Add form */
+		this.form = this.addWidget("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"form","primary_key":Runtime.Vector.from(["id"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSaveStorage", Runtime.Map.from({"api_name":"admin.wordpress.gallery.save"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"api_name","label":"Api name","component":"Runtime.Widget.Input"})])}));
+		/* Add table */
+		this.table = this.addWidget("Runtime.Widget.Table.TableDialogModel", Runtime.Map.from({"widget_name":"table","styles":Runtime.Vector.from(["border"]),"get_title":(params) =>
+		{
+			var action = params.get("action");
+			var item = params.get("item");
+			if (action == "add")
+			{
+				return "Add gallery";
+			}
+			if (action == "edit")
+			{
+				return "Edit gallery '" + Runtime.rtl.toStr(item.get("api_name")) + Runtime.rtl.toStr("'");
+			}
+			if (action == "delete")
+			{
+				return "Delete gallery '" + Runtime.rtl.toStr(item.get("api_name")) + Runtime.rtl.toStr("'");
+			}
+			return "";
+		},"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"admin.wordpress.gallery.search"})),"page":this.layout.request_query.get("p", 1) - 1,"pagination_props":Runtime.Map.from({"name":"p"}),"add_form":this.form,"edit_form":this.form,"delete_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"delete_form","primary_key":Runtime.Vector.from(["id"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormDeleteStorage", Runtime.Map.from({"api_name":"admin.wordpress.gallery.save"}))})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"api_name","label":"Api name","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel", Runtime.Map.from({"buttons":Runtime.Vector.from([Runtime.Map.from({"content":"Open","widget_name":"open_button","dest":"edit_button","kind":"before","styles":Runtime.Vector.from(["default","small"]),"href":(data) =>
+		{
+			var item = data.get("item");
+			return this.layout.url("admin:gallery:item", Runtime.Map.from({"id":item.get("id")}));
+		}})])}))})])}));
+		/* Add top buttons */
+		this.top_buttons = this.addWidget("Runtime.Widget.RowButtonsModel", Runtime.Map.from({"widget_name":"top_buttons","styles":Runtime.Vector.from(["top_buttons"]),"buttons":Runtime.Vector.from([new Runtime.Web.ModelFactory("Runtime.Widget.Table.AddButtonModel", Runtime.Map.from({"table":this.table}))])}));
+	},
+	/**
+	 * Build title
+	 */
+	buildTitle: function(container)
+	{
+		this.layout.setPageTitle("Gallery settings");
+	},
+	_init: function()
+	{
+		Runtime.Web.BasePageModel.prototype._init.call(this);
+		this.component = "Runtime.WordPress.Admin.Gallery.GalleryPage";
+		this.form = null;
+		this.table = null;
+		this.top_buttons = null;
+	},
+});
+Object.assign(Runtime.WordPress.Admin.Gallery.GalleryPageModel, Runtime.Web.BasePageModel);
+Object.assign(Runtime.WordPress.Admin.Gallery.GalleryPageModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.Gallery";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.Gallery.GalleryPageModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.BasePageModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.Gallery.GalleryPageModel);
+window["Runtime.WordPress.Admin.Gallery.GalleryPageModel"] = Runtime.WordPress.Admin.Gallery.GalleryPageModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.Gallery.GalleryPageModel;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.GalleryItem == 'undefined') Runtime.WordPress.Admin.GalleryItem = {};
+Runtime.WordPress.Admin.GalleryItem.GalleryItemPage = {
+	name: "Runtime.WordPress.Admin.GalleryItem.GalleryItemPage",
+	extends: Runtime.Web.Component,
+	methods:
+	{
+		render: function()
+		{
+			let __v = [];
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["form_settings_page"])});
+			
+			/* Render */
+			this._t(__v0, this.renderWidget(this.model.top_buttons));
+			
+			/* Render */
+			this._t(__v0, this.renderWidget(this.model.table));
+			
+			return this._flatten(__v);
+		},
+	},
+};
+Object.assign(Runtime.WordPress.Admin.GalleryItem.GalleryItemPage,
+{
+	css: function(vars)
+	{
+		var res = "";
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.GalleryItem";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.GalleryItem.GalleryItemPage";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.Component";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.GalleryItem.GalleryItemPage);
+window["Runtime.WordPress.Admin.GalleryItem.GalleryItemPage"] = Runtime.WordPress.Admin.GalleryItem.GalleryItemPage;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.GalleryItem.GalleryItemPage;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.GalleryItem == 'undefined') Runtime.WordPress.Admin.GalleryItem = {};
+Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel = function()
+{
+	Runtime.Web.BasePageModel.apply(this, arguments);
+};
+Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel.prototype = Object.create(Runtime.Web.BasePageModel.prototype);
+Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel.prototype.constructor = Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel;
+Object.assign(Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel.prototype,
+{
+	/**
+	 * Init widget settings
+	 */
+	initWidget: function(params)
+	{
+		Runtime.Web.BasePageModel.prototype.initWidget.call(this, params);
+		/* Add form */
+		this.form = this.addWidget("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"form","primary_key":Runtime.Vector.from(["id"]),"foreign_key":Runtime.Map.from({"gallery_id":this.layout.request_query.get("id")}),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSaveStorage", Runtime.Map.from({"api_name":"admin.wordpress.gallery.item.save"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"image","label":"Image","component":"Runtime.WordPress.Admin.Components.Image","props":Runtime.Map.from({"upload":true})}),Runtime.Map.from({"name":"pos","label":"Position","default":"100","component":"Runtime.Widget.Input"})])}));
+		/* Add table */
+		this.table = this.addWidget("Runtime.Widget.Table.TableDialogModel", Runtime.Map.from({"widget_name":"table","styles":Runtime.Vector.from(["border"]),"get_title":(params) =>
+		{
+			var action = params.get("action");
+			var item = params.get("item");
+			if (action == "add")
+			{
+				return "Add item";
+			}
+			if (action == "edit")
+			{
+				return "Edit item";
+			}
+			if (action == "delete")
+			{
+				return "Delete item";
+			}
+			return "";
+		},"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"admin.wordpress.gallery.item.search"})),"foreign_key":Runtime.Map.from({"gallery_id":this.layout.request_query.get("id")}),"page":this.layout.request_query.get("p", 1) - 1,"pagination_props":Runtime.Map.from({"name":"p"}),"add_form":this.form,"edit_form":this.form,"delete_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"delete_form","primary_key":Runtime.Vector.from(["id"]),"foreign_key":Runtime.Map.from({"gallery_id":this.layout.request_query.get("id")}),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormDeleteStorage", Runtime.Map.from({"api_name":"admin.wordpress.gallery.item.save"}))})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"image","label":"Image","component":"Runtime.WordPress.Admin.Components.Image","props":Runtime.Map.from({"center":true})}),Runtime.Map.from({"name":"pos","label":"Position","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel")})])}));
+		/* Add top buttons */
+		this.top_buttons = this.addWidget("Runtime.Widget.RowButtonsModel", Runtime.Map.from({"widget_name":"top_buttons","styles":Runtime.Vector.from(["top_buttons","no_gap"]),"buttons":Runtime.Vector.from([new Runtime.Web.ModelFactory("Runtime.Widget.BackButtonModel", Runtime.Map.from({"href":this.layout.url("admin:gallery:index")})),new Runtime.Web.ModelFactory("Runtime.Widget.Table.AddButtonModel", Runtime.Map.from({"table":this.table}))])}));
+	},
+	/**
+	 * Build title
+	 */
+	buildTitle: function(container)
+	{
+		this.layout.setPageTitle("Gallery items");
+	},
+	_init: function()
+	{
+		Runtime.Web.BasePageModel.prototype._init.call(this);
+		this.component = "Runtime.WordPress.Admin.GalleryItem.GalleryItemPage";
+		this.form = null;
+		this.table = null;
+		this.top_buttons = null;
+	},
+});
+Object.assign(Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel, Runtime.Web.BasePageModel);
+Object.assign(Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.GalleryItem";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.BasePageModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel);
+window["Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel"] = Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel;
 "use strict;"
 /*
  *  BayLang Technology
@@ -39480,7 +40076,13 @@ Object.assign(Runtime.WordPress.Admin.MailLog.MailLogPageModel.prototype,
 			};
 		};
 		/* Add form */
-		this.form = this.addWidget("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"form","primary_key":Runtime.Vector.from(["id"]),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"gmtime_send","label":"Send time","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"status","label":"Status","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"send_email_error","label":"Error","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"dest","label":"Dest","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"title","label":"Title","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"message","label":"Message","component":"Runtime.Widget.TextArea","props":Runtime.Map.from({"readonly":true})}),Runtime.Map.from({"name":"worker","label":"Worker","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"plan","label":"Plan","component":"Runtime.Widget.Label"})])}));
+		this.form = this.addWidget("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"form","primary_key":Runtime.Vector.from(["id"]),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"gmtime_send","label":"Send time","calculate":Runtime.lib.pipe().add(Runtime.lib.attr(Runtime.Vector.from(["item","gmtime_send"]))).add(Runtime.lib.normalizeDateTime()),"component":"Runtime.Widget.Label","show":(data) =>
+		{
+			return Runtime.rtl.attr(data, ["item", "gmtime_send"]) != null;
+		}}),Runtime.Map.from({"name":"status","label":"Status","component":"Runtime.Widget.SelectLabel","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":-1,"value":"Error"}),Runtime.Map.from({"key":0,"value":"Planned"}),Runtime.Map.from({"key":1,"value":"Delivered"}),Runtime.Map.from({"key":2,"value":"Process"})])})}),Runtime.Map.from({"name":"send_email_error","label":"Error","component":"Runtime.Widget.Label","show":(data) =>
+		{
+			return Runtime.rtl.attr(data, ["item", "send_email_error"]) != "";
+		}}),Runtime.Map.from({"name":"dest","label":"Dest","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"title","label":"Title","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"message","label":"Message","component":"Runtime.Widget.TextArea","props":Runtime.Map.from({"readonly":true})})])}));
 		/* Add table */
 		this.table = this.addWidget("Runtime.Widget.Table.TableDialogModel", Runtime.Map.from({"widget_name":"table","styles":Runtime.Vector.from(["border"]),"get_title":(params) =>
 		{
@@ -39491,7 +40093,7 @@ Object.assign(Runtime.WordPress.Admin.MailLog.MailLogPageModel.prototype,
 				return item.get("title");
 			}
 			return "";
-		},"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"admin.wordpress.mail.log::search"})),"page":this.layout.request_query.get("p", 1) - 1,"pagination_props":Runtime.Map.from({"name":"p"}),"add_form":this.form,"edit_form":this.form,"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"worker","label":"Worker","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"plan","label":"Plan","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"status","label":"Status","component":"Runtime.Widget.SelectLabel","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":-1,"value":"Cancel"})])})}),Runtime.Map.from({"name":"dest","label":"Dest","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"title","label":"Title","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"send_email_error","label":"Error","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"gmtime_send","label":"Send time","calculate":Runtime.lib.pipe().add(Runtime.lib.attr(Runtime.Vector.from(["item","gmtime_send"]))).add(Runtime.lib.normalizeDateTime()),"component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel", Runtime.Map.from({"delete":false}))})])}));
+		},"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"admin.wordpress.mail.log.search"})),"page":this.layout.request_query.get("p", 1) - 1,"pagination_props":Runtime.Map.from({"name":"p"}),"add_form":this.form,"edit_form":this.form,"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"worker","label":"Worker","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"plan","label":"Plan","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"status","label":"Status","component":"Runtime.Widget.SelectLabel","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":-1,"value":"Error"}),Runtime.Map.from({"key":0,"value":"Planned"}),Runtime.Map.from({"key":1,"value":"Delivered"}),Runtime.Map.from({"key":2,"value":"Process"})])})}),Runtime.Map.from({"name":"dest","label":"Dest","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"title","label":"Title","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"send_email_error","label":"Error","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"gmtime_send","label":"Send time","calculate":Runtime.lib.pipe().add(Runtime.lib.attr(Runtime.Vector.from(["item","gmtime_send"]))).add(Runtime.lib.normalizeDateTime()),"component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel", Runtime.Map.from({"delete":false}))})])}));
 		/* Remove save button */
 		var save_dialog = this.table.getWidget("save_dialog");
 		save_dialog.buttons.removeItemByName("confirm_button");
@@ -39703,7 +40305,7 @@ Object.assign(Runtime.WordPress.Admin.MailSettings.MailSettingsPageModel.prototy
 	{
 		Runtime.Web.BasePageModel.prototype.initWidget.call(this, params);
 		/* Add form */
-		this.form = this.addWidget("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"form","primary_key":Runtime.Vector.from(["id"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSaveStorage", Runtime.Map.from({"api_name":"admin.wordpress.mail.settings::save"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"enable","label":"Enable","component":"Runtime.Widget.Select","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"0","value":"No"}),Runtime.Map.from({"key":"1","value":"Yes"})])})}),Runtime.Map.from({"name":"plan","label":"Plan","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"host","label":"Host","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"port","label":"Port","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"login","label":"Login","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"password","label":"Password","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"ssl_enable","label":"SSL","component":"Runtime.Widget.Select","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"0","value":"No"}),Runtime.Map.from({"key":"1","value":"Yes"})])})})])}));
+		this.form = this.addWidget("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"form","primary_key":Runtime.Vector.from(["id"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSaveStorage", Runtime.Map.from({"api_name":"admin.wordpress.mail.settings.save"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"enable","label":"Enable","component":"Runtime.Widget.Select","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"0","value":"No"}),Runtime.Map.from({"key":"1","value":"Yes"})])})}),Runtime.Map.from({"name":"plan","label":"Plan","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"host","label":"Host","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"port","label":"Port","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"login","label":"Login","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"password","label":"Password","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"ssl_enable","label":"SSL","component":"Runtime.Widget.Select","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"0","value":"No"}),Runtime.Map.from({"key":"1","value":"Yes"}),Runtime.Map.from({"key":"2","value":"Yes (Disable verify)"})])})})])}));
 		/* Add table */
 		this.table = this.addWidget("Runtime.Widget.Table.TableDialogModel", Runtime.Map.from({"widget_name":"table","styles":Runtime.Vector.from(["border"]),"get_title":(params) =>
 		{
@@ -39722,7 +40324,7 @@ Object.assign(Runtime.WordPress.Admin.MailSettings.MailSettingsPageModel.prototy
 				return "Delete mail '" + Runtime.rtl.toStr(item.get("plan")) + Runtime.rtl.toStr("'");
 			}
 			return "";
-		},"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"admin.wordpress.mail.settings::search"})),"page":this.layout.request_query.get("p", 1) - 1,"pagination_props":Runtime.Map.from({"name":"p"}),"add_form":this.form,"edit_form":this.form,"delete_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"delete_form","primary_key":Runtime.Vector.from(["id"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormDeleteStorage", Runtime.Map.from({"api_name":"admin.wordpress.mail.settings::save"}))})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"enable","label":"Enable","component":"Runtime.Widget.SelectLabel","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"0","value":"No"}),Runtime.Map.from({"key":"1","value":"Yes"})])})}),Runtime.Map.from({"name":"plan","label":"Plan","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"host","label":"Host","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"port","label":"Port","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"login","label":"Login","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"ssl_enable","label":"SSL","component":"Runtime.Widget.SelectLabel","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"0","value":"No"}),Runtime.Map.from({"key":"1","value":"Yes"})])})}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel")})])}));
+		},"storage":new Runtime.Entity.Factory("Runtime.Widget.Table.TableStorage", Runtime.Map.from({"api_name":"admin.wordpress.mail.settings.search"})),"page":this.layout.request_query.get("p", 1) - 1,"pagination_props":Runtime.Map.from({"name":"p"}),"add_form":this.form,"edit_form":this.form,"delete_form":new Runtime.Web.ModelFactory("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"delete_form","primary_key":Runtime.Vector.from(["id"]),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormDeleteStorage", Runtime.Map.from({"api_name":"admin.wordpress.mail.settings.save"}))})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"row_number"}),Runtime.Map.from({"name":"enable","label":"Enable","component":"Runtime.Widget.SelectLabel","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"0","value":"No"}),Runtime.Map.from({"key":"1","value":"Yes"})])})}),Runtime.Map.from({"name":"plan","label":"Plan","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"host","label":"Host","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"port","label":"Port","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"login","label":"Login","component":"Runtime.Widget.Label"}),Runtime.Map.from({"name":"ssl_enable","label":"SSL","component":"Runtime.Widget.SelectLabel","props":Runtime.Map.from({"options":Runtime.Vector.from([Runtime.Map.from({"key":"0","value":"No"}),Runtime.Map.from({"key":"1","value":"Yes"}),Runtime.Map.from({"key":"2","value":"Yes (Disable verify)"})])})}),Runtime.Map.from({"name":"row_buttons","model":new Runtime.Web.ModelFactory("Runtime.Widget.Table.TableRowButtonsModel")})])}));
 		/* Add top buttons */
 		this.top_buttons = this.addWidget("Runtime.Widget.RowButtonsModel", Runtime.Map.from({"widget_name":"top_buttons","styles":Runtime.Vector.from(["top_buttons"]),"buttons":Runtime.Vector.from([new Runtime.Web.ModelFactory("Runtime.Widget.Table.AddButtonModel", Runtime.Map.from({"table":this.table}))])}));
 	},
@@ -39923,7 +40525,7 @@ Object.assign(Runtime.WordPress.Admin.Robots.RobotsPageModel.prototype,
 	{
 		Runtime.Web.BasePageModel.prototype.initWidget.call(this, params);
 		/* Add form */
-		this.form = this.addWidget("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"form","storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSaveStorage", Runtime.Map.from({"api_name":"admin.wordpress.robots::save"})),"pk":Runtime.Vector.from([]),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"content","component":"Runtime.Widget.TextArea"})])}));
+		this.form = this.addWidget("Runtime.Widget.Form.FormModel", Runtime.Map.from({"widget_name":"form","storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSaveStorage", Runtime.Map.from({"api_name":"admin.wordpress.robots.save"})),"pk":Runtime.Vector.from([]),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"content","component":"Runtime.Widget.TextArea"})])}));
 		/* Add save button */
 		this.form.bottom_buttons.addButton(Runtime.Map.from({"widget_name":"save_button","content":"Save","styles":Runtime.Vector.from(["large","primary"]),"events":Runtime.Map.from({"click":new Runtime.Callback(this, "onSave")})}));
 	},
@@ -39998,6 +40600,914 @@ Object.assign(Runtime.WordPress.Admin.Robots.RobotsPageModel,
 Runtime.rtl.defClass(Runtime.WordPress.Admin.Robots.RobotsPageModel);
 window["Runtime.WordPress.Admin.Robots.RobotsPageModel"] = Runtime.WordPress.Admin.Robots.RobotsPageModel;
 if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.Robots.RobotsPageModel;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.Settings == 'undefined') Runtime.WordPress.Admin.Settings = {};
+Runtime.WordPress.Admin.Settings.MigrationPage = {
+	name: "Runtime.WordPress.Admin.Settings.MigrationPage",
+	extends: Runtime.Web.Component,
+	methods:
+	{
+		render: function()
+		{
+			let __v = [];
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["database_migration_page"])});
+			
+			/* Render */
+			this._t(__v0, this.renderWidget(this.model.tabs));
+			
+			if (this.model.items.count() > 0)
+			{
+				/* Component 'TextEditable' */
+				let __v1 = this._c(__v0, "Runtime.Widget.TextEditable", {"value":Runtime.rs.join("\n", this.model.items)});
+				
+				/* Component 'RowButtons' */
+				let __v2 = this._c(__v0, "Runtime.Widget.RowButtons", {"styles":Runtime.Vector.from(["center","bottom_buttons"])}, () => {
+					let __v = [];
+					
+					/* Component 'Button' */
+					let __v0 = this._c(__v, "Runtime.Widget.Button", {"styles":Runtime.Vector.from(["primary"]),"onClick":() =>
+					{
+						this.model.updateDatabase();
+					}}, () => {
+						let __v = [];
+						
+						/* Text */
+						this._t(__v, "Update");
+						
+						return this._flatten(__v);
+					});
+					
+					return this._flatten(__v);
+				});
+				
+				/* Component 'WidgetResult' */
+				let __v3 = this._c(__v0, "Runtime.Widget.WidgetResult", {"model":this._model(this.model.result)});
+			}
+			else
+			{
+				/* Element 'div' */
+				let __v4 = this._e(__v0, "div", {});
+				
+				/* Text */
+				this._t(__v4, "Database is up to date");
+			}
+			
+			return this._flatten(__v);
+		},
+	},
+};
+Object.assign(Runtime.WordPress.Admin.Settings.MigrationPage,
+{
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.Button","Runtime.Widget.RowButtons","Runtime.Widget.TextEditable","Runtime.Widget.WidgetResult"]);
+	},
+	css: function(vars)
+	{
+		var res = "";
+		res += Runtime.rtl.toStr(".database_migration_page.h-3a65 .widget_text.h-86cd{height: 500px}");
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.Settings";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.Settings.MigrationPage";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.Component";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.Settings.MigrationPage);
+window["Runtime.WordPress.Admin.Settings.MigrationPage"] = Runtime.WordPress.Admin.Settings.MigrationPage;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.Settings.MigrationPage;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.Settings == 'undefined') Runtime.WordPress.Admin.Settings = {};
+Runtime.WordPress.Admin.Settings.MigrationPageModel = function()
+{
+	Runtime.Web.BasePageModel.apply(this, arguments);
+};
+Runtime.WordPress.Admin.Settings.MigrationPageModel.prototype = Object.create(Runtime.Web.BasePageModel.prototype);
+Runtime.WordPress.Admin.Settings.MigrationPageModel.prototype.constructor = Runtime.WordPress.Admin.Settings.MigrationPageModel;
+Object.assign(Runtime.WordPress.Admin.Settings.MigrationPageModel.prototype,
+{
+	/**
+	 * Init widget settings
+	 */
+	initWidget: function(params)
+	{
+		Runtime.Web.BasePageModel.prototype.initWidget.call(this, params);
+		/* Add tabs */
+		this.tabs = this.addWidget("Runtime.WordPress.Admin.Settings.TabsModel", Runtime.Map.from({"active":"database-migrations"}));
+		/* Add result */
+		this.result = this.addWidget("Runtime.Widget.WidgetResultModel", Runtime.Map.from({"styles":Runtime.Vector.from(["margin_top"])}));
+	},
+	/**
+	 * Process frontend data
+	 */
+	serialize: function(serializer, data)
+	{
+		serializer.process(this, "items", data);
+		Runtime.Web.BasePageModel.prototype.serialize.call(this, serializer, data);
+	},
+	/**
+	 * Update database
+	 */
+	updateDatabase: async function()
+	{
+		this.result.setWaitMessage();
+		var result = await this.layout.callApi(Runtime.Map.from({"api_name":"admin.wordpress.migration","method_name":"actionUpdate"}));
+		this.result.setApiResult(result);
+	},
+	/**
+	 * Load table data
+	 */
+	loadData: async function(container)
+	{
+		await Runtime.Web.BasePageModel.prototype.loadData.call(this, container);
+		var result = this.layout.callApi(Runtime.Map.from({"api_name":"admin.wordpress.migration","method_name":"actionItem"}));
+		if (result.isSuccess())
+		{
+			this.items = result.data.get("items");
+		}
+	},
+	/**
+	 * Build title
+	 */
+	buildTitle: function(container)
+	{
+		this.layout.setPageTitle("Migrations");
+	},
+	_init: function()
+	{
+		Runtime.Web.BasePageModel.prototype._init.call(this);
+		this.component = "Runtime.WordPress.Admin.Settings.MigrationPage";
+		this.tabs = null;
+		this.items = Runtime.Vector.from([]);
+		this.result = null;
+	},
+});
+Object.assign(Runtime.WordPress.Admin.Settings.MigrationPageModel, Runtime.Web.BasePageModel);
+Object.assign(Runtime.WordPress.Admin.Settings.MigrationPageModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.Settings";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.Settings.MigrationPageModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.BasePageModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.Settings.MigrationPageModel);
+window["Runtime.WordPress.Admin.Settings.MigrationPageModel"] = Runtime.WordPress.Admin.Settings.MigrationPageModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.Settings.MigrationPageModel;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.Settings == 'undefined') Runtime.WordPress.Admin.Settings = {};
+Runtime.WordPress.Admin.Settings.ProjectCreate = {
+	name: "Runtime.WordPress.Admin.Settings.ProjectCreate",
+	extends: Runtime.Web.Component,
+	methods:
+	{
+		render: function()
+		{
+			let __v = [];
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["settings"])});
+			
+			/* Render */
+			this._t(__v0, this.renderWidget(this.model.tabs));
+			
+			/* Render */
+			this._t(__v0, this.renderWidget(this.model.form));
+			
+			return this._flatten(__v);
+		},
+	},
+};
+Object.assign(Runtime.WordPress.Admin.Settings.ProjectCreate,
+{
+	css: function(vars)
+	{
+		var res = "";
+		res += Runtime.rtl.toStr("");
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.Settings";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.Settings.ProjectCreate";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.Component";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.Settings.ProjectCreate);
+window["Runtime.WordPress.Admin.Settings.ProjectCreate"] = Runtime.WordPress.Admin.Settings.ProjectCreate;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.Settings.ProjectCreate;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.Settings == 'undefined') Runtime.WordPress.Admin.Settings = {};
+Runtime.WordPress.Admin.Settings.ProjectCreateModel = function()
+{
+	Runtime.Web.BasePageModel.apply(this, arguments);
+};
+Runtime.WordPress.Admin.Settings.ProjectCreateModel.prototype = Object.create(Runtime.Web.BasePageModel.prototype);
+Runtime.WordPress.Admin.Settings.ProjectCreateModel.prototype.constructor = Runtime.WordPress.Admin.Settings.ProjectCreateModel;
+Object.assign(Runtime.WordPress.Admin.Settings.ProjectCreateModel.prototype,
+{
+	/**
+	 * Init widget settings
+	 */
+	initWidget: function(params)
+	{
+		Runtime.Web.BasePageModel.prototype.initWidget.call(this, params);
+		/* Add tabs */
+		this.tabs = this.addWidget("Runtime.WordPress.Admin.Settings.TabsModel", Runtime.Map.from({"active":"create-project"}));
+		/* Save form */
+		this.form = this.addWidget("Runtime.Widget.Form.FormSubmitModel", Runtime.Map.from({"widget_name":"form","primary_key":Runtime.Vector.from(["id"]),"submit_button":Runtime.Map.from({"text":"Save","styles":Runtime.Vector.from(["success","large"])}),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSubmitStorage", Runtime.Map.from({"api_name":"admin.wordpress.project","method_name":"actionCreate"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"id","label":"Api name","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Input"})])}));
+	},
+	/**
+	 * Build title
+	 */
+	buildTitle: function(container)
+	{
+		this.layout.setPageTitle("Create project");
+	},
+	_init: function()
+	{
+		Runtime.Web.BasePageModel.prototype._init.call(this);
+		this.component = "Runtime.WordPress.Admin.Settings.ProjectCreate";
+		this.tabs = null;
+		this.form = null;
+	},
+});
+Object.assign(Runtime.WordPress.Admin.Settings.ProjectCreateModel, Runtime.Web.BasePageModel);
+Object.assign(Runtime.WordPress.Admin.Settings.ProjectCreateModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.Settings";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.Settings.ProjectCreateModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.BasePageModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.Settings.ProjectCreateModel);
+window["Runtime.WordPress.Admin.Settings.ProjectCreateModel"] = Runtime.WordPress.Admin.Settings.ProjectCreateModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.Settings.ProjectCreateModel;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.Settings == 'undefined') Runtime.WordPress.Admin.Settings = {};
+Runtime.WordPress.Admin.Settings.ProjectSave = {
+	name: "Runtime.WordPress.Admin.Settings.ProjectSave",
+	extends: Runtime.Web.Component,
+	methods:
+	{
+		render: function()
+		{
+			let __v = [];
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["settings"])});
+			
+			/* Render */
+			this._t(__v0, this.renderWidget(this.model.tabs));
+			
+			/* Render */
+			this._t(__v0, this.renderWidget(this.model.edit_form));
+			
+			return this._flatten(__v);
+		},
+	},
+};
+Object.assign(Runtime.WordPress.Admin.Settings.ProjectSave,
+{
+	css: function(vars)
+	{
+		var res = "";
+		res += Runtime.rtl.toStr("");
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.Settings";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.Settings.ProjectSave";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.Component";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.Settings.ProjectSave);
+window["Runtime.WordPress.Admin.Settings.ProjectSave"] = Runtime.WordPress.Admin.Settings.ProjectSave;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.Settings.ProjectSave;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.Settings == 'undefined') Runtime.WordPress.Admin.Settings = {};
+Runtime.WordPress.Admin.Settings.ProjectSaveModel = function()
+{
+	Runtime.Web.BasePageModel.apply(this, arguments);
+};
+Runtime.WordPress.Admin.Settings.ProjectSaveModel.prototype = Object.create(Runtime.Web.BasePageModel.prototype);
+Runtime.WordPress.Admin.Settings.ProjectSaveModel.prototype.constructor = Runtime.WordPress.Admin.Settings.ProjectSaveModel;
+Object.assign(Runtime.WordPress.Admin.Settings.ProjectSaveModel.prototype,
+{
+	/**
+	 * Init widget settings
+	 */
+	initWidget: function(params)
+	{
+		Runtime.Web.BasePageModel.prototype.initWidget.call(this, params);
+		/* Project id */
+		this.project_id = this.layout.route.matches.get("project_id");
+		/* Add tabs */
+		this.tabs = this.addWidget("Runtime.WordPress.Admin.Settings.TabsModel", Runtime.Map.from({"active":"settings"}));
+		/* Edit form */
+		this.edit_form = this.addWidget("Runtime.Widget.Form.FormSubmitModel", Runtime.Map.from({"widget_name":"edit_form","primary_key":Runtime.Vector.from(["id"]),"pk":Runtime.Map.from({"id":this.project_id}),"submit_button":Runtime.Map.from({"text":"Save","styles":Runtime.Vector.from(["success","large"])}),"storage":new Runtime.Entity.Factory("Runtime.Widget.Form.FormSaveStorage", Runtime.Map.from({"api_name":"admin.wordpress.project"})),"fields":Runtime.Vector.from([Runtime.Map.from({"name":"name","label":"Name","component":"Runtime.Widget.Input"}),Runtime.Map.from({"name":"description","label":"Description","component":"Runtime.Widget.TextArea","props":Runtime.Map.from({"height":"150px"})}),Runtime.Map.from({"name":"reload_cache","label":"Reload cache","component":"Runtime.WordPress.Admin.Settings.ReloadCache"})])}));
+	},
+	/**
+	 * Build title
+	 */
+	buildTitle: function(container)
+	{
+		this.layout.setPageTitle("Save project");
+	},
+	_init: function()
+	{
+		Runtime.Web.BasePageModel.prototype._init.call(this);
+		this.component = "Runtime.WordPress.Admin.Settings.ProjectSave";
+		this.project_id = "";
+		this.tabs = null;
+		this.edit_form = null;
+	},
+});
+Object.assign(Runtime.WordPress.Admin.Settings.ProjectSaveModel, Runtime.Web.BasePageModel);
+Object.assign(Runtime.WordPress.Admin.Settings.ProjectSaveModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.Settings";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.Settings.ProjectSaveModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.BasePageModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.Settings.ProjectSaveModel);
+window["Runtime.WordPress.Admin.Settings.ProjectSaveModel"] = Runtime.WordPress.Admin.Settings.ProjectSaveModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.Settings.ProjectSaveModel;
+"use strict;"
+/*
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+*/
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.Settings == 'undefined') Runtime.WordPress.Admin.Settings = {};
+Runtime.WordPress.Admin.Settings.ReloadCache = {
+	name: "Runtime.WordPress.Admin.Settings.ReloadCache",
+	extends: Runtime.Web.Component,
+	data: function ()
+	{
+		return {
+			result: new Runtime.Widget.WidgetResultModel(),
+		};
+	},
+	methods:
+	{
+		render: function()
+		{
+			let __v = [];
+			
+			/* Element 'div' */
+			let __v0 = this._e(__v, "div", {"class":this._class_name(["reload_cache"])});
+			
+			/* Component 'Button' */
+			let __v1 = this._c(__v0, "Runtime.Widget.Button", {"onClick":this.onRefresh}, () => {
+				let __v = [];
+				
+				/* Text */
+				this._t(__v, "Reload");
+				
+				return this._flatten(__v);
+			});
+			
+			/* Component 'WidgetResult' */
+			let __v2 = this._c(__v0, "Runtime.Widget.WidgetResult", {"model":this._model(this.result)});
+			
+			return this._flatten(__v);
+		},
+		/**
+ * Refresh item
+ */
+		onRefresh: async function()
+		{
+			this.result.clear();
+			this.result.setWaitMessage();
+			/* Get primary key */
+			var form = this.data.get("form");
+			var pk = form.getPrimaryKey(form.item);
+			/* Reload cache */
+			var res = await this.layout.callApi(Runtime.Map.from({"api_name":"admin.wordpress.project","method_name":"reloadCache","data":Runtime.Map.from({"pk":pk})}));
+			this.result.setApiResult(res);
+		},
+	},
+};
+Object.assign(Runtime.WordPress.Admin.Settings.ReloadCache,
+{
+	components: function()
+	{
+		return Runtime.Vector.from(["Runtime.Widget.Button"]);
+	},
+	css: function(vars)
+	{
+		var res = "";
+		res += Runtime.rtl.toStr(".reload_cache.h-dc8d{display: flex;align-items: center;gap: 5px}.reload_cache.h-dc8d .widget_result.h-e870{margin-top: 0}");
+		return res;
+	},
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.Settings";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.Settings.ReloadCache";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Web.Component";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.Settings.ReloadCache);
+window["Runtime.WordPress.Admin.Settings.ReloadCache"] = Runtime.WordPress.Admin.Settings.ReloadCache;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.Settings.ReloadCache;
+"use strict;"
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+if (typeof Runtime == 'undefined') Runtime = {};
+if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
+if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
+if (typeof Runtime.WordPress.Admin.Settings == 'undefined') Runtime.WordPress.Admin.Settings = {};
+Runtime.WordPress.Admin.Settings.TabsModel = function()
+{
+	Runtime.Widget.Tab.TabsModel.apply(this, arguments);
+};
+Runtime.WordPress.Admin.Settings.TabsModel.prototype = Object.create(Runtime.Widget.Tab.TabsModel.prototype);
+Runtime.WordPress.Admin.Settings.TabsModel.prototype.constructor = Runtime.WordPress.Admin.Settings.TabsModel;
+Object.assign(Runtime.WordPress.Admin.Settings.TabsModel.prototype,
+{
+	/**
+	 * Init widget settings
+	 */
+	initWidget: function(params)
+	{
+		Runtime.Widget.Tab.TabsModel.prototype.initWidget.call(this, params);
+		/* Setup items */
+		this.items = Runtime.Vector.from([Runtime.Map.from({"key":"settings","label":"Save project","href":this.layout.url("admin:project:save")}),Runtime.Map.from({"key":"create-project","label":"Create project","href":this.layout.url("admin:project:create")}),Runtime.Map.from({"key":"database-migrations","label":"Database migrations","href":this.layout.url("admin:database:migrations")})]);
+	},
+	_init: function()
+	{
+		Runtime.Widget.Tab.TabsModel.prototype._init.call(this);
+		this.widget_name = "tabs";
+		this.items = Runtime.Vector.from([]);
+	},
+});
+Object.assign(Runtime.WordPress.Admin.Settings.TabsModel, Runtime.Widget.Tab.TabsModel);
+Object.assign(Runtime.WordPress.Admin.Settings.TabsModel,
+{
+	/* ======================= Class Init Functions ======================= */
+	getNamespace: function()
+	{
+		return "Runtime.WordPress.Admin.Settings";
+	},
+	getClassName: function()
+	{
+		return "Runtime.WordPress.Admin.Settings.TabsModel";
+	},
+	getParentClassName: function()
+	{
+		return "Runtime.Widget.Tab.TabsModel";
+	},
+	getClassInfo: function()
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return Map.from({
+			"annotations": Vector.from([
+			]),
+		});
+	},
+	getFieldsList: function()
+	{
+		var a = [];
+		return Runtime.Vector.from(a);
+	},
+	getFieldInfoByName: function(field_name)
+	{
+		var Vector = Runtime.Vector;
+		var Map = Runtime.Map;
+		return null;
+	},
+	getMethodsList: function()
+	{
+		var a=[
+		];
+		return Runtime.Vector.from(a);
+	},
+	getMethodInfoByName: function(field_name)
+	{
+		return null;
+	},
+});
+Runtime.rtl.defClass(Runtime.WordPress.Admin.Settings.TabsModel);
+window["Runtime.WordPress.Admin.Settings.TabsModel"] = Runtime.WordPress.Admin.Settings.TabsModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.Settings.TabsModel;
 "use strict;"
 /*!
  *  BayLang Technology
@@ -40140,7 +41650,7 @@ Object.assign(Runtime.WordPress.Admin.CSS,
 	css: function(vars)
 	{
 		var res = "";
-		res += Runtime.rtl.toStr(":root{--widget-font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen-Sans, Ubuntu, Cantarell, \"Helvetica Neue\", sans-serif}#core_ui_root{margin-top: 20px}.widget_table.h-6434 .widget_table__top_buttons.h-a598{margin-bottom: calc(var(--widget-space) * 2)}.widget_table.h-6434 .widget_table__table{border: 1px solid #ccc;border-radius: 4px}.widget_table.h-6434 .widget_table__th{text-align: left}.widget_table.h-6434 .widget_table__th,.widget_table.h-6434 .widget_table__td{border-bottom: 1px solid #ccc;padding: 10px}.widget_table.h-6434 .widget_table__tr:nth-child(odd){background-color: white}.widget_table.h-6434 .widget_table__tr:nth-child(even){background-color: #f0f0f0}.widget_select.h-d72d{max-width: 100%}");
+		res += Runtime.rtl.toStr(":root{--widget-font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen-Sans, Ubuntu, Cantarell, \"Helvetica Neue\", sans-serif}#core_ui_root{margin-top: 20px}.top_buttons.h-a598{margin-bottom: 10px}.widget_table.h-6434 .widget_table__top_buttons.h-a598{margin-bottom: calc(var(--widget-space) * 2)}.widget_table.h-6434 .widget_table__table{border: 1px solid #ccc;border-radius: 4px}.widget_table.h-6434 .widget_table__th{text-align: left}.widget_table.h-6434 .widget_table__th,.widget_table.h-6434 .widget_table__td{border-bottom: 1px solid #ccc;padding: 10px}.widget_table.h-6434 .widget_table__tr:nth-child(odd){background-color: white}.widget_table.h-6434 .widget_table__tr:nth-child(even){background-color: #f0f0f0}.widget_select.h-d72d{max-width: 100%}");
 		return res;
 	},
 	getNamespace: function()
@@ -40210,8 +41720,8 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
 if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
-Runtime.WordPress.Admin.DefaultLayout = {
-	name: "Runtime.WordPress.Admin.DefaultLayout",
+Runtime.WordPress.Admin.AdminLayout = {
+	name: "Runtime.WordPress.Admin.AdminLayout",
 	extends: Runtime.Web.DefaultLayout,
 	methods:
 	{
@@ -40227,6 +41737,18 @@ Runtime.WordPress.Admin.DefaultLayout = {
 			
 			/* Render */
 			this._t(__v0, this.layout.title);
+			
+			return this._flatten(__v);
+		},
+		renderApp: function()
+		{
+			let __v = [];
+			
+			/* Render */
+			this._t(__v, this.renderCSS());
+			
+			/* Render */
+			this._t(__v, Runtime.Web.DefaultLayout.methods.renderApp.call(this));
 			
 			return this._flatten(__v);
 		},
@@ -40253,7 +41775,7 @@ Runtime.WordPress.Admin.DefaultLayout = {
 		},
 	},
 };
-Object.assign(Runtime.WordPress.Admin.DefaultLayout,
+Object.assign(Runtime.WordPress.Admin.AdminLayout,
 {
 	components: function()
 	{
@@ -40262,7 +41784,7 @@ Object.assign(Runtime.WordPress.Admin.DefaultLayout,
 	css: function(vars)
 	{
 		var res = "";
-		res += Runtime.rtl.toStr(".wp-heading-inline.h-f4f4{padding: 0;margin-bottom: 14px}");
+		res += Runtime.rtl.toStr(".wp-heading-inline.h-3f87{padding: 0;margin-bottom: 14px}");
 		return res;
 	},
 	getNamespace: function()
@@ -40271,7 +41793,7 @@ Object.assign(Runtime.WordPress.Admin.DefaultLayout,
 	},
 	getClassName: function()
 	{
-		return "Runtime.WordPress.Admin.DefaultLayout";
+		return "Runtime.WordPress.Admin.AdminLayout";
 	},
 	getParentClassName: function()
 	{
@@ -40308,9 +41830,9 @@ Object.assign(Runtime.WordPress.Admin.DefaultLayout,
 		return null;
 	},
 });
-Runtime.rtl.defClass(Runtime.WordPress.Admin.DefaultLayout);
-window["Runtime.WordPress.Admin.DefaultLayout"] = Runtime.WordPress.Admin.DefaultLayout;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.DefaultLayout;
+Runtime.rtl.defClass(Runtime.WordPress.Admin.AdminLayout);
+window["Runtime.WordPress.Admin.AdminLayout"] = Runtime.WordPress.Admin.AdminLayout;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.AdminLayout;
 "use strict;"
 /*!
  *  BayLang Technology
@@ -40332,22 +41854,22 @@ if (typeof module != "undefined" && typeof module.exports != "undefined") module
 if (typeof Runtime == 'undefined') Runtime = {};
 if (typeof Runtime.WordPress == 'undefined') Runtime.WordPress = {};
 if (typeof Runtime.WordPress.Admin == 'undefined') Runtime.WordPress.Admin = {};
-Runtime.WordPress.Admin.DefaultLayoutModel = function()
+Runtime.WordPress.Admin.AdminLayoutModel = function()
 {
 	Runtime.Web.BaseLayoutModel.apply(this, arguments);
 };
-Runtime.WordPress.Admin.DefaultLayoutModel.prototype = Object.create(Runtime.Web.BaseLayoutModel.prototype);
-Runtime.WordPress.Admin.DefaultLayoutModel.prototype.constructor = Runtime.WordPress.Admin.DefaultLayoutModel;
-Object.assign(Runtime.WordPress.Admin.DefaultLayoutModel.prototype,
+Runtime.WordPress.Admin.AdminLayoutModel.prototype = Object.create(Runtime.Web.BaseLayoutModel.prototype);
+Runtime.WordPress.Admin.AdminLayoutModel.prototype.constructor = Runtime.WordPress.Admin.AdminLayoutModel;
+Object.assign(Runtime.WordPress.Admin.AdminLayoutModel.prototype,
 {
 	_init: function()
 	{
 		Runtime.Web.BaseLayoutModel.prototype._init.call(this);
-		this.component = "Runtime.WordPress.Admin.DefaultLayout";
+		this.component = "Runtime.WordPress.Admin.AdminLayout";
 	},
 });
-Object.assign(Runtime.WordPress.Admin.DefaultLayoutModel, Runtime.Web.BaseLayoutModel);
-Object.assign(Runtime.WordPress.Admin.DefaultLayoutModel,
+Object.assign(Runtime.WordPress.Admin.AdminLayoutModel, Runtime.Web.BaseLayoutModel);
+Object.assign(Runtime.WordPress.Admin.AdminLayoutModel,
 {
 	/* ======================= Class Init Functions ======================= */
 	getNamespace: function()
@@ -40356,7 +41878,7 @@ Object.assign(Runtime.WordPress.Admin.DefaultLayoutModel,
 	},
 	getClassName: function()
 	{
-		return "Runtime.WordPress.Admin.DefaultLayoutModel";
+		return "Runtime.WordPress.Admin.AdminLayoutModel";
 	},
 	getParentClassName: function()
 	{
@@ -40393,9 +41915,9 @@ Object.assign(Runtime.WordPress.Admin.DefaultLayoutModel,
 		return null;
 	},
 });
-Runtime.rtl.defClass(Runtime.WordPress.Admin.DefaultLayoutModel);
-window["Runtime.WordPress.Admin.DefaultLayoutModel"] = Runtime.WordPress.Admin.DefaultLayoutModel;
-if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.DefaultLayoutModel;
+Runtime.rtl.defClass(Runtime.WordPress.Admin.AdminLayoutModel);
+window["Runtime.WordPress.Admin.AdminLayoutModel"] = Runtime.WordPress.Admin.AdminLayoutModel;
+if (typeof module != "undefined" && typeof module.exports != "undefined") module.exports = Runtime.WordPress.Admin.AdminLayoutModel;
 "use strict;"
 /*!
  *  BayLang Technology
@@ -40452,7 +41974,7 @@ Object.assign(Runtime.WordPress.Admin.ModuleDescription,
 	 */
 	entities: function()
 	{
-		return Runtime.Vector.from([new Runtime.Entity.Hook("Runtime.WordPress.Admin.AppHook"),Runtime.Web.Hooks.SetupLayout.hook(Runtime.Map.from({"default":"Runtime.WordPress.Admin.DefaultLayoutModel"})),Runtime.Web.Hooks.Components.hook(Runtime.Vector.from(["Runtime.WordPress.Admin.CSS"]))]);
+		return Runtime.Vector.from([new Runtime.Entity.Hook("Runtime.WordPress.Admin.AppHook"),Runtime.Web.Hooks.SetupLayout.create(Runtime.Map.from({"default":"Runtime.WordPress.Admin.AdminLayoutModel"})),Runtime.Web.Hooks.Components.create(Runtime.Vector.from(["Runtime.WordPress.Admin.CSS"]))]);
 	},
 	/* ======================= Class Init Functions ======================= */
 	getNamespace: function()

@@ -24,6 +24,7 @@ class TableModel extends \Runtime\Web\BaseModel
 	public $pagination_class_name;
 	public $pagination_props;
 	public $storage;
+	public $top_buttons;
 	public $limit;
 	public $page;
 	public $pages;
@@ -119,6 +120,12 @@ class TableModel extends \Runtime\Web\BaseModel
 		$this->render_list = $this->addWidget("Runtime.Widget.RenderListModel", \Runtime\Map::from(["widget_name"=>"render_list"]));
 		/* Result */
 		$this->result = $this->addWidget("Runtime.Widget.WidgetResultModel", \Runtime\Map::from(["widget_name"=>"result"]));
+		/* Top buttons*/
+		if ($params->has("top_buttons"))
+		{
+			$top_buttons = $params->get("top_buttons");
+			$this->top_buttons = $this->addWidget("Runtime.Widget.RowButtonsModel", \Runtime\Map::from(["widget_name"=>"top_buttons","styles"=>\Runtime\Vector::from(["@top_buttons"]),"buttons"=>($top_buttons instanceof \Runtime\Collection) ? ($top_buttons) : (\Runtime\Vector::from([]))]));
+		}
 		/* Add layout */
 		$this->layout->addComponent($this->pagination_class_name);
 	}
@@ -159,13 +166,6 @@ class TableModel extends \Runtime\Web\BaseModel
 		{
 			return $field->get("name") != $field_name;
 		});
-	}
-	/**
-	 * Returns items
-	 */
-	function getItems()
-	{
-		return $this->items;
 	}
 	/**
 	 * Returns item by row number
@@ -293,6 +293,7 @@ class TableModel extends \Runtime\Web\BaseModel
 		$this->pagination_class_name = "Runtime.Widget.Pagination";
 		$this->pagination_props = \Runtime\Map::from(["name"=>"page"]);
 		$this->storage = null;
+		$this->top_buttons = null;
 		$this->limit = 10;
 		$this->page = 0;
 		$this->pages = 0;

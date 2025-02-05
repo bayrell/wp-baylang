@@ -1,0 +1,224 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress;
+
+use Runtime.BaseProvider;
+use Runtime.DateTime;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryResult;
+use Runtime.Web.RenderContainer;
+use Runtime.Web.RenderResponse;
+use Runtime.WordPress.Database.MailDelivery;
+use Runtime.WordPress.Database.MailSettings;
+
+
+class EmailProvider extends BaseProvider
+{
+	Collection<Dict> settings = null;
+	
+	
+	/**
+	 * Returns settings
+	 */
+	async MailSettings loadSettings()
+	{
+		if (this.settings != null) return;
+		this.settings = {};
+		Connection connection = Connection::get();
+		Query q = MailSettings::select().where("enable", "=", 1);
+		QueryResult items = await connection.fetchAll(q);
+		for (int i=0; i<items.count(); i++)
+		{
+			MailSettings item = items.get(i);
+			this.settings.set(item.get("plan"), item.toMap());
+		}
+	}
+	
+	
+	/**
+	 * Send email
+	 */
+	async void send(Dict params)
+	{
+		string plan = params.get("plan", "default");
+		string dest = params.get("dest", "");
+		string title = params.get("title", "");
+		string content = params.get("content", "");
+		string component = params.get("component", "");
+		Dict props = params.get("props", {});
+		
+		/* Render component */		
+		if (component != "")
+		{
+			RenderContainer render_container = new RenderContainer();
+			render_container.createLayout("email");
+			render_container.layout.setPageTitle(title);
+			render_container.layout.setPageComponent(component, props);
+			RenderResponse response = new RenderResponse(render_container)
+			content = response.getContent();
+		}
+		
+		/* Get connection */
+		Connection connection = Connection::get();
+		
+		/* Create email */
+		MailDelivery email = new MailDelivery();
+		email.set("worker", "email");
+		email.set("plan", plan);
+		email.set("uuid", rs::uid());
+		email.set("dest", dest);
+		email.set("title", title);
+		email.set("message", content);
+		email.set("gmtime_plan", null);
+		email.set("gmtime_send", null);
+		
+		/* Save email */
+		await email.save(connection);
+	}
+	
+	
+	/**
+	 * Send message
+	 */
+	async void sendMessage(MailDelivery email)
+	{
+		if (email == null) return;
+		if (email.get("status") != 0) return;
+		
+		Connection connection = Connection::get();
+		
+		/* Check settings */
+		string plan = email.get("plan");
+		if (not this.settings) return;
+		if (not this.settings.has(plan))
+		{
+			plan = "default";
+		}
+		if (not this.settings.has(plan))
+		{
+			email.set("status", -1);
+			email.set("send_email_error", "Settings not found");
+			await email.save(connection);
+			return;
+		}
+		
+		/* Get settings */
+		Dict settings = this.settings.get(plan);
+		
+		/* Check email */
+		if (email.get("dest") == "")
+		{
+			email.set("status", -1);
+			email.set("send_email_error", "Destination is empty");
+			await email.save(connection);
+			return;
+		}
+		
+		#ifcode PHP then
+		
+		/* Set email sending status */
+		$email->set("status", 2);
+		$email->set("send_email_code", 0);
+		$email->set("send_email_error", "");
+		$email->save($connection);
+		
+		/* Create message */
+		$message = new \PHPMailer\PHPMailer\PHPMailer(true);
+		$message->CharSet = "UTF-8";
+		$message->SMTPAuth = true;
+		$message->isSMTP();
+		
+		/* Set connection */
+		$message->Host = $settings->get("host");
+		$message->Username = $settings->get("login");
+		$message->Password = $settings->get("password");
+		$message->Port = $settings->get("port");
+		
+		/* SSL Options */
+		if ($settings->get("ssl_enable") == 1)
+		{
+			$message->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+		}
+		else if ($settings->get("ssl_enable") == 2)
+		{
+			$message->SMTPOptions = [
+				'ssl' => [
+					'verify_peer' => false,
+					'verify_peer_name' => false,
+					'allow_self_signed' => true,
+				]
+			];
+		}
+		else
+		{
+			$message->SMTPAutoTLS = false;
+		}
+		
+		/* Create message */
+		$message->setFrom($settings->get("login"));
+		$message->isHTML(true);
+		$message->Subject = $email->get("title");
+		$message->Body = $email->get("message");
+		
+		/* Add email */
+		$arr = \Runtime\rs::split(",", $email->get("dest"));
+		$arr->each(function($item) use ($message){
+			$message->addAddress(trim($item));
+		});
+		
+		/* Try to send message */
+		try
+		{
+			$message->send();
+			$email->set("gmtime_send", \Runtime\DateTime::now());
+			$email->set("status", 1);
+			$email->set("send_email_error", "Ok");
+			$email->save($connection);
+		}
+		catch (\Exception $e)
+		{
+			$email->set("status", 2);
+			$email->set("status", -1);
+			$email->set("send_email_code", -1);
+			$email->set("send_email_error", $message->ErrorInfo);
+			$email->save($connection);
+		}
+		
+		#endif
+	}
+	
+	
+	/**
+	 * Send new messages
+	 */
+	async void sendNewMessages()
+	{
+		Connection connection = Connection::get();
+		Query q = MailDelivery::select()
+			.where("status", "=", 0)
+		;
+		
+		QueryResult items = await connection.findRelations(q);
+		for (int i=0; i<items.count(); i++)
+		{
+			await this.sendMessage(items.get(i));
+		}
+	}
+}

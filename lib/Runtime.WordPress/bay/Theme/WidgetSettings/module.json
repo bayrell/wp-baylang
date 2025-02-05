@@ -1,0 +1,29 @@
+{
+	"name": "Runtime.WordPress.Theme.WidgetSettings",
+	"assets":
+	[
+		"Button/ButtonFormModelSettings.bay",
+		"Button/ButtonFormSettings.bay",
+		"Form/FormModelSettings.bay",
+		"Form/FormSettings.bay",
+		"Gallery/GalleryModelSettings.bay",
+		"Gallery/GallerySettings.bay",
+		"ModuleDescription.bay",
+		"WidgetManager.bay"
+	],
+	"require": [
+	],
+	"groups": [
+		"constructor"
+	],
+	"src": "./",
+	"dest":
+	{
+		"php": "./../../../php/Theme/WidgetSettings",
+		"es6": "./../../../es6/Theme/WidgetSettings"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

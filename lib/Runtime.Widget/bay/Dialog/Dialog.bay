@@ -24,7 +24,9 @@
 
 
 <style>
-.widget_dialog{}
+.widget_dialog{
+	text-align: left;
+}
 .widget_dialog__box, .widget_dialog__shadow{
 	position: fixed;
 	top: 0; left: 0;
@@ -126,7 +128,7 @@
 <template name="render">
 	<div class="widget_dialog"
 		class={{ this.model.is_open ? "widget_dialog--open" : "widget_dialog--hide" }}
-		class={{ static::getStyles("widget_dialog", this.model.styles) }}
+		class={{ static::mergeStyles("widget_dialog", this.model.styles) }}
 		@event:click={{ this.onDialogClick }}
 	>
 		<div class="widget_dialog__shadow"></div>

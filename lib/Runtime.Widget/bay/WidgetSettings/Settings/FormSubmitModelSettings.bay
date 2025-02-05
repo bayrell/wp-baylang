@@ -162,7 +162,7 @@ class FormSubmitModelSettings extends BaseObject implements WidgetSettingsInterf
 	/**
 	 * On change
 	 */
-	bool onChange(var iframeWindow, BaseModel widget, ParameterModel param)
+	bool onChange(var runtime, BaseModel widget, ParameterModel param)
 	{
 		if (param.name == "submit_button_text")
 		{
