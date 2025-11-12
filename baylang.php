@@ -12,6 +12,10 @@
 /* Check if Wordpress */
 if (!defined('ABSPATH')) exit;
 
+use Runtime\Loader;
+use Runtime\Map;
+use Runtime\Vector;
+use Runtime\Entity\Provider;
 use Runtime\WordPress\WP_Helper;
 
 
@@ -61,11 +65,11 @@ class BayLang_Plugin
 		add_filter('cron_schedules', 'BayLang_Plugin::cron_schedules');
 		
 		/* Add Cron send mail */
-		if ( !wp_next_scheduled('baylang_cron_send_mail' ))
+		/*if ( !wp_next_scheduled('baylang_cron_send_mail' ))
 		{
 			wp_schedule_event(time() + 60, 'every_5_minute', 'baylang_cron_send_mail');
 		}
-		add_action('baylang_cron_send_mail', 'BayLang_Plugin::cron_send_mail');
+		add_action('baylang_cron_send_mail', 'BayLang_Plugin::cron_send_mail');*/
 		
 		/* Robots tsxt */
 		add_filter('robots_txt', 'BayLang_Plugin::robots');
@@ -95,24 +99,6 @@ class BayLang_Plugin
 	
 	
 	/**
-	 * Returns context
-	 */
-	public static function getContext()
-	{
-		return static::$context;
-	}
-	
-	
-	/**
-	 * Returns loader
-	 */
-	public static function getLoader()
-	{
-		return static::$loader;
-	}
-	
-	
-	/**
 	 * Returns version
 	 */
 	public static function getVersion()
@@ -138,27 +124,24 @@ class BayLang_Plugin
 		if (static::$loader != null) return;
 		
 		/* Load file */
-		require_once __DIR__ . "/lib/Runtime/php/Loader.php";
+		require_once __DIR__ . "/lib/Runtime/bay/Loader.php";
 		
-		/* Create loader */
-		static::$loader = new Loader();
-		
-		/* Register autoload */
-		spl_autoload_register([static::$loader, 'load']);
+		/* Loader init */
+		spl_autoload_register([Loader::class, "load"]);
 		
 		/* Add autoloader */
-		static::$loader->add("Runtime",  __DIR__ . "/lib/Runtime/php");
-		static::$loader->add("Runtime.Crypt",  __DIR__ . "/lib/Runtime.Crypt/php");
-		static::$loader->add("Runtime.ORM",  __DIR__ . "/lib/Runtime.ORM/php");
-		static::$loader->add("Runtime.Unit",  __DIR__ . "/lib/Runtime.Unit/php");
-		static::$loader->add("Runtime.Web",  __DIR__ . "/lib/Runtime.Web/php");
-		static::$loader->add("Runtime.Widget",  __DIR__ . "/lib/Runtime.Widget/php");
-		static::$loader->add("Runtime.WordPress",  __DIR__ . "/lib/Runtime.WordPress/php");
-		static::$loader->add("Runtime.XML",  __DIR__ . "/lib/Runtime.XML/php");
+		Loader::add("Runtime",  __DIR__ . "/lib/Runtime/php");
+		Loader::add("Runtime.Crypt",  __DIR__ . "/lib/Runtime.Crypt/php");
+		Loader::add("Runtime.ORM",  __DIR__ . "/lib/Runtime.ORM/php");
+		Loader::add("Runtime.Unit",  __DIR__ . "/lib/Runtime.Unit/php");
+		Loader::add("Runtime.Web",  __DIR__ . "/lib/Runtime.Web/php");
+		Loader::add("Runtime.Widget",  __DIR__ . "/lib/Runtime.Widget/php");
+		Loader::add("Runtime.WordPress",  __DIR__ . "/lib/Runtime.WordPress/php");
+		Loader::add("Runtime.XML",  __DIR__ . "/lib/Runtime.XML/php");
 		
 		/* Add BayLang */
-		static::$loader->add("BayLang",  __DIR__ . "/lib/BayLang/php");
-		static::$loader->add("BayLang.Constructor",  __DIR__ . "/lib/BayLang.Constructor/php");
+		Loader::add("BayLang",  __DIR__ . "/lib/BayLang/php");
+		Loader::add("BayLang.Constructor",  __DIR__ . "/lib/BayLang.Constructor/php");
 	}
 	
 	
@@ -192,41 +175,41 @@ class BayLang_Plugin
 	public static function create_admin_context()
 	{
 		/* Init loaders */
-		do_action('init_loader', static::$loader);
+		do_action("init_loader");
 		
 		/* Init context */
-		$init = [
-			"entry_point" => "Runtime.WordPress.WP_App",
-			"modules" => \Runtime\Vector::from([
-				'Runtime.WordPress',
-				'Runtime.WordPress.Admin',
-				'BayLang.Constructor.Frontend',
-			]),
-			"environments" => \Runtime\Map::from(static::getEnv()),
-		];
+		$init = new Map([
+			"providers" => new Vector(
+				new Provider("app", "Runtime.WordPress.WP_App"),
+			),
+			"modules" => new Vector(
+				"Runtime",
+				/*"Runtime.WordPress",
+				"Runtime.WordPress.Admin",
+				"BayLang.Constructor.Frontend",*/
+			),
+			"environments" => new Map(static::getEnv()),
+		]);
 		
 		/* Add unit test */
 		if (WP_DEBUG)
 		{
-			$init["modules"]->push('BayLang.Test');
-			$init["modules"]->push('Runtime.Unit');
+			/*$init["modules"]->push("BayLang.Test");
+			$init["modules"]->push("Runtime.Unit");*/
 		}
 		
 		/* Run action */
-		do_action('init_admin_context', $init);
+		do_action("init_admin_context", $init);
 		
 		/* Create context */
-		$context = \Runtime\rtl::createContext(\Runtime\Map::from($init));
-		
-		/* Save context */
-		static::$context = $context;
+		$context = \Runtime\rtl::createContext($init);
 		
 		/* Register hook */
-		$hook = $context->provider("hook");
+		/*$hook = $context->provider("hook");
 		$hook->register(
 			\Runtime\Web\Hooks\AppHook::CREATE_CONTAINER,
 			static::class, "create_render_container"
-		);
+		);*/
 		
 		/* Call hooks */
 		do_action('create_admin_context', $context);
@@ -242,40 +225,41 @@ class BayLang_Plugin
 	public static function create_template_context()
 	{
 		/* Init loaders */
-		do_action('init_loader', static::$loader);
+		do_action("init_loader");
 		
 		/* Init context */
-		$init = [
-			"entry_point" => "Runtime.WordPress.WP_App",
-			"modules" => \Runtime\Vector::from([
+		$init = new Map([
+			"providers" => new Vector(
+				new Provider("app", "Runtime.WordPress.WP_App"),
+			),
+			"modules" => new Vector(
+				"Runtime",
+				"Runtime.WordPress",
 				"Runtime.WordPress.Theme",
-			]),
-			"environments" => \Runtime\Map::from(static::getEnv()),
-		];
+			),
+			"environments" => new Map(static::getEnv()),
+		]);
 		
 		/* Add widget page */
 		if (current_user_can("edit_pages"))
 		{
-			$init["modules"]->push("BayLang.Constructor.WidgetPage");
+			/*$init["modules"]->push("BayLang.Constructor.WidgetPage");
 			$init["modules"]->push("Runtime.Widget.WidgetSettings");
-			$init["modules"]->push("Runtime.WordPress.Theme.WidgetSettings");
+			$init["modules"]->push("Runtime.WordPress.Theme.WidgetSettings");*/
 		}
 		
 		/* Call action */
-		do_action('init_template_context', $init);
+		do_action("init_template_context", $init);
 		
 		/* Create context */
-		$context = \Runtime\rtl::createContext(\Runtime\Map::from($init));
-		
-		/* Save context */
-		static::$context = $context;
+		$context = \Runtime\rtl::createContext($init);
 		
 		/* Register hook */
-		$hook = $context->provider("hook");
+		/*$hook = $context->provider("hook");
 		$hook->register(
 			\Runtime\Web\Hooks\AppHook::CREATE_CONTAINER,
 			static::class, "create_render_container"
-		);
+		);*/
 		
 		/* Call hooks */
 		do_action('create_template_context', $context);
@@ -657,21 +641,21 @@ class BayLang_Plugin
 	{
 		if (current_user_can("edit_pages"))
 		{
-			$baylang_url = plugin_dir_url(__FILE__);
+			/*$baylang_url = plugin_dir_url(__FILE__);
 			$version = static::getVersion();
 			wp_enqueue_script(
 				'baylang-constructor',
 				$baylang_url . 'assets/constructor.js',
 				['baylang-runtime'], $version, true
-			);
+			);*/
 			
 			/* Disable admin bar */
-			if (
+			/*if (
 				static::$container->route &&
 				static::$container->route->name == "baylang:widget:debug")
 			{
 				static::disable_adminbar();
-			}
+			}*/
 		}
 	}
 	
@@ -701,15 +685,6 @@ class BayLang_Plugin
 		</script>
 		<?
 	}
-}
-
-
-/**
- * Returns loader
- */
-function getLoader()
-{
-	return BayLang_Plugin::getLoader();
 }
 
 
@@ -782,6 +757,26 @@ add_action
 		}
 	}
 );
+
+
+/**
+ * Render app
+ */
+function render()
+{
+	$content = WP_Helper::renderApp();
+	echo $content;
+}
+
+
+/**
+ * Render page
+ */
+function renderPage($page)
+{
+	$content = WP_Helper::renderPage($page);
+	echo $content;
+}
 
 
 BayLang_Plugin::init();
