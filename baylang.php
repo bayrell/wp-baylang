@@ -3,7 +3,7 @@
  * Plugin Name: BayLang Constructor (Source Code)
  * Plugin URI:  https://github.com/bayrell/wp-baylang
  * Description: BayLang Constructor for WordPress
- * Version:     0.12.0
+ * Version:     1.0.9
  * Author:      Ildar Bikmamatov <support@bayrell.org>
  * Author URI:  https://bayrell.org/ru/?utm_source=plugin&utm_campaign=wp-baylang
  * License:     GNU GENERAL PUBLIC LICENSE 3.0
@@ -65,11 +65,11 @@ class BayLang_Plugin
 		add_filter('cron_schedules', 'BayLang_Plugin::cron_schedules');
 		
 		/* Add Cron send mail */
-		/*if ( !wp_next_scheduled('baylang_cron_send_mail' ))
+		if ( !wp_next_scheduled('baylang_cron_send_mail' ))
 		{
 			wp_schedule_event(time() + 60, 'every_5_minute', 'baylang_cron_send_mail');
 		}
-		add_action('baylang_cron_send_mail', 'BayLang_Plugin::cron_send_mail');*/
+		add_action('baylang_cron_send_mail', 'BayLang_Plugin::cron_send_mail');
 		
 		/* Robots tsxt */
 		add_filter('robots_txt', 'BayLang_Plugin::robots');
@@ -103,7 +103,7 @@ class BayLang_Plugin
 	 */
 	public static function getVersion()
 	{
-		return "0.12";
+		return "1.0.9";
 	}
 	
 	
@@ -133,9 +133,11 @@ class BayLang_Plugin
 		Loader::add("Runtime",  __DIR__ . "/lib/Runtime/php");
 		Loader::add("Runtime.Crypt",  __DIR__ . "/lib/Runtime.Crypt/php");
 		Loader::add("Runtime.ORM",  __DIR__ . "/lib/Runtime.ORM/php");
+		Loader::add("Runtime.Test",  __DIR__ . "/lib/Runtime.Test/php");
 		Loader::add("Runtime.Unit",  __DIR__ . "/lib/Runtime.Unit/php");
 		Loader::add("Runtime.Web",  __DIR__ . "/lib/Runtime.Web/php");
 		Loader::add("Runtime.Widget",  __DIR__ . "/lib/Runtime.Widget/php");
+		Loader::add("Runtime.Widget.Editor",  __DIR__ . "/lib/Runtime.Widget.Editor/php");
 		Loader::add("Runtime.WordPress",  __DIR__ . "/lib/Runtime.WordPress/php");
 		Loader::add("Runtime.XML",  __DIR__ . "/lib/Runtime.XML/php");
 		
@@ -184,18 +186,21 @@ class BayLang_Plugin
 			),
 			"modules" => new Vector(
 				"Runtime",
-				/*"Runtime.WordPress",
+				"Runtime.WordPress",
 				"Runtime.WordPress.Admin",
-				"BayLang.Constructor.Frontend",*/
+				"BayLang.Constructor.Backend",
+				"BayLang.Constructor.Frontend",
 			),
 			"environments" => new Map(static::getEnv()),
+			"base_path" => ABSPATH,
 		]);
 		
 		/* Add unit test */
 		if (WP_DEBUG)
 		{
-			/*$init["modules"]->push("BayLang.Test");
-			$init["modules"]->push("Runtime.Unit");*/
+			/*$init->get("modules")->push("BayLang.Test");*/
+			$init->get("modules")->push("Runtime.Test");
+			$init->get("modules")->push("Runtime.Unit");
 		}
 		
 		/* Run action */
@@ -205,11 +210,11 @@ class BayLang_Plugin
 		$context = \Runtime\rtl::createContext($init);
 		
 		/* Register hook */
-		/*$hook = $context->provider("hook");
+		$hook = $context->provider("hook");
 		$hook->register(
-			\Runtime\Web\Hooks\AppHook::CREATE_CONTAINER,
-			static::class, "create_render_container"
-		);*/
+			\Runtime\Hooks\RuntimeHook::CREATE_CONTAINER,
+			new Runtime\Method(static::class, "create_render_container")
+		);
 		
 		/* Call hooks */
 		do_action('create_admin_context', $context);
@@ -238,14 +243,28 @@ class BayLang_Plugin
 				"Runtime.WordPress.Theme",
 			),
 			"environments" => new Map(static::getEnv()),
+			"base_path" => ABSPATH,
 		]);
 		
 		/* Add widget page */
 		if (current_user_can("edit_pages"))
 		{
+			$init->get("modules")->appendItems(new \Runtime\Vector(
+				"Runtime.WordPress.Admin",
+				"BayLang.Constructor.Backend",
+				"BayLang.Constructor.Frontend",
+			));
 			/*$init["modules"]->push("BayLang.Constructor.WidgetPage");
 			$init["modules"]->push("Runtime.Widget.WidgetSettings");
 			$init["modules"]->push("Runtime.WordPress.Theme.WidgetSettings");*/
+		}
+		
+		/* Add unit test */
+		if (WP_DEBUG)
+		{
+			/*$init->get("modules")->push("BayLang.Test");*/
+			$init->get("modules")->push("Runtime.Test");
+			$init->get("modules")->push("Runtime.Unit");
 		}
 		
 		/* Call action */
@@ -255,11 +274,11 @@ class BayLang_Plugin
 		$context = \Runtime\rtl::createContext($init);
 		
 		/* Register hook */
-		/*$hook = $context->provider("hook");
+		$hook = $context->provider("hook");
 		$hook->register(
-			\Runtime\Web\Hooks\AppHook::CREATE_CONTAINER,
-			static::class, "create_render_container"
-		);*/
+			\Runtime\Hooks\RuntimeHook::CREATE_CONTAINER,
+			new \Runtime\Method(static::class, "create_render_container")
+		);
 		
 		/* Call hooks */
 		do_action('create_template_context', $context);
@@ -282,24 +301,19 @@ class BayLang_Plugin
 		$context = \Runtime\rtl::getContext();
 		
 		/* Call api */
-		$container = WP_Helper::wp_admin_route
+		$container = WP_Helper::renderPage
 		(
 			"runtime:web:api",
-			function($container)
-			{
-				$container->route->addMatches(
-					\Runtime\Collection::from([
-						$container->request->payload->get("service"),
-						$container->request->payload->get("api_name"),
-						$container->request->payload->get("method_name")
-					])
-				);
-			}
+			new Map([
+				"api_name" => isset($_GET["api_name"]) ? $_GET["api_name"] : "",
+				"service" => isset($_GET["service"]) ? $_GET["service"] : "",
+				"method_name" => isset($_GET["method_name"]) ? $_GET["method_name"] : "",
+			])
 		);
 		
 		/* Send response */
-		$app = $context->getApp();
-		$app->sendResponse($container);
+		http_response_code($container->response->http_code);
+		echo $container->response->getContent();
 		
 		exit();
 	}
@@ -337,7 +351,8 @@ class BayLang_Plugin
 		require_once ABSPATH . "/wp-includes/PHPMailer/SMTP.php";
 		
 		/* Send new message */
-		$provider = static::$context->provider("email");
+		$context = \Runtime\rtl::getContext();
+		$provider = $context->provider("email");
 		$provider->loadSettings();
 		$provider->sendNewMessages();
 	}
@@ -384,13 +399,16 @@ class BayLang_Plugin
 			padding-left: 0px;
 			margin-left: 0px;
 		}
-		.core_ui_root{
+		.wp-helpers-notice, .notice-warning{
+			display: none;
+		}
+		.root_container{
 			background-color: white;
 		}
-		.core_ui_root > .wrap{
+		.root_container > .wrap{
 			margin: 0px;
 		}
-		.core_ui_root .wp-heading-inline{
+		.root_container .wp-heading-inline{
 			display: none !important;
 		}
 		</style>';
@@ -412,11 +430,11 @@ class BayLang_Plugin
 			{
 				echo "BayLang";
 			},
-			$baylang_url . 'assets/form.png',
+			$baylang_url . 'assets/baylang.png',
 			30
 		);
 		
-		add_submenu_page
+		/*add_submenu_page
 		(
 			'baylang',
 			'Fonts', 'Fonts',
@@ -424,11 +442,10 @@ class BayLang_Plugin
 			function()
 			{
 				$action = isset($_GET["action"]) ? $_GET["action"] : "index";
-				WP_Helper::wp_render_page(
-					"baylang:project:fonts:" . $action
-				);
+				$container = WP_Helper::renderPage("baylang:project:fonts:" . $action);
+				WP_Helper::render($container);
 			}
-		);
+		);*/
 		
 		add_submenu_page
 		(
@@ -438,7 +455,8 @@ class BayLang_Plugin
 			function ()
 			{
 				$action = isset($_GET["action"]) ? $_GET["action"] : "index";
-				WP_Helper::wp_render_page("admin:forms:data:" . $action);
+				$container = WP_Helper::renderPage("admin:forms:data:" . $action);
+				WP_Helper::render($container);
 			}
 		);
 		
@@ -450,9 +468,8 @@ class BayLang_Plugin
 			function()
 			{
 				$action = isset($_GET["action"]) ? $_GET["action"] : "index";
-				WP_Helper::wp_render_page(
-					"admin:forms:settings:" . $action
-				);
+				$container = WP_Helper::renderPage("admin:forms:settings:" . $action);
+				WP_Helper::render($container);
 			}
 		);
 		
@@ -465,9 +482,8 @@ class BayLang_Plugin
 			{
 				$action = isset($_GET["action"]) ? $_GET["action"] : "index";
 				wp_enqueue_media();
-				WP_Helper::wp_render_page(
-					"admin:gallery:" . $action
-				);
+				$container = WP_Helper::renderPage("admin:gallery:" . $action);
+				WP_Helper::render($container);
 			}
 		);
 		
@@ -477,7 +493,8 @@ class BayLang_Plugin
 			'manage_options', 'baylang-mail-log',
 			function()
 			{
-				WP_Helper::wp_render_page("admin:mail:log:index");
+				$container = WP_Helper::renderPage("admin:mail:log:index");
+				WP_Helper::render($container);
 			}
 		);
 		
@@ -487,7 +504,19 @@ class BayLang_Plugin
 			'manage_options', 'baylang-mail-settings',
 			function()
 			{
-				WP_Helper::wp_render_page("admin:mail:settings:index");
+				$container = WP_Helper::renderPage("admin:mail:settings:index");
+				WP_Helper::render($container);
+			}
+		);
+		
+		add_submenu_page(
+			'baylang',
+			'Database migrations', 'Migrations',
+			'manage_options', 'baylang-migrations',
+			function()
+			{
+				$container = WP_Helper::renderPage("admin:database:migrations");
+				WP_Helper::render($container);
 			}
 		);
 		
@@ -502,18 +531,14 @@ class BayLang_Plugin
 				$action = isset($_GET["action"]) ? $_GET["action"] : "save";
 				if ($action == "save") $route = "admin:project:save";
 				else if ($action == "create") $route = "admin:project:create";
-				else if ($action == "migrations") $route = "admin:database:migrations";
-				WP_Helper::wp_render_page(
-					$route,
-					function ($container)
-					{
-						$container->route->matches->set("project_id", "default");
-					}
-				);
+				$container = WP_Helper::renderPage($route, new Map([
+					"project_id" => "default",
+				]));
+				WP_Helper::render($container);
 			}
 		);
 		
-		add_submenu_page
+		/*add_submenu_page
 		(
 			'baylang',
 			'Widgets', 'Widgets',
@@ -524,29 +549,27 @@ class BayLang_Plugin
 				if ($action == "open")
 				{
 					static::disable_adminbar();
-					WP_Helper::wp_render_page(
+					$container = WP_Helper::renderPage(
 						"baylang:project:widget:edit",
-						function ($container)
-						{
-							$container->route->matches->set("project_id", "default");
-							$container->route->matches->set("widget_name",
-								isset($_GET["widget_name"]) ? $_GET["widget_name"] : ""
-							);
-						}
+						new Map([
+							"project_id" => "default",
+							"widget_name" => isset($_GET["widget_name"]) ? $_GET["widget_name"] : "",
+						])
 					);
+					WP_Helper::render($container);
 				}
 				else
 				{
-					WP_Helper::wp_render_page(
+					$container = WP_Helper::renderPage(
 						"baylang:project:widgets",
-						function ($container)
-						{
-							$container->route->matches->set("project_id", "default");
-						}
+						new Map([
+							"project_id" => "default",
+						])
 					);
+					WP_Helper::render($container);
 				}
 			}
-		);
+		);*/
 		
 		add_submenu_page(
 			'baylang',
@@ -555,13 +578,14 @@ class BayLang_Plugin
 			function()
 			{
 				static::disable_adminbar();
-				WP_Helper::wp_render_page(
+				$container = WP_Helper::renderPage(
 					"baylang:project:code:editor",
 					function ($container)
 					{
 						$container->route->matches->set("project_id", "default");
 					}
 				);
+				WP_Helper::render($container);
 			}
 		);
 		
@@ -571,7 +595,8 @@ class BayLang_Plugin
 			'manage_options', 'baylang-robots-txt',
 			function()
 			{
-				WP_Helper::wp_render_page("admin:robots:txt");
+				$container = WP_Helper::renderPage("admin:robots:txt");
+				WP_Helper::render($container);
 			}
 		);
 	}
@@ -601,12 +626,13 @@ class BayLang_Plugin
 			$baylang_url . 'assets/admin.js',
 			['baylang-runtime'], $version, true
 		);
+		static::widget_page_scripts();
 		if (WP_DEBUG)
 		{
 			wp_enqueue_script(
 				'baylang-runtime-test',
 				$baylang_url . 'assets/test.js',
-				['baylang-runtime-admin'], $version, true
+				['baylang-runtime'], $version, true
 			);
 		}
 	}
@@ -631,6 +657,14 @@ class BayLang_Plugin
 			$baylang_url . 'assets/runtime.js',
 			[], $version, true
 		);
+		if (WP_DEBUG)
+		{
+			wp_enqueue_script(
+				'baylang-runtime-test',
+				$baylang_url . 'assets/test.js',
+				['baylang-runtime'], $version, true
+			);
+		}
 	}
 	
 	
@@ -641,13 +675,13 @@ class BayLang_Plugin
 	{
 		if (current_user_can("edit_pages"))
 		{
-			/*$baylang_url = plugin_dir_url(__FILE__);
+			$baylang_url = plugin_dir_url(__FILE__);
 			$version = static::getVersion();
 			wp_enqueue_script(
-				'baylang-constructor',
-				$baylang_url . 'assets/constructor.js',
+				'baylang-baylang',
+				$baylang_url . 'assets/baylang.js',
 				['baylang-runtime'], $version, true
-			);*/
+			);
 			
 			/* Disable admin bar */
 			/*if (
@@ -764,8 +798,12 @@ add_action
  */
 function render()
 {
-	$content = WP_Helper::renderApp();
-	echo $content;
+	$container = WP_Helper::renderApp();
+	
+	/* Send response */
+	$context = \Runtime\rtl::getContext();
+	$app = $context->provider("app");
+	$app->sendResponse($container);
 }
 
 
