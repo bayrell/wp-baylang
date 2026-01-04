@@ -7,6 +7,9 @@
 [submodule "lib/Runtime.ORM"]
 	path = lib/Runtime.ORM
 	url = https://github.com/bayrell/Runtime.ORM
+[submodule "lib/Runtime.Test"]
+	path = lib/Runtime.Test
+	url = https://github.com/bayrell/Runtime.Test
 [submodule "lib/Runtime.Unit"]
 	path = lib/Runtime.Unit
 	url = https://github.com/bayrell/Runtime.Unit
@@ -28,3 +31,6 @@
 [submodule "lib/BayLang.Constructor"]
 	path = lib/BayLang.Constructor
 	url = https://github.com/bayrell/BayLang.Constructor
+[submodule "lib/Runtime.Widget.Editor"]
+	path = lib/Runtime.Widget.Editor
+	url = https://github.com/bayrell/Runtime.Widget.Editor
