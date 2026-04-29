@@ -18,120 +18,61 @@
 
 namespace Runtime.WordPress.Admin;
 
-use Runtime.DateTime;
+use Runtime.Exceptions.ApiError;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.Hooks.BaseHook;
+use Runtime.Hooks.RuntimeHook;
+use Runtime.Web.BaseApi;
 use Runtime.Web.Hooks.AppHook as BaseAppHook;
-use Runtime.WordPress.WP_Helper;
-use Runtime.WordPress.Admin.CSS;
-use Runtime.WordPress.Admin.DefaultLayout;
-use BayLang.Constructor.Backend.ApiHook;
-use BayLang.Helper.Project;
 
 
-class AppHook extends BaseAppHook
+class AppHook extends BaseHook
 {
-	static const string GET_FRAME_PAGE_URL = "baylang.constructor::get_frame_page_url";
-	
-	
 	/**
 	 * Register hooks
 	 */
 	void register_hooks()
 	{
-		this.register(static::CALL_API_BEFORE);
-		this.register(static::GET_FRAME_PAGE_URL, "get_frame_page_url");
+		this.register(RuntimeHook::SEND_API_BEFORE, "sendApiBefore");
 		
 		#ifdef BACKEND then
-		this.register(ApiHook::GET_ASSETS_PATH, "get_assets_path");
-		this.register(ApiHook::GET_ASSETS_URL_PATH, "get_assets_url_path");
-		this.register(ApiHook::GET_PROJECT, "get_project");
-		this.register(ApiHook::GET_PROJECT_LIST, "get_project_list");
-		this.register(ApiHook::UPDATE_ASSETS, "update_assets");
+		this.register(BaseAppHook::API_MIDDLEWARE, "checkIsAdmin");
 		#endif
 	}
 	
 	
 	/**
-	 * Call api before
+	 * Run api middleware
 	 */
-	void call_api_before(Map params)
+	async void checkIsAdmin(Map params)
 	{
-		string api_url = "/wp-admin/admin-ajax.php?action=admin_call_api&api_name=" ~
-			rs::url_encode(params.get("post_data").get("api_name"))
-		;
+		BaseApi api = params.get("api");
+		string api_name = api::getApiName();
+		if (rs::indexOf(api_name, "admin.") != -1)
+		{
+			#ifcode PHP then
+			if (!is_admin() and !current_user_can("edit_pages"))
+			{
+				throw new ApiError(new RuntimeException("Action not allowed"));
+			}
+			#endif
+		}
+	}
+	
+	
+	/**
+	 * Send api before
+	 */
+	void sendApiBefore(Map params)
+	{
+		string api_url = rs::urlGetAdd(
+			"/wp-admin/admin-ajax.php?action=admin_call_api",
+			{
+				"service_name": params.get("service_name"),
+				"api_name": params.get("api_name"),
+				"method_name": params.get("method_name"),
+			}
+		);
 		params.set("api_url", api_url);
 	}
-	
-	
-	/**
-	 * Returns projects list
-	 */
-	void get_frame_page_url(Dict params)
-	{
-		string page_url = "/open/widget?widget_name=" ~ params.get("current_widget");
-		params.set("page_url", page_url);
-	}
-	
-	
-	#ifdef BACKEND then
-	
-	
-	/**
-	 * Returns assets path
-	 */
-	async void get_assets_path(Dict params)
-	{
-		params.set("path", rs::join_path([params.get("project").getPath(), "assets"]));
-	}
-	
-	
-	/**
-	 * Returns assets url path
-	 */
-	async void get_assets_url_path(Dict params)
-	{
-		string wp_theme_url = "";
-		#ifcode PHP then
-		$wp_theme_url = parse_url(get_template_directory_uri(), PHP_URL_PATH);
-		#endif
-		params.set("path", rs::join_path([wp_theme_url, "assets"]));
-	}
-	
-	
-	/**
-	 * Returns projects list
-	 */
-	async void get_project_list(Dict params)
-	{
-		string project_folder = "";
-		#ifcode PHP then
-		$project_folder = ABSPATH . "/wp-content/themes";
-		#endif
-		Collection<Project> items = await Project::readProjects(project_folder);
-		params.set("items", items);
-	}
-	
-	
-	/**
-	 * Returns projects
-	 */
-	async void get_project(Dict params)
-	{
-		string project_path = "";
-		#ifcode PHP then
-		$project_path = get_template_directory();
-		#endif
-		Project project = await Project::readProject(project_path);
-		params.set("project", project);
-	}
-	
-	
-	/**
-	 * Update assets
-	 */
-	async void update_assets(Dict params)
-	{
-		WP_Helper::setAppVersion(DateTime::now().getTimestamp());
-	}
-	
-	#endif
 }

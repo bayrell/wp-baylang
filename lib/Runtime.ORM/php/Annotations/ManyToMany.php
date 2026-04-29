@@ -17,48 +17,17 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Annotations;
-class ManyToMany extends \Runtime\BaseStruct
+
+use Runtime\ORM\Annotations\BaseStruct;
+
+class ManyToMany extends \Runtime\ORM\Annotations\BaseStruct
 {
-	/* ======================= Class Init Functions ======================= */
-	function takeValue($k,$d=null)
+	/* ========= Class init functions ========= */
+	function _init()
 	{
+		parent::_init();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.Annotations";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Annotations.ManyToMany";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseStruct";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Annotations.ManyToMany"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

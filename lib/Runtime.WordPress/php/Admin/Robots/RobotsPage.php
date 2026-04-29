@@ -17,65 +17,88 @@
  *  limitations under the License.
 */
 namespace Runtime\WordPress\Admin\Robots;
-class RobotsPage extends \Runtime\Web\Component
+
+use Runtime\Widget\Button;
+use Runtime\Widget\RowButtons;
+use Runtime\Widget\TextArea;
+use Runtime\Widget\Form\Form;
+use Runtime\Widget\Form\FormRow;
+
+
+class RobotsPage extends \Runtime\Component
 {
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("form_settings_page", $componentHash))])));
 		
-		/* Text */
-		$this->_t($__v0, $this->renderWidget($this->model->form));
+		/* Element Runtime.Widget.Form.Form */
+		$__v1 = $__v0->element("Runtime.Widget.Form.Form", (new \Runtime\Map(["model" => $this->model->form])));
 		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["form_settings_page"])], $__v0);
+		/* Content */
+		$__v1->slot("default", function ()
+		{
+			$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+			$__v = new \Runtime\VirtualDom($this);
+			
+			/* Element Runtime.Widget.Form.FormRow */
+			$__v0 = $__v->element("Runtime.Widget.Form.FormRow", (new \Runtime\Map(["label" => "Robots"])));
+			
+			/* Content */
+			$__v0->slot("default", function ()
+			{
+				$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+				$__v = new \Runtime\VirtualDom($this);
+				
+				/* Element Runtime.Widget.TextArea */
+				$__v->element("Runtime.Widget.TextArea", (new \Runtime\Map(["value" => $this->model->form->item->get("content")])));
+				
+				return $__v;
+			});
+			$__v->push($this->renderWidget($this->model->form->result, new \Runtime\Map([
+				"class" => "result--form",
+			])));
+			
+			/* Element Runtime.Widget.RowButtons */
+			$__v1 = $__v->element("Runtime.Widget.RowButtons");
+			
+			/* Content */
+			$__v1->slot("default", function ()
+			{
+				$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+				$__v = new \Runtime\VirtualDom($this);
+				
+				/* Element Runtime.Widget.Button */
+				$__v0 = $__v->element("Runtime.Widget.Button", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("button--primary button--large", $componentHash))])));
+				
+				/* Content */
+				$__v0->slot("default", function ()
+				{
+					$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+					$__v = new \Runtime\VirtualDom($this);
+					$__v->push("Save");
+					return $__v;
+				});
+				
+				return $__v;
+			});
+			
+			return $__v;
+		});
 		
-		return $this->_flatten($__v);
+		return $__v;
 	}
-	static function css($vars)
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		$res = "";
-		return $res;
+		parent::_init();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Admin.Robots";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.Robots.RobotsPage";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ""; }
+	static function getRequiredComponents(){ return new \Runtime\Vector("Runtime.Widget.Button", "Runtime.Widget.RowButtons", "Runtime.Widget.TextArea", "Runtime.Widget.Form.Form", "Runtime.Widget.Form.FormRow"); }
+	static function getClassName(){ return "Runtime.WordPress.Admin.Robots.RobotsPage"; }
 }

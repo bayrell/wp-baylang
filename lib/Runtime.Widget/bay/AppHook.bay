@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,40 +18,68 @@
 
 namespace Runtime.Widget;
 
-use Runtime.Web.Hooks.AppHook as BaseAppHook;
-use Runtime.Widget.Button;
+use Runtime.BaseLayout;
+use Runtime.Hooks.RuntimeHook;
+use Runtime.Web.RenderContainer;
+use Runtime.Web.Hooks.AppHook as WebHook;
+use Runtime.Widget.Assets;
 use Runtime.Widget.CSS;
-use Runtime.Widget.Container;
-use Runtime.Widget.Input;
-use Runtime.Widget.Label;
-use Runtime.Widget.RowButtons;
-use Runtime.Widget.Section;
-use Runtime.Widget.Select;
-use Runtime.Widget.SelectLabel;
-use Runtime.Widget.TextArea;
-use Runtime.Widget.WidgetResult;
+use Runtime.Widget.Translate.Translator;
 
 
-class AppHook extends BaseAppHook
+class AppHook extends RuntimeHook
 {
+	const string ASSETS = "runtime.widget::assets";
+	const string INIT_WIDGET = "baylang::init_widget";
+	
+	
 	/**
 	 * Register hooks
 	 */
 	void register_hooks()
 	{
-        this.register(static::COMPONENTS, 10);
-    }
-    
-    
-    /**
+		this.register(RuntimeHook::COMPONENTS, "components", 50);
+		this.register(static::INIT_WIDGET, "initWidget");
+	}
+	
+	
+	/**
 	 * Components
 	 */
 	void components(Map params)
-    {
+	{
 		Vector components = [
 			classof CSS,
 		];
-		components.appendItems(params["components"]);
+		components.appendItems(params.get("components"));
 		params.set("components", components);
-    }
+	}
+	
+	
+	/**
+	 * Init widget
+	 */
+	void initWidget(Map params)
+	{
+		string widget_class = "BayLang.Constructor.Frontend.Editor.Widget.WidgetComponent";
+		var provider = params.get("provider");
+		
+		/* Image */
+		provider.registerWidget({
+			"name": "image",
+			"label": "Image",
+			"component": "Runtime.Widget.Image",
+			"widget": widget_class,
+			"props": {},
+		});
+		
+		/* Section */
+		provider.registerWidget({
+			"name": "section",
+			"label": "Section",
+			"component": "Runtime.Widget.Section",
+			"widget": widget_class,
+			"props": {},
+		});
+	}
 }

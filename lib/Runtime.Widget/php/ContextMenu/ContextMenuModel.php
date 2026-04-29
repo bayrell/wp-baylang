@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,31 +17,35 @@
  *  limitations under the License.
  */
 namespace Runtime\Widget\ContextMenu;
-class ContextMenuModel extends \Runtime\Web\BaseModel
+
+use Runtime\BaseModel;
+use Runtime\Widget\ContextMenu\ContextMenu;
+use Runtime\Widget\ContextMenu\ContextMenuMessage;
+
+
+class ContextMenuModel extends \Runtime\BaseModel
 {
-	public $component;
-	public $widget_name;
-	public $is_open;
-	public $width;
-	public $x;
-	public $y;
-	public $items;
-	public $data;
+	var $component;
+	var $widget_name;
+	var $is_open;
+	var $width;
+	var $x;
+	var $y;
+	var $items;
+	var $data;
+	
+	
 	/**
 	 * Init widget params
 	 */
 	function initParams($params)
 	{
 		parent::initParams($params);
-		if ($params == null)
-		{
-			return ;
-		}
-		if ($params->has("items"))
-		{
-			$this->items = $params->get("items");
-		}
+		if ($params == null) return;
+		if ($params->has("items")) $this->items = $params->get("items");
 	}
+	
+	
 	/**
 	 * Set width
 	 */
@@ -49,6 +53,8 @@ class ContextMenuModel extends \Runtime\Web\BaseModel
 	{
 		$this->width = $value;
 	}
+	
+	
 	/**
 	 * Show dialog
 	 */
@@ -58,6 +64,8 @@ class ContextMenuModel extends \Runtime\Web\BaseModel
 		$this->x = $x;
 		$this->y = $y;
 	}
+	
+	
 	/**
 	 * Hide dialog
 	 */
@@ -65,6 +73,8 @@ class ContextMenuModel extends \Runtime\Web\BaseModel
 	{
 		$this->is_open = false;
 	}
+	
+	
 	/**
 	 * Add item
 	 */
@@ -72,31 +82,37 @@ class ContextMenuModel extends \Runtime\Web\BaseModel
 	{
 		$this->items->push($item);
 	}
+	
+	
 	/**
 	 * Find index
 	 */
 	function find($key)
 	{
-		return $this->items->find(function ($item) use (&$key)
-		{
-			return $item->get("key") == $key;
-		});
+		return $this->items->find(function ($item) use (&$key){ return $item->get("key") == $key; });
 	}
+	
+	
+	
 	/**
 	 * Find item
 	 */
-	function findItem($key)
-	{
-		return $this->items->get($this->find($key));
-	}
+	function findItem($key){ return $this->items->get($this->find($key)); }
+	
+	
 	/**
 	 * On click
 	 */
 	function onClickItem($item)
 	{
-		$this->emit(new \Runtime\Widget\ContextMenu\ContextMenuMessage(\Runtime\Map::from(["name"=>"clickItem","item"=>$item])));
+		$this->listener->emit(new \Runtime\Widget\ContextMenu\ContextMenuMessage(new \Runtime\Map([
+			"name" => "clickItem",
+			"item" => $item,
+		])));
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -106,45 +122,10 @@ class ContextMenuModel extends \Runtime\Web\BaseModel
 		$this->width = "";
 		$this->x = 0;
 		$this->y = 0;
-		$this->items = \Runtime\Vector::from([]);
+		$this->items = new \Runtime\Vector();
 		$this->data = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget.ContextMenu";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.ContextMenu.ContextMenuModel";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.BaseModel";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Widget.ContextMenu.ContextMenuModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

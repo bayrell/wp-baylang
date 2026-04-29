@@ -19,18 +19,18 @@
 namespace Runtime.ORM;
 
 use Runtime.lib;
+use Runtime.BaseObject;
 use Runtime.BaseProvider;
-use Runtime.BaseStruct;
-use Runtime.Callback;
+use Runtime.Method;
 use Runtime.Exceptions.ItemNotFound;
 use Runtime.Exceptions.RuntimeException;
 use Runtime.ORM.Connection;
+use Runtime.ORM.ConnectionPool;
 use Runtime.ORM.DatabaseSchema;
 use Runtime.ORM.QueryFilter;
 use Runtime.ORM.Annotations.AutoIncrement;
 use Runtime.ORM.Annotations.BaseType;
 use Runtime.ORM.Annotations.Database;
-use Runtime.ORM.Annotations.ForeignKey;
 use Runtime.ORM.Annotations.Primary;
 use Runtime.ORM.Annotations.Rule;
 use Runtime.ORM.Annotations.Table;
@@ -41,168 +41,38 @@ class Provider extends BaseProvider
 {
 	protected Map foreign_keys = new Map;
 	protected Map connection_list = new Map;
-	protected Map tables = new Map;
+	protected Map annotations = new Map;
 	
 	
 	/**
 	 * Returns connection
 	 */
-	Connection getConnection(string name)
+	ConnectionPool get(string name)
 	{
 		if (not this.connection_list.has(name))
 		{
-			throw new RuntimeException("Connection " ~ name ~ " not found");
+			throw new ItemNotFound(name, "Connection");
 		}
-		return this.connection_list[name];
+		return this.connection_list.get(name);
 	}
 	
 	
 	/**
 	 * Add new connection
 	 */
-	void addConnection(Connection conn)
+	void add(ConnectionPool conn)
 	{
 		this.connection_list.set(conn.getName(), conn);
 	}
 	
 	
 	/**
-	 * Returns relation name by table name
-	 */
-	string getRelationName(string table_name)
-	{
-		if (not this.tables.has(table_name)) return "";
-		return this.tables.get(table_name).get("class_name");
-	}
-	
-	
-	/**
 	 * Returns table annotations
 	 */
-	Collection<BaseStruct> getAnotations(string table_name)
+	Collection<BaseType> getAnotations(string table_name)
 	{
-		if (not this.tables.has(table_name)) return [];
-		return this.tables.get(table_name).get("annotations");
-	}
-	
-	
-	/**
-	 * To database
-	 */
-	async Dict toDatabase(string table_name, Connection conn, Dict data, bool is_update)
-	{
-		if (data == null) return null;
-		
-		Collection<BaseStruct> annotations = this.getAnotations(table_name);
-		for (int i=0; i<annotations.count(); i++)
-		{
-			BaseStruct annotation = annotations[i];
-			if (annotation instanceof BaseType)
-			{
-				data = await annotation.toDatabase(conn, data, is_update);
-			}
-		}
-		
-		return data;
-	}
-	
-	
-	/**
-	 * From database
-	 */
-	async Dict fromDatabase(string table_name, Connection conn, Dict data)
-	{
-		if (data == null) return null;
-		
-		Collection<BaseStruct> annotations = this.getAnotations(table_name);
-		for (int i=0; i<annotations.count(); i++)
-		{
-			BaseStruct annotation = annotations[i];
-			if (annotation instanceof BaseType)
-			{
-				data = await annotation.fromDatabase(conn, data);
-			}
-		}
-		
-		return data;
-	}
-	
-	
-	/**
-	 * Returns true if primary key is auto increment
-	 */
-	AutoIncrement getAutoIncrement(string table_name)
-	{
-		Collection<BaseStruct> annotations = this.getAnotations(table_name);
-		AutoIncrement annotation = annotations.findItem( lib::isInstance(classof AutoIncrement) );
-		return annotation;
-	}
-	
-	
-	/**
-	 * Returns primary key names of table
-	 */
-	Collection<string> getPrimaryKeyNames(string table_name)
-	{
-		/* Get primary annotation */
-		Collection<BaseStruct> annotations = this.getAnotations(table_name);
-		Primary primary = annotations.findItem( lib::isInstance(classof Primary) );
-		
-		if (primary == null) return null;
-		return primary.keys;
-	}
-	
-	
-	/**
-	 * Returns primary data
-	 */
-	Dict getPrimaryFromData(string table_name, Dict data)
-	{
-		/* Get primary annotation */
-		Collection<string> primary_keys = this.getPrimaryKeyNames(table_name);
-		
-		/* Check if primary keys if exists */
-		if (primary_keys == null)
-		{
-			throw new ItemNotFound(table_name, "Primary keys");
-		}
-		
-		/* Intersect values */
-		return data ? data.intersect(primary_keys, false) : {};
-	}
-	
-	
-	/**
-	 * Returns primary filter by data
-	 */
-	Vector<QueryFilter> getPrimaryFilter(string table_name, Dict data, bool use_full_key = true)
-	{
-		Dict pk = this.getPrimaryFromData(table_name, data);
-		Vector filter = pk.transition(
-			QueryFilter (var value, string key) use (table_name, use_full_key)
-			{
-				QueryFilter item = new QueryFilter;
-				item.key = key;
-				item.op = "=";
-				item.value = value;
-				if (use_full_key)
-				{
-					item.key = table_name ~ "." ~ key;
-				}
-				return item;
-			}
-		);
-		return filter;
-	}
-	
-	
-	/**
-	 * Returns foreign_key by name
-	 */
-	ForeignKey getForeignKey(string name)
-	{
-		if (not this.foreign_keys.has(name)) return null;
-		return this.foreign_keys.get(name);
+		if (not this.annotations.has(table_name)) return [];
+		return this.annotations.get(table_name);
 	}
 	
 	
@@ -211,10 +81,10 @@ class Provider extends BaseProvider
 	 */
 	BaseType getFieldType(string table_name, string field_name)
 	{
-		Collection<BaseStruct> annotations = static::getAnotations(table_name);
+		Collection<BaseType> annotations = this.getAnotations(table_name);
 		for (int i=0; i<annotations.count(); i++)
 		{
-			BaseStruct annotation = annotations[i];
+			BaseType annotation = annotations[i];
 			if (annotation instanceof BaseType)
 			{
 				if (annotation.name == field_name)
@@ -230,36 +100,14 @@ class Provider extends BaseProvider
 	/**
 	 * Add table
 	 */
-	void addTable(string table_name, string class_name, Vector rules)
+	void addTable(string table_name, Vector annotations)
 	{
-		for (int i=0; i<rules.count(); i++)
-		{
-			BaseStruct rule = rules.get(i);
-			rule <= class_name <= class_name;
-			rule <= table_name <= table_name;
-			rules.set(i, rule);
-		}
+		this.annotations.set(table_name, annotations);
 		
-		this.tables.set(table_name, {
-			"annotations": rules.toCollection(),
-			"class_name": class_name,
-			"table_name": table_name,
-		});
-		
-		for (int i=0; i<rules.count(); i++)
+		for (int i=0; i<annotations.count(); i++)
 		{
-			BaseStruct rule = rules.get(i);
-			if (rule instanceof ForeignKey)
-			{
-				if (rule.name != "")
-				{
-					if (this.foreign_keys.has(rule.name))
-					{
-						throw new RuntimeException("Duplicate foreign_key name");
-					}
-					this.foreign_keys.set(rule.name, rule);
-				}
-			}
+			BaseObject rule = annotations.get(i);
+			rule.table_name = table_name;
 		}
 	}
 	
@@ -270,30 +118,36 @@ class Provider extends BaseProvider
 	async void start()
 	{
 		await parent::start();
-		this.registerTables();
-		this.registerConnections();
+		await this.registerTables();
+		await this.registerConnections();
 	}
 	
 	
 	/**
 	 * Register tables
 	 */
-	protected void registerTables()
+	protected async void registerTables()
 	{
 		Collection<Table> items = @.getEntities(classof Table);
 		for (int i=0; i<items.count(); i++)
 		{
 			Table table = items[i];
-			string class_name = table.name;
-			string table_name = new Callback(class_name, "getTableName").apply();
+			string record_name = table.name;
+			
+			/* Get table name */
+			Method getTableName = new Method(record_name, "getTableName");
+			if (not getTableName.exists()) continue;
+			string table_name = getTableName.apply();
 			
 			/* Add schema */
-			Vector rules = new Callback(class_name, "schema").apply();
-			this.addTable(table_name, class_name, rules);
+			Method schema = new Method(record_name, "schema");
+			if (not schema.exists()) continue;
+			Vector rules = schema.apply();
+			this.addTable(table_name, rules);
 		}
 		
 		/* Call register event */
-		await @.callHookAsync(DatabaseSchema::REGISTER, {
+		await @.hook(DatabaseSchema::REGISTER, {
 			"item": this,
 		});
 	}
@@ -302,13 +156,13 @@ class Provider extends BaseProvider
 	/**
 	 * Register connections
 	 */
-	protected void registerConnections()
+	protected async void registerConnections()
 	{
 		Collection<ConnectionFactory> items = @.getEntities(classof ConnectionFactory);
 		for (int i=0; i<items.count(); i++)
 		{
 			ConnectionFactory factory = items.get(i);
-			factory.registerConnections(this);
+			await factory.registerConnections(this);
 		}
 	}
 }

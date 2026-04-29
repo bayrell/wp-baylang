@@ -17,59 +17,119 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin;
+
+use Runtime\Web\BaseRoute;
+use Runtime\Web\RouteInfo;
+use Runtime\Web\RouteModel;
+
+
 class Routes extends \Runtime\Web\BaseRoute
 {
 	/**
 	 * Returns layout name
 	 */
-	static function getLayoutName()
-	{
-		return "default";
-	}
+	static function getLayoutName(){ return "admin"; }
+	
+	
 	/**
 	 * Returns routes
 	 */
 	static function getRoutes()
 	{
-		return \Runtime\Vector::from([new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-settings","name"=>"admin:project:save","model"=>"Runtime.WordPress.Admin.Settings.ProjectSaveModel"])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-settings&action=create","name"=>"admin:project:create","model"=>"Runtime.WordPress.Admin.Settings.ProjectCreateModel"])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-settings&action=migrations","name"=>"admin:database:migrations","model"=>"Runtime.WordPress.Admin.Settings.MigrationPageModel"])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-forms","name"=>"admin:forms:data:index","model"=>"Runtime.WordPress.Admin.FormData.FormDataPageModel"])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-forms-settings","name"=>"admin:forms:settings:index","model"=>"Runtime.WordPress.Admin.FormSettings.FormSettingsPageModel"])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-gallery","name"=>"admin:gallery:index","model"=>"Runtime.WordPress.Admin.Gallery.GalleryPageModel"])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-gallery&action=item","name"=>"admin:gallery:item","model"=>"Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel"])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-mail-log","name"=>"admin:mail:log:index","model"=>"Runtime.WordPress.Admin.MailLog.MailLogPageModel"])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-mail-settings","name"=>"admin:mail:settings:index","model"=>"Runtime.WordPress.Admin.MailSettings.MailSettingsPageModel"])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-fonts","name"=>"baylang:project:fonts:index","model"=>"BayLang.Constructor.Frontend.Fonts.FontPageModel"])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-fonts&action=edit","name"=>"baylang:project:fonts:edit","model"=>"BayLang.Constructor.Frontend.Fonts.FontSaveModel"])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-widgets","name"=>"baylang:project:widgets","model"=>"BayLang.Constructor.Frontend.Widget.WidgetListModel"])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-widgets&action=open","name"=>"baylang:project:widget:edit","model"=>"BayLang.Constructor.Frontend.Editor.WidgetEditPageModel"])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-code-editor","name"=>"baylang:project:code:editor","model"=>"BayLang.Constructor.Frontend.Code.CodeEditorModel","data"=>\Runtime\Map::from(["back_url"=>"admin.php?page=baylang"])])),new \Runtime\Web\RouteModel(\Runtime\Map::from(["uri"=>"admin.php?page=baylang-robots-txt","name"=>"admin:robots:txt","model"=>"Runtime.WordPress.Admin.Robots.RobotsPageModel"]))]);
+		return new \Runtime\Vector(
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-settings",
+				"name" => "admin:project:save",
+				"model" => "Runtime.WordPress.Admin.Settings.ProjectSaveModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-settings&action=create",
+				"name" => "admin:project:create",
+				"model" => "Runtime.WordPress.Admin.Settings.ProjectCreateModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-migrations",
+				"name" => "admin:database:migrations",
+				"model" => "Runtime.WordPress.Admin.Migrations.MigrationPageModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-forms",
+				"name" => "admin:forms:data:index",
+				"model" => "Runtime.WordPress.Admin.FormData.FormDataPageModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-forms-settings",
+				"name" => "admin:forms:settings:index",
+				"model" => "Runtime.WordPress.Admin.FormSettings.FormSettingsPageModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-gallery",
+				"name" => "admin:gallery:index",
+				"model" => "Runtime.WordPress.Admin.Gallery.GalleryPageModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-gallery&action=item",
+				"name" => "admin:gallery:item",
+				"model" => "Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-mail-log",
+				"name" => "admin:mail:log:index",
+				"model" => "Runtime.WordPress.Admin.MailLog.MailLogPageModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-mail-settings",
+				"name" => "admin:mail:settings:index",
+				"model" => "Runtime.WordPress.Admin.MailSettings.MailSettingsPageModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-fonts",
+				"name" => "baylang:project:fonts:index",
+				"model" => "BayLang.Constructor.Frontend.Fonts.FontPageModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-fonts&action=edit",
+				"name" => "baylang:project:fonts:edit",
+				"model" => "BayLang.Constructor.Frontend.Fonts.FontSaveModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-widgets",
+				"name" => "baylang:project:widgets",
+				"model" => "BayLang.Constructor.Frontend.Widget.WidgetListModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-widgets&action=open",
+				"name" => "baylang:project:widget:edit",
+				"model" => "BayLang.Constructor.Frontend.Editor.WidgetEditPageModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-code-editor",
+				"name" => "baylang:project:code:editor",
+				"model" => "BayLang.Constructor.Frontend.Code.CodeEditorModel",
+				"data" => new \Runtime\Map([
+					"back_url" => "admin.php?page=baylang",
+				]),
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-robots-txt",
+				"name" => "admin:robots:txt",
+				"model" => "Runtime.WordPress.Admin.Robots.RobotsPageModel",
+			])),
+			new \Runtime\Web\RouteModel(new \Runtime\Map([
+				"uri" => "admin.php?page=baylang-cabinet-users",
+				"name" => "admin:cabinet:users",
+				"model" => "Runtime.WordPress.Admin.Cabinet.Users.UserModel",
+			])),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Admin";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.Routes";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.BaseRoute";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.Routes"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

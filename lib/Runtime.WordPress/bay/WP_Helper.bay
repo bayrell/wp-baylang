@@ -18,23 +18,28 @@
 
 namespace Runtime.WordPress;
 
-use Runtime.lib;
+use Runtime.BaseLayout;
+use Runtime.Component;
+use Runtime.RenderContainer;
+use Runtime.VirtualDom;
+use Runtime.Providers.RenderContent;
 use Runtime.DateTime;
 use Runtime.RawString;
+use Runtime.Exceptions.ItemNotFound;
 use Runtime.ORM.Connection;
 use Runtime.ORM.Query;
+use Runtime.ORM.QueryResult;
 use Runtime.Web.BaseApp;
-use Runtime.Web.RenderContainer;
 use Runtime.Web.Response;
 use Runtime.Web.RouteInfo;
 use Runtime.Web.RouteList;
+use Runtime.Web.RouteProvider;
 use Runtime.WordPress.Admin.AdminUI;
+use Runtime.WordPress.Theme.Components.ImageType;
 
 
 class WP_Helper
 {
-	#ifdef BACKEND then
-	
 	/**
 	 * Returns option by name
 	 */
@@ -77,9 +82,12 @@ class WP_Helper
 	/**
 	 * Returns app version
 	 */
-	static string getAppVersion(string version) =>
-		version ~ "_" ~ static::get_option("app_js_vesion")
-	;
+	static string getAppVersion(string version)
+	{
+		string js_version = static::get_option("app_js_vesion");
+		if (js_version) return version ~ "_" ~ js_version;
+		return version;
+	}
 	
 	
 	/**
@@ -115,11 +123,26 @@ class WP_Helper
 	
 	
 	/**
+	 * Returns true if user is admin
+	 */
+	static bool isAdmin()
+	{
+		#ifcode PHP then
+		return current_user_can("edit_pages");
+		#endif
+		return false;
+	}
+	
+	
+	/**
 	 * Load images
 	 */
-	static Dict loadImages(Connection connection, Collection<int> images)
+	static async Map loadImages(Collection<int> images, Connection connection = null)
 	{
-		Dict result = {};
+		Map result = {};
+		
+		/* Get connection */
+		if (not connection) connection = Connection::get();
 		
 		/* Get images metadata */
 		Query q = new Query()
@@ -129,7 +152,7 @@ class WP_Helper
 			.where("meta_key", "=", ["_wp_attachment_metadata", "_wp_attached_file"])
 			.where("post_id", "=", images)
 		;
-		Dict images_metadata = await connection.fetchAll(q);
+		QueryResult images_metadata = await connection.fetchAll(q);
 		
 		/* Get post */
 		Query q = new Query()
@@ -138,7 +161,7 @@ class WP_Helper
 			.addRawField("*")
 			.where("ID", "=", images)
 		;
-		Dict posts = await connection.fetchAll(q);
+		QueryResult posts = await connection.fetchAll(q);
 		
 		/* Upload dir */
 		string upload_url = "/wp-content/uploads";
@@ -147,27 +170,27 @@ class WP_Helper
 		for (int i=0; i<images.count(); i++)
 		{
 			int image_id = images.get(i);
-			Dict image = null;
+			ImageType image = null;
 			
 			/* Get post */
 			string post_time = "";
-			Dict post = posts.findItem(lib::equalAttr("ID", image_id));
+			Map post = posts.find(bool (Map row) use (image_id) => row.get("ID") == image_id);
 			if (post)
 			{
-				DateTime d = DateTime::fromString(post["post_modified_gmt"]);
+				DateTime d = DateTime::fromString(post.get("post_modified_gmt"));
 				post_time = d.timestamp();
 			}
 			
 			/* Load metadata */
-			Dict obj_file = images_metadata.findItem(
-				bool (Dict item) use (image_id) =>
-					item["meta_key"] == "_wp_attached_file" and
-					item["post_id"] == image_id
+			Map obj_file = images_metadata.find(
+				bool (Map item) use (image_id) =>
+					item.get("meta_key") == "_wp_attached_file" and
+					item.get("post_id") == image_id
 			);
-			Dict obj_metadata = images_metadata.findItem(
-				bool (Dict item) use (image_id) =>
-					item["meta_key"] == "_wp_attachment_metadata" and
-					item["post_id"] == image_id
+			Map obj_metadata = images_metadata.find(
+				bool (Map item) use (image_id) =>
+					item.get("meta_key") == "_wp_attachment_metadata" and
+					item.get("post_id") == image_id
 			);
 			if (not(obj_file and obj_metadata)) continue;
 			
@@ -186,7 +209,7 @@ class WP_Helper
 				
 				foreach ($sizes as $key => &$size)
 				{
-					$size = \Runtime\Dict::from([
+					$size = \Runtime\Map::create([
 						"size" => $key,
 						"file" => $image_dir_name . "/" .
 							basename($size["file"]) . $image_url_after,
@@ -196,15 +219,14 @@ class WP_Helper
 					]);
 				}
 				
-				$sizes = \Runtime\Dict::from($sizes);
-				$image = \Runtime\Dict::from([
-					"id" => $image_id,
-					"width" => $obj_metadata["width"],
-					"height" => $obj_metadata["height"],
-					"file" => $image_dir_name . "/" .
-						basename($obj_metadata["file"]) . $image_url_after,
-					"sizes" => $sizes,
-				]);
+				$sizes = \Runtime\Map::create($sizes);
+				$image = new ImageType();
+				$image->id = $image_id;
+				$image->width = $obj_metadata["width"];
+				$image->height = $obj_metadata["height"];
+				$image->file = $image_dir_name . "/" .
+					basename($obj_metadata["file"]) . $image_url_after;
+				$image->sizes = $sizes;
 			}
 			#endif
 			
@@ -254,76 +276,93 @@ class WP_Helper
 	
 	
 	/**
-	 * Call wp admin route
+	 * Render app
 	 */
-	async static string wp_admin_route(string route_name, fn route_before = null)
+	static async void renderApp()
 	{
-		string content = "";
-		
-		/* Create render container */
-		BaseApp app = @.getApp();
+		/* Create container and layout */
+		BaseApp app = @.provider("app");
 		RenderContainer container = app.createRenderContainer();
 		
 		/* Create request */
 		container.request = app.createRequest();
 		
-		/* Setup route */
-		RouteList routes = @.provider(classof RouteList);
-		RouteInfo route = routes.routes_list.findItem(lib::equalAttr("name", route_name));
-		container.route = route;
+		/* Resolve container */
+		await container.resolve();
 		
-		/* Create layout */
-		string layout_name = container.getLayoutName();
-		await container.createLayout(layout_name);
-		
-		/* Call route before */
-		if (route_before)
-		{
-			await rtl::apply(route_before, [container]);
-		}
-		
-		/* Resolve route */
-		await container.resolveRoute();
-		
-		/* Return container */
+		/* Returns container */
 		return container;
-	}
-	
-	
-	/**
-	 * Render
-	 */
-	async static string wp_render(RenderContainer container)
-	{
-		string content = "";
-		
-		if (container.response instanceof Response)
-		{
-			content = container.response.getContent(false);
-		}
-		else
-		{
-			content = "<p>404 Response not found</p>";
-		}
-		
-		return content;
 	}
 	
 	
 	/**
 	 * Render page
 	 */
-	async static void wp_render_page(string route_name, fn route_before = null)
+	static async void renderPage(string route_name, Map params = null)
 	{
-		RenderContainer container = static::wp_admin_route(route_name, route_before);
-		string content = static::wp_render(container);
+		/* Create container and layout */
+		BaseApp app = @.provider("app");
+		RenderContainer container = app.createRenderContainer();
 		
-		#ifcode PHP then
-		do_action("admin_render_page");
-		echo $content;
-		#endif
+		/* Create request */
+		container.request = app.createRequest();
+		
+		/* Find route */
+		RouteProvider routes = @.provider(classof RouteProvider);
+		container.route = routes.getRoute(route_name);
+		
+		/* Set matches */
+		if (container.route and params) container.route.matches = params;
+		
+		/* Resolve route */
+		container.resolveRoute();
+		
+		/* Returns container */
+		return container;
 	}
 	
 	
-	#endif
+	/**
+	 * Render page model
+	 */
+	static async void renderPageModel(string class_name, string layout_name="default")
+	{
+		/* Create container and layout */
+		BaseApp app = @.provider("app");
+		RenderContainer container = app.createRenderContainer();
+		
+		/* Create request */
+		container.request = app.createRequest();
+		
+		/* Create layout */
+		BaseLayout layout = container.createLayout(layout_name);
+		
+		/* Render page */
+		await container.renderPageModel(class_name);
+		
+		/* Returns container */
+		return container;
+	}
+	
+	
+	/**
+	 * Render container
+	 */
+	static async void render(RenderContainer container)
+	{
+		#ifcode PHP then
+		
+		do_action("admin_render_page");
+		
+		if ($container->route == null)
+		{
+			echo "<p>Page not found</p>";
+		}
+		else
+		{
+			echo $container->renderApp();
+		}
+		
+		#endif
+	}
 }

@@ -1,0 +1,74 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.Api.Rules;
+
+use Runtime.Exceptions.ApiError;
+use Runtime.Exceptions.FieldException;
+use Runtime.ORM.Query;
+use Runtime.ORM.Record;
+use Runtime.Widget.Api.SaveApi;
+use Runtime.Widget.Api.Rules.BaseRule;
+
+
+class UniqueRule extends BaseRule
+{
+	string field_name = "";
+	Vector key = null;
+	
+	
+	/**
+	 * On save before
+	 */
+	async void onSaveBefore(SaveApi api)
+	{
+		string field_name = this.field_name;
+		Vector key = this.key
+		if (not key)
+		{
+			key = [field_name];
+		}
+		
+		Vector keys = api.relation.getPrimaryKeys();
+		Query q = api.relation.select(keys);
+		
+		for (string name in key)
+		{
+			q.where(name, "=", api.item.get(name));
+		}
+		
+		if (api.item.isUpdate())
+		{
+			Map pk = api.relation.getPrimaryKey(api.item.old());
+			for (string key in pk.keys())
+			{
+				q.where(key, "!=", api.item.get(key));
+			}
+		}
+		
+		Map row = await api.relation.fetch(q);
+		if (row)
+		{
+			Map error = {};
+			error.set(this.field_name, ["Must be unique"]);
+			throw new ApiError(new FieldException({
+				"fields": error,
+			}));
+		}
+	}
+}

@@ -17,32 +17,30 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM;
-class Connection
+
+use Runtime\BaseObject;
+use Runtime\Exceptions\RuntimeException;
+use Runtime\ORM\Factory\CursorFactory;
+use Runtime\ORM\ConnectionPool;
+use Runtime\ORM\Cursor;
+use Runtime\ORM\Provider;
+use Runtime\ORM\Query;
+use Runtime\ORM\QueryFilter;
+use Runtime\ORM\QueryLog;
+use Runtime\ORM\QueryResult;
+use Runtime\ORM\Record;
+use Runtime\ORM\Relation;
+
+
+class Connection extends \Runtime\BaseObject
 {
-	public $name;
-	public $cursor;
-	public $log;
-	function __construct($name="")
-	{
-		$this->name = $name;
-	}
-	/**
-	 * Returns connection
-	 */
-	static function get($name="default")
-	{
-		return static::getConnection($name);
-	}
-	static function getConnection($name="default")
-	{
-		if ($name == "")
-		{
-			$name = "default";
-		}
-		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
-		$conn = $provider->getConnection($name);
-		return $conn;
-	}
+	var $pool;
+	var $cursor;
+	var $log;
+	var $adapter;
+	var $in_transaction;
+	
+	
 	/**
 	 * Set cursor factory
 	 */
@@ -50,6 +48,8 @@ class Connection
 	{
 		$this->cursor = $factory;
 	}
+	
+	
 	/**
 	 * Set query log
 	 */
@@ -57,46 +57,61 @@ class Connection
 	{
 		$this->log = $value;
 	}
+	
+	
 	/**
 	 * Returns query log
 	 */
-	function getQueryLog()
-	{
-		return $this->log;
-	}
+	function getQueryLog(){ return $this->log; }
+	
+	
 	/**
-	 * Connect
+	 * Constructor
 	 */
-	function connect()
+	function __construct($pool)
 	{
+		parent::__construct();
+		$this->pool = $pool;
+		$this->adapter = $pool->adapter ? $pool->adapter->copy() : null;
 	}
+	
+	
+	/**
+	 * Convert item from database
+	 */
+	function fromDatabase($annotation, $item, $field_name){ return $item; }
+	
+	
+	/**
+	 * Convert item to database
+	 */
+	function toDatabase($annotation, $item, $field_name){ return $item; }
+	
+	
 	/**
 	 * Check is connected
 	 */
-	function isConnected()
-	{
-		return false;
-	}
+	function isConnected(){ return false; }
+	
+	
 	/**
 	 * Returns connection name
 	 */
-	function getName()
-	{
-		return $this->name;
-	}
+	function getName(){ return $this->name; }
+	
+	
 	/**
 	 * Create new cursor
 	 */
 	function createCursor()
 	{
-		if (!$this->cursor)
-		{
-			return ;
-		}
+		if (!$this->cursor) return;
 		$cursor = $this->cursor->createCursor();
 		$cursor->setConnection($this);
 		return $cursor;
 	}
+	
+	
 	/**
 	 * Fork connection
 	 */
@@ -104,45 +119,93 @@ class Connection
 	{
 		return \Runtime\rtl::newInstance(static::getClassName());
 	}
+	
+	
 	/**
 	 * Prepare field
 	 */
-	function prepareField($item)
-	{
-		return $item;
-	}
+	function prepareField($item){ return $item; }
+	
+	
 	/**
 	 * Prepare value
 	 */
-	function prepareValue($item, $op)
-	{
-		return $item;
-	}
+	function prepareValue($item, $op){ return $item; }
+	
+	
 	/**
 	 * Quote
 	 */
-	function quote($value)
-	{
-		return $value;
-	}
+	function quote($value){ return $value; }
+	
+	
 	/**
 	 * Returns table name
 	 */
-	function getTableName($table_name)
+	function getTableName($table_name){ return $this->pool->params->get("prefix") . $table_name; }
+	
+	
+	/**
+	 * Start transaction
+	 */
+	function beginTransaction()
 	{
-		return $this->prefix . \Runtime\rtl::toStr($table_name);
+		if (!$this->in_transaction)
+		{
+			$this->adapter->beginTransaction();
+			$this->in_transaction = true;
+		}
 	}
+	
+	
+	/**
+	 * Commit transaction
+	 */
+	function commit()
+	{
+		if ($this->in_transaction)
+		{
+			$this->adapter->commit();
+			$this->in_transaction = false;
+		}
+	}
+	
+	
+	/**
+	 * Rollback transaction
+	 */
+	function rollback()
+	{
+		if ($this->in_transaction)
+		{
+			$this->adapter->rollback();
+			$this->in_transaction = false;
+		}
+	}
+	
+	
 	/**
 	 * Execute Query
 	 */
-	function execute($q, $params=null)
+	function execute($q, $params = null){ return null; }
+	
+	
+	/**
+	 * Release connection
+	 */
+	function release()
 	{
-		return null;
+		if ($this->adapter)
+		{
+			$this->adapter->release();
+		}
 	}
+	
+	
 	/**
 	 * Insert query
 	 */
-	function insert($table_name, $insert_data, $get_last_id=true, $params=null)
+	function insert($table_name, $insert_data, $get_last_id = true, $params = null)
 	{
 		$last_id = null;
 		if ($table_name == "")
@@ -150,154 +213,160 @@ class Connection
 			throw new \Runtime\Exceptions\RuntimeException("Table name is empty");
 		}
 		$q = (new \Runtime\ORM\Query())->insert($table_name)->values($insert_data);
-		$c = $this->execute($q, $params);
-		if ($get_last_id)
+		$cursor = null;
+		try
 		{
-			$last_id = $c->lastInsertId();
+			$cursor = $this->execute($q, $params);
+			if ($get_last_id)
+			{
+				$last_id = $cursor->lastInsertId();
+			}
 		}
-		$c->close();
+		catch (Exception $e) { throw e; }
+		finally
+		{
+			if ($cursor)
+			{
+				$cursor->close();
+			}
+		}
 		return $last_id;
 	}
+	
+	
 	/**
 	 * Update query
 	 */
-	function update($table_name, $filter, $update_data, $params=null)
+	function update($table_name, $filter, $update_data, $params = null)
 	{
 		if ($table_name == "")
 		{
 			throw new \Runtime\Exceptions\RuntimeException("Table name is empty");
 		}
 		$q = (new \Runtime\ORM\Query())->update($table_name)->values($update_data)->setFilter($filter);
-		$c = $this->execute($q, $params);
-		$c->close();
+		$cursor = null;
+		try
+		{
+			$cursor = $this->execute($q, $params);
+		}
+		catch (Exception $e) { throw e; }
+		finally
+		{
+			if ($cursor)
+			{
+				$cursor->close();
+			}
+		}
 	}
+	
+	
 	/**
 	 * Delete item
 	 */
-	function delete($table_name, $filter, $params=null)
+	function delete($table_name, $filter, $params = null)
 	{
 		if ($table_name == "")
 		{
 			throw new \Runtime\Exceptions\RuntimeException("Table name is empty");
 		}
-		$__v0 = new \Runtime\Monad(new \Runtime\ORM\Query());
-		$__v0 = $__v0->callMethod("delete", [$table_name]);
-		$__v0 = $__v0->callMethod("setFilter", [$filter]);
-		$q = $__v0->value();
-		$c = $this->execute($q, $params);
-		$c->close();
+		$q = (new \Runtime\ORM\Query())->delete($table_name)->setFilter($filter);
+		$cursor = null;
+		try
+		{
+			$cursor = $this->execute($q, $params);
+		}
+		catch (Exception $e) { throw e; }
+		finally
+		{
+			if ($cursor)
+			{
+				$cursor->close();
+			}
+		}
 	}
-	/**
-	 * Convert item from database
-	 */
-	function fromDatabase($annotation, $item, $field_name)
-	{
-		return $item;
-	}
-	/**
-	 * Convert item to database
-	 */
-	function toDatabase($annotation, $item, $field_name)
-	{
-		return $item;
-	}
+	
+	
 	/**
 	 * Fetch all
 	 */
-	function fetchAll($q, $params=null)
+	function fetchAll($q, $params = null)
 	{
-		$c = $this->execute($q, $params);
-		$items = $c->fetchAll();
-		$c->close();
-		return $items;
+		$cursor = null;
+		try
+		{
+			$cursor = $this->execute($q, $params);
+			return $cursor->fetchAll();
+		}
+		catch (Exception $e) { throw e; }
+		finally
+		{
+			if ($cursor)
+			{
+				$cursor->close();
+			}
+		}
 	}
+	
+	
 	/**
 	 * Fetch
 	 */
-	function fetch($q, $params=null)
+	function fetch($q, $params = null)
 	{
-		$c = $this->execute($q, $params);
-		$items = $c->fetch();
-		$c->close();
-		return $items;
+		$cursor = null;
+		try
+		{
+			$cursor = $this->execute($q, $params);
+			return $cursor->fetch();
+		}
+		catch (Exception $e) { throw e; }
+		finally
+		{
+			if ($cursor)
+			{
+				$cursor->close();
+			}
+		}
 	}
-	function fetchOne($q, $params=null)
+	function fetchOne($q, $params = null)
 	{
 		return $this->fetch($q, $params);
 	}
+	
+	
 	/**
 	 * Fetch variable
 	 */
-	function fetchVar($q, $var_name, $params=null)
+	function fetchVar($q, $var_name, $params = null)
 	{
-		$cursor = $this->execute($q, $params);
-		$item = $cursor->fetchVar($var_name);
-		$cursor->close();
-		return $item;
+		$cursor = null;
+		try
+		{
+			$cursor = $this->execute($q, $params);
+			return $cursor->fetchVar($var_name);
+		}
+		catch (Exception $e) { throw e; }
+		finally
+		{
+			if ($cursor)
+			{
+				$cursor->close();
+			}
+		}
 	}
-	/**
-	 * Find relation by query
-	 */
-	function findRelation($q, $params=null)
-	{
-		$c = $this->execute($q, $params);
-		$item = $c->fetchRelation($q, $params);
-		$c->close();
-		return $item;
-	}
-	/**
-	 * Find relations by query
-	 */
-	function findRelations($q, $params=null)
-	{
-		$c = $this->execute($q, $params);
-		$items = $c->fetchAll($q, $params);
-		$c->close();
-		return $items->toRelation();
-	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
-		$this->name = "";
+		parent::_init();
+		$this->pool = null;
 		$this->cursor = null;
 		$this->log = null;
+		$this->adapter = null;
+		$this->in_transaction = false;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Connection";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Connection"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

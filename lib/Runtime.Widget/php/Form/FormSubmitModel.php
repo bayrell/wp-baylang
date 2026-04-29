@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,69 +17,149 @@
  *  limitations under the License.
  */
 namespace Runtime\Widget\Form;
+
+use Runtime\ApiResult;
+use Runtime\BaseModel;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\ObjectType;
+use Runtime\Serializer\StringType;
+use Runtime\Serializer\VectorType;
+use Runtime\Web\RenderContainer;
+use Runtime\Widget\Form\FormMessage;
+use Runtime\Widget\Form\FormModel;
+use Runtime\Widget\Form\FormSubmit;
+
+
 class FormSubmitModel extends \Runtime\Widget\Form\FormModel
 {
+	var $component;
+	var $fields;
+	var $submit_button;
+	var $api_name;
+	var $method_name;
+	
+	
 	/**
-	 * Init widget settings
+	 * Serialize object
+	 */
+	static function serialize($rules)
+	{
+		parent::serialize($rules);
+	}
+	
+	
+	/**
+	 * Init params
+	 */
+	function initParams($params)
+	{
+		parent::initParams($params);
+		if (!$params) return;
+		if ($params->has("fields"))
+		{
+			$this->fields = $params->get("fields");
+		}
+		if ($params->has("submit_button"))
+		{
+			$this->submit_button = $params->get("submit_button");
+		}
+		if ($params->has("api_name"))
+		{
+			$this->api_name = $params->get("api_name");
+		}
+		if ($params->has("method_name"))
+		{
+			$this->method_name = $params->get("method_name");
+		}
+	}
+	
+	
+	/**
+	 * Init widget
 	 */
 	function initWidget($params)
 	{
 		parent::initWidget($params);
-		$content = "Submit";
-		$styles = \Runtime\Vector::from(["danger","large"]);
-		/* Submit button params */
-		if ($params->has("submit_button"))
+		$this->field_errors->error_name = "error";
+		foreach ($this->fields as $field)
 		{
-			$submit_button = $params->get("submit_button");
-			if ($submit_button->has("text"))
+			$component = $field->get("component");
+			$this->layout->addComponent($component);
+		}
+	}
+	
+	
+	/**
+	 * Submit form
+	 */
+	function submit()
+	{
+		/* Prepare data from fields */
+		$data = new \Runtime\Map();
+		foreach ($this->fields->values() as $field)
+		{
+			$field_name = $field->get("name");
+			$data->set($field_name, $this->item->get($field_name));
+		}
+		/* Send API request */
+		if ($this->api_name)
+		{
+			$this->result->setWaitMessage();
+			/* Send api */
+			$result = $this->layout->sendApi(new \Runtime\Map([
+				"api_name" => $this->api_name,
+				"method_name" => $this->method_name,
+				"data" => $data,
+			]));
+			/* Set api result */
+			$this->setApiResult($result);
+			if ($result->isSuccess())
 			{
-				$content = $submit_button->get("text");
+				$this->onSubmitSuccess($result);
 			}
-			if ($submit_button->has("styles"))
+			else
 			{
-				$styles = $submit_button->get("styles");
+				$this->onSubmitError($result);
 			}
 		}
-		/* Add submit Button */
-		$submit_button = $this->bottom_buttons->addButton(\Runtime\Map::from(["widget_name"=>"submit","content"=>$content,"styles"=>$styles,"events"=>\Runtime\Map::from(["click"=>new \Runtime\Callback($this, "submit")])]));
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/**
+	 * Handle successful submission
+	 */
+	function onSubmitSuccess($result)
 	{
-		return "Runtime.Widget.Form";
+		$this->listener->emit(new \Runtime\Widget\Form\FormMessage(new \Runtime\Map([
+			"name" => "submit",
+			"result" => $result,
+		])));
 	}
-	static function getClassName()
+	
+	
+	/**
+	 * Handle submission error
+	 */
+	function onSubmitError($result)
 	{
-		return "Runtime.Widget.Form.FormSubmitModel";
+		$this->listener->emit(new \Runtime\Widget\Form\FormMessage(new \Runtime\Map([
+			"name" => "submit",
+			"result" => $result,
+		])));
 	}
-	static function getParentClassName()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.Widget.Form.FormModel";
+		parent::_init();
+		$this->component = "Runtime.Widget.Form.FormSubmit";
+		$this->fields = new \Runtime\Vector();
+		$this->submit_button = new \Runtime\Map();
+		$this->api_name = "";
+		$this->method_name = "submit";
 	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Widget.Form.FormSubmitModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

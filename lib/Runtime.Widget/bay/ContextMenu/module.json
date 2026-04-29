@@ -16,7 +16,8 @@
 	"dest":
 	{
 		"php": "./../../php/ContextMenu",
-		"es6": "./../../es6/ContextMenu"
+		"es6": "./../../es6/ContextMenu",
+		"nodejs": "./../../nodejs/ContextMenu"
 	},
 	"allow":
 	[

@@ -17,68 +17,117 @@
  *  limitations under the License.
 */
 namespace Runtime\WordPress\Admin\Gallery;
-class GalleryPage extends \Runtime\Web\Component
+
+use Runtime\Widget\Button;
+use Runtime\Widget\Input;
+use Runtime\Widget\RowButtons;
+use Runtime\Widget\Table\TableWrap;
+
+
+class GalleryPage extends \Runtime\Component
 {
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("gallery_page", $componentHash))])));
 		
-		/* Text */
-		$this->_t($__v0, $this->renderWidget($this->model->top_buttons));
+		/* Element Runtime.Widget.Table.TableWrap */
+		$__v1 = $__v0->element("Runtime.Widget.Table.TableWrap", (new \Runtime\Map(["model" => $this->model->manager])));
 		
-		/* Text */
-		$this->_t($__v0, $this->renderWidget($this->model->table));
+		/* Slot top_buttons */
+		$__v1->slot("top_buttons", function ()
+		{
+			$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+			$__v = new \Runtime\VirtualDom($this);
+			
+			/* Element Runtime.Widget.RowButtons */
+			$__v0 = $__v->element("Runtime.Widget.RowButtons");
+			
+			/* Content */
+			$__v0->slot("default", function ()
+			{
+				$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+				$__v = new \Runtime\VirtualDom($this);
+				
+				/* Element Runtime.Widget.Button */
+				$__v0 = $__v->element("Runtime.Widget.Button", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("button--success", $componentHash))])));
+				
+				/* Content */
+				$__v0->slot("default", function ()
+				{
+					$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+					$__v = new \Runtime\VirtualDom($this);
+					$__v->push("Add");
+					return $__v;
+				});
+				
+				return $__v;
+			});
+			
+			return $__v;
+		});
 		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["form_settings_page"])], $__v0);
+		/* Slot row_buttons */
+		$__v1->slot("row_buttons", function ($item, $field, $row_number)
+		{
+			$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+			$__v = new \Runtime\VirtualDom($this);
+			
+			/* Element div */
+			$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("row_buttons", $componentHash)), "style" => "display: flex; gap: calc(var(--space) * 0.5);"])));
+			
+			/* Element Runtime.Widget.Button */
+			$__v1 = $__v0->element("Runtime.Widget.Button", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("button--small", $componentHash)), "href" => \Runtime\rs::urlGetAdd($this->layout->url("admin:gallery:item"), new \Runtime\Map(["id" => $item->get("id")]))])));
+			
+			/* Content */
+			$__v1->slot("default", function () use (&$item)
+			{
+				$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+				$__v = new \Runtime\VirtualDom($this);
+				$__v->push("Open");
+				return $__v;
+			});
+			
+			/* Element Runtime.Widget.Button */
+			$__v2 = $__v0->element("Runtime.Widget.Button", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("button--small", $componentHash))])));
+			
+			/* Content */
+			$__v2->slot("default", function () use (&$item)
+			{
+				$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+				$__v = new \Runtime\VirtualDom($this);
+				$__v->push("Edit");
+				return $__v;
+			});
+			
+			/* Element Runtime.Widget.Button */
+			$__v3 = $__v0->element("Runtime.Widget.Button", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("button--small button--danger", $componentHash))])));
+			
+			/* Content */
+			$__v3->slot("default", function () use (&$item)
+			{
+				$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+				$__v = new \Runtime\VirtualDom($this);
+				$__v->push("Delete");
+				return $__v;
+			});
+			
+			return $__v;
+		});
 		
-		return $this->_flatten($__v);
+		return $__v;
 	}
-	static function css($vars)
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		$res = "";
-		return $res;
+		parent::_init();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Admin.Gallery";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.Gallery.GalleryPage";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ""; }
+	static function getRequiredComponents(){ return new \Runtime\Vector("Runtime.Widget.Button", "Runtime.Widget.Input", "Runtime.Widget.RowButtons", "Runtime.Widget.Table.TableWrap"); }
+	static function getClassName(){ return "Runtime.WordPress.Admin.Gallery.GalleryPage"; }
 }

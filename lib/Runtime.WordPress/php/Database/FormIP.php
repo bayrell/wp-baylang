@@ -17,62 +17,44 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Database;
-class FormIP extends \Runtime\ORM\Relation
+
+use Runtime\BaseObject;
+use Runtime\DateTime;
+use Runtime\ORM\Record;
+use Runtime\ORM\Relation;
+use Runtime\ORM\Annotations\BigIntType;
+use Runtime\ORM\Annotations\Primary;
+use Runtime\ORM\Annotations\StringType;
+
+
+class FormIP extends \Runtime\ORM\Record
 {
 	/**
-     * Returns table name
-     */
-	static function getTableName()
-	{
-		return "forms_ip";
-	}
+	 * Returns table name
+	 */
+	static function getTableName(){ return "forms_ip"; }
+	
+	
 	/**
-     * Returns table schema
-     */
+	 * Returns table schema
+	 */
 	static function schema()
 	{
-		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.WordPress.Database.FormIP.schema", func_get_args());
-		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;$__memorize_value = \Runtime\Vector::from([new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"ip"])),new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"count"])),new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"last"])),new \Runtime\ORM\Annotations\Primary(\Runtime\Map::from(["keys"=>\Runtime\Vector::from(["ip"])]))]);
-		\Runtime\rtl::_memorizeSave("Runtime.WordPress.Database.FormIP.schema", func_get_args(), $__memorize_value);
-		return $__memorize_value;
+		return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "ip"])),
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "count"])),
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "last"])),
+			new \Runtime\ORM\Annotations\Primary(new \Runtime\Map(["keys" => new \Runtime\Vector("ip")])),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Database";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Database.FormIP";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Relation";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Database.FormIP"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

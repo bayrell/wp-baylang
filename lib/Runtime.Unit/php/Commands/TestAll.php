@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,22 +17,26 @@
  *  limitations under the License.
  */
 namespace Runtime\Unit\Commands;
+
+use Runtime\Console\BaseCommand;
+use Runtime\Unit\TestProvider;
+use Runtime\Unit\UnitTest;
+
+
 class TestAll extends \Runtime\Console\BaseCommand
 {
 	/**
 	 * Returns name
 	 */
-	static function getName()
-	{
-		return "test::all";
-	}
+	static function getName(){ return "test::all"; }
+	
+	
 	/**
 	 * Returns description
 	 */
-	static function getDescription()
-	{
-		return "Run all tests";
-	}
+	static function getDescription(){ return "Run all tests"; }
+	
+	
 	/**
 	 * Run task
 	 */
@@ -40,7 +44,7 @@ class TestAll extends \Runtime\Console\BaseCommand
 	{
 		$error_code = static::SUCCESS;
 		/* List all tests */
-		\Runtime\io::print("Run all tests:");
+		\Runtime\rtl::print("Run all tests:");
 		$tests = \Runtime\rtl::getContext()->provider("Runtime.Unit.TestProvider");
 		for ($i = 0; $i < $tests->count(); $i++)
 		{
@@ -53,51 +57,22 @@ class TestAll extends \Runtime\Console\BaseCommand
 		}
 		if ($error_code == 1)
 		{
-			\Runtime\io::print(\Runtime\io::color("green", "OK"));
+			\Runtime\rtl::print(\Runtime\rtl::color("green", "OK"));
 		}
 		else
 		{
-			\Runtime\io::print(\Runtime\io::color("red", "Fail"));
+			\Runtime\rtl::print(\Runtime\rtl::color("red", "Fail"));
 		}
 		return $error_code;
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.Unit.Commands";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.Unit.Commands.TestAll";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Console.BaseCommand";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Unit.Commands.TestAll"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

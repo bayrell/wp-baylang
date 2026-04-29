@@ -25,7 +25,7 @@ use Runtime.ORM.Provider;
 use Runtime.ORM.Factory.ConnectionFactory;
 
 
-struct WP_Factory extends ConnectionFactory
+class WP_Factory extends ConnectionFactory
 {
 	/**
 	 * Constructor
@@ -45,25 +45,27 @@ struct WP_Factory extends ConnectionFactory
 		
 		global $wpdb;
 		
-		/* Add default connection */
-		$conn = new \Runtime\WordPress\Database\ORM\WP_Connection("default");
-		$conn->host = DB_HOST;
-		$conn->login = DB_USER;
-		$conn->password = DB_PASSWORD;
-		$conn->database = DB_NAME;
-		$conn->prefix = $wpdb->base_prefix;
-		$provider->addConnection($conn);
+		$class_name = "Runtime.WordPress.Database.ORM.WP_Connection";
+		$params = new \Runtime\Map([
+			"host" => DB_HOST,
+			"login" => DB_USER,
+			"password" => DB_PASSWORD,
+			"database" => DB_NAME,
+			"prefix" => $wpdb->base_prefix,
+		]);
 		
-		/* Add prefix connection */
-		$conn = $conn->fork();
-		$conn->name = "prefix";
-		$conn->prefix = $wpdb->prefix;
-		$provider->addConnection($conn);
+		/* Add default pool */
+		$pool = new \Runtime\ORM\ConnectionPool("default", $params->copy(), $class_name);
+		$provider->add($pool);
 		
-		/* Add no prefix connection */
-		$conn = $conn->fork();
-		$conn->name = "no_prefix";
-		$provider->addConnection($conn);
+		/* Add prefix pool */
+		$pool = new \Runtime\ORM\ConnectionPool("prefix", $params->copy(), $class_name);
+		$pool->params->set("prefix", $wpdb->prefix);
+		$provider->add($pool);
+		
+		/* Add no prefix pool */
+		$pool = new \Runtime\ORM\ConnectionPool("no_prefix", $params->copy(), $class_name);
+		$provider->add($pool);
 		
 		#endif
 	}

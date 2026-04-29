@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,75 +17,52 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
-class Field extends \Runtime\Web\Component
+
+
+class Field extends \Runtime\Component
 {
-	public $readonly;
-	public $name;
-	public $value;
-	public $default;
-	public $placeholder;
-	public $type;
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["field"])]);
+		/* Element div */
+		$__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("field", $componentHash))])));
 		
-		return $this->_flatten($__v);
+		return $__v;
 	}
-	static function css($vars)
+	var $readonly;
+	var $id;
+	var $name;
+	var $value;
+	var $default;
+	var $placeholder;
+	var $type;
+	/**
+	 * Returns textarea props
+	 */
+	function getProps()
 	{
-		$res = "";
-		return $res;
+		$res = new \Runtime\Map();
+		if ($this->readonly) $res->set("readonly", true);
+		if ($this->id) $res->set("id", $this->id);
+		return new \Runtime\Map();
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->readonly = false;
+		$this->id = "";
 		$this->name = "";
 		$this->value = "";
 		$this->default = "";
 		$this->placeholder = "";
 		$this->type = "text";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Field";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ""; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.Field"; }
 }

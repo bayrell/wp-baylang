@@ -18,22 +18,37 @@
 
 namespace Runtime.WordPress.Admin.Robots;
 
-use Runtime.Callback;
-use Runtime.Entity.Factory;
-use Runtime.Web.BasePageModel;
+use Runtime.ApiResult;
+use Runtime.BaseModel;
+use Runtime.Method;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.Multiline;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
 use Runtime.Web.RenderContainer;
-use Runtime.Widget.ButtonModel;
-use Runtime.Widget.Input;
-use Runtime.Widget.Select;
-use Runtime.Widget.TextArea;
 use Runtime.Widget.Form.FormModel;
 use Runtime.WordPress.Admin.Robots.RobotsPage;
 
 
-class RobotsPageModel extends BasePageModel
+class RobotsPageModel extends BaseModel
 {
 	string component = classof RobotsPage;
 	FormModel form = null;
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("form", new ObjectType{
+			"class_name": classof FormModel,
+			"item_type": new MapType{
+				"content": new StringType{},
+			}
+		});
+	}
 	
 	
 	/**
@@ -44,40 +59,25 @@ class RobotsPageModel extends BasePageModel
 		parent(params);
 		
 		/* Add form */
-		this.form = this.addWidget(
-			classof FormModel,
-			{
-				"widget_name": "form",
-				"storage": new Factory
-				(
-					"Runtime.Widget.Form.FormSaveStorage",
-					{
-						"api_name": "admin.wordpress.robots.save",
-					}
-				),
-				"pk": [],
-				"fields":
-				[
-					{
-						"name": "content",
-						"component": classof TextArea,
-					},
-				],
-			}
-		);
-		
-		/* Add save button */
-		this.form.bottom_buttons.addButton(
-			{
-				"widget_name": "save_button",
-				"content": "Save",
-				"styles": ["large", "primary"],
-				"events":
-				{
-					"click": new Callback(this, "onSave")
-				},
-			}
-		);
+		this.form = this.createWidget(classof FormModel);
+	}
+	
+	
+	/**
+	 * Load data
+	 */
+	async void loadData(RenderContainer container)
+	{
+		ApiResult result = await this.layout.sendApi({
+			"api_name": "admin.wordpress.robots",
+			"method_name": "item",
+		});
+		if (result.isSuccess())
+		{
+			this.form.item = {
+				"content": result.data.get("content"),
+			};
+		}
 	}
 	
 	
@@ -86,7 +86,15 @@ class RobotsPageModel extends BasePageModel
 	 */
 	async void onSave()
 	{
-		await this.form.submit();
+		this.form.setWaitMessage();
+		ApiResult result = await this.layout.sendApi({
+			"api_name": "admin.wordpress.robots",
+			"method_name": "save",
+			"data": {
+				"content": this.form.item.get("content")
+			},
+		});
+		this.form.setApiResult(result);
 	}
 	
 	

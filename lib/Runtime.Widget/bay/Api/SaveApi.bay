@@ -1,0 +1,450 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.Api;
+
+use Runtime.Serializer.MapType;
+use Runtime.Exceptions.ApiError;
+use Runtime.Exceptions.AssertException;
+use Runtime.Exceptions.FieldException;
+use Runtime.Exceptions.ItemNotFound;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryFilter;
+use Runtime.ORM.Record;
+use Runtime.ORM.Relation;
+use Runtime.Serializer.BaseType;
+use Runtime.Serializer.TypeError;
+use Runtime.Web.ApiRequest;
+use Runtime.Web.ApiResult;
+use Runtime.Web.BaseApi;
+use Runtime.Widget.Api.Rules.BaseRule;
+use Runtime.Widget.Api.FieldErrors;
+
+
+class SaveApi extends BaseApi
+{
+	string action = "";
+	string connection_name = "";
+	Connection connection = null;
+	Relation relation = null;
+	Record item = null;
+	Map original_data = {};
+	Map update_data = {};
+	Map primary_key = null;
+	Map foreign_key = {};
+	
+	
+	/**
+	 * Returns record name
+	 */
+	static string getRecordName() => "";
+	
+	
+	/**
+	 * Constructor
+	 */
+	void constructor(Map params = null)
+	{
+		parent(params);
+		
+		/* Create relation */
+		this.relation = new Relation(static::getRecordName());
+	}
+	
+	
+	/**
+	 * Returns true if create
+	 */
+	bool isCreate()
+	{
+		if (this.action != "save") return false;
+		Map pk = this.request.get("pk");
+		return pk == null;
+	}
+	
+	
+	/**
+	 * Returns true if update
+	 */
+	bool isUpdate() => not this.isCreate() and
+		this.action == "save";
+	
+	
+	/**
+	 * Returns save rules
+	 */
+	Vector<BaseRule> rules() => [];
+	
+	
+	/**
+	 * Returns serialize rules for pk
+	 */
+	MapType getPrimaryRules() => this.relation.getPrimaryRules();
+	
+	
+	/**
+	 * Returns serialize rules
+	 */
+	void getItemRules(BaseType rules)
+	{
+	}
+	
+	
+	/**
+	 * Returns item fields
+	 */
+	Vector getItemFields(string action) => [];
+	
+	
+	/**
+	 * Convert item
+	 */
+	Map convertItem(Map item) => item;
+	
+	
+	/**
+	 * Returns save fields
+	 */
+	Vector getSaveFields() => null;
+	
+	
+	/**
+	 * Filter primary key
+	 */
+	Map getPrimaryKey(Map pk)
+	{
+		Vector errors = [];
+		
+		/* Get primary key rule */
+		MapType rule = this.getPrimaryRules();
+		if (not rule)
+		{
+			throw new ApiError(new RuntimeException("Primary rule not found"));
+		}
+		
+		/* Filter primary key */
+		pk = rule.filter(pk, errors, null);
+		
+		/* Check errors */
+		if (errors.count() > 0)
+		{
+			TypeError::addFieldErrors(errors, "pk");
+			throw new ApiError(new FieldException({
+				"error": TypeError::getMap(errors),
+			}));
+		}
+		
+		/* Pk is null */
+		if (!pk)
+		{
+			throw new ApiError(new RuntimeException("Primary key not found"));
+		}
+		
+		return pk;
+	}
+	
+	
+	/**
+	 * Set primary key
+	 */
+	void setPrimaryKey(Map pk)
+	{
+		if (not (pk instanceof Map))
+		{
+			throw new ApiError(new RuntimeException("Primary key not found"));
+		}
+		
+		this.primary_key = this.getPrimaryKey(pk);
+	}
+	
+	
+	/**
+	 * Set foreign key
+	 */
+	void setForeignKey(Map data)
+	{
+		this.foreign_key = data ? data : {};
+	}
+	
+	
+	/**
+	 * After setup data
+	 */
+	void checkData(Vector errors)
+	{
+	}
+	
+	
+	/**
+	 * Set data
+	 */
+	void setData(Map data)
+	{
+		if (not (data instanceof Map)) data = {};
+		
+		this.original_data = data;
+		this.update_data = {};
+		
+		/* Get base type rule */
+		BaseType rule = new MapType();
+		this.getItemRules(rule);
+		if (not rule)
+		{
+			throw new ApiError(new RuntimeException("Base type not found"));
+		}
+		
+		/* Filter */
+		Vector errors = [];
+		this.update_data = rule.filter(data, errors, null);
+		
+		/* Rules */
+		Vector rules = this.rules();
+		for (int i=0; i<rules.count(); i++)
+		{
+			BaseRule item = rules.get(i);
+			this.update_data = item.filter(this.update_data, errors);
+		}
+		
+		/* Check data */
+		this.checkData(errors);
+		
+		/* Check error */
+		if (errors.count() > 0)
+		{
+			throw new ApiError(new FieldException({
+				"fields": TypeError::getMap(errors),
+			}));
+		}
+	}
+	
+	
+	/**
+	 * Build query
+	 */
+	async void buildQuery(Query q)
+	{
+	}
+	
+	
+	/**
+	 * Find item
+	 */
+	async void findItem(Map pk)
+	{
+		if (pk == null) return;
+		
+		Vector<QueryFilter> filter = this.relation.getPrimaryFilter(pk);
+		Query q = this.relation.select()
+			.fields(this.getItemFields("search"))
+			.setFilter(filter).limit(1)
+		;
+		await this.buildQuery(q);
+		this.item = await this.relation.fetchRecord(q);
+	}
+	
+	
+	/**
+	 * Create item
+	 */
+	void createItem()
+	{
+		if (not this.relation)
+		{
+			throw new ApiError(new ItemNotFound(this.getRelationName(), "Relation"));
+		}
+		this.item = this.relation.createRecord();
+	}
+	
+	
+	/**
+	 * Find or create item
+	 */
+	async void findOrCreate()
+	{
+		await this.findItem(this.primary_key);
+		if (not this.item and this.primary_key == null) this.createItem();
+		if (not this.item) throw new ApiError(new ItemNotFound());
+	}
+	
+	
+	/**
+	 * Before save
+	 */
+	async void onSaveBefore()
+	{
+		Vector rules = this.rules();
+		for (int i=0; i<rules.count(); i++)
+		{
+			BaseRule rule = rules.get(i);
+			await rule.onSaveBefore(this);
+		}
+	}
+	
+	
+	/**
+	 * After save
+	 */
+	async void onSaveAfter()
+	{
+		Vector rules = this.rules();
+		for (int i=0; i<rules.count(); i++)
+		{
+			BaseRule rule = rules.get(i);
+			await rule.onSaveAfter(this);
+		}
+	}
+	
+	
+	/**
+	 * Before delete
+	 */
+	async void onDeleteBefore()
+	{
+		Vector rules = this.rules();
+		for (int i=0; i<rules.count(); i++)
+		{
+			BaseRule rule = rules.get(i);
+			await rule.onDeleteBefore(this);
+		}
+	}
+	
+	
+	/**
+	 * After delete
+	 */
+	async void onDeleteAfter()
+	{
+		Vector rules = this.rules();
+		for (int i=0; i<rules.count(); i++)
+		{
+			BaseRule rule = rules.get(i);
+			await rule.onDeleteAfter(this);
+		}
+	}
+	
+	
+	/**
+	 * Save item
+	 */
+	async void save()
+	{
+		/* Set items */
+		Vector save_fields = this.getSaveFields();
+		Map save_data = not save_fields ?
+			this.update_data.copy() :
+			this.update_data.intersect(save_fields);
+		this.item.assign(save_data);
+		
+		/* Save before */
+		await this.onSaveBefore();
+		
+		/* Save item */
+		await this.item.save();
+		
+		/* Save after */
+		await this.onSaveAfter();
+	}
+	
+	
+	/**
+	 * Delete item
+	 */
+	async void delete()
+	{
+		await this.onDeleteBefore();
+		
+		/* Delete item */
+		await this.item.delete();
+		await this.onDeleteAfter();
+	}
+	
+	
+	/**
+	 * Set result
+	 */
+	void setResult()
+	{
+		if (this.action == "save")
+		{
+			Map item = this.item.getData();
+			item = this.convertItem(item);
+			this.result.data.set("item", item.intersect(this.getItemFields("convert")));
+		}
+	}
+	
+	
+	/**
+	 * Save form
+	 */
+	async void actionSave()
+	{
+		this.setAction("save");
+		
+		/* Filter data */
+		this.filterData();
+		
+		/* Set primary key */
+		Map pk = this.request.get("pk");
+		if (pk) this.setPrimaryKey(pk);
+		
+		/* Set foreign key */
+		this.setForeignKey(this.data.get("foreign_key"));
+		
+		/* Set data */
+		Map item = this.request.get("item");
+		this.setData(item);
+		
+		/* Find item */
+		await this.findOrCreate();
+		
+		/* Save item */
+		await this.save();
+		this.setResult();
+		
+		this.success();
+	}
+	
+	
+	/**
+	 * Delete form
+	 */
+	async void actionDelete()
+	{
+		this.setAction("delete");
+		
+		/* Filter data */
+		this.filterData();
+		
+		/* Set primary key */
+		Map pk = this.request.get("pk");
+		this.setPrimaryKey(pk);
+		
+		/* Set foreign key */
+		this.setForeignKey(this.data.get("foreign_key"));
+		
+		/* Find item */
+		await this.findOrCreate();
+		
+		/* Delete item */
+		await this.delete();
+		
+		this.success();
+	}
+}

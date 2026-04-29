@@ -18,6 +18,7 @@
 
 <class name="Runtime.WordPress.Admin.CSS">
 
+<use name="Runtime.Widget.CSS" as="BaseCSS" component="true" />
 <use name="Runtime.Widget.Button" component="true" />
 <use name="Runtime.Widget.Input" component="true" />
 <use name="Runtime.Widget.RowButtons" component="true" />
@@ -28,39 +29,141 @@
 
 
 <style global="true">
-:root{
-	--widget-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-}
-#core_ui_root{
-	margin-top: 20px;
-}
-%(RowButtons)top_buttons{
-	margin-bottom: 10px;
-}
-%(Table)widget_table{
-	%(RowButtons)widget_table__top_buttons{
-		margin-bottom: calc(var(--widget-space) * 2);
+.wp_admin_layout{
+	--font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	--font-size: 14px;
+	--font-input-size: 14px;
+	--font-size-h1: 28px;
+	--font-size-h2: 16px;
+	--font-size-h3: 16px;
+	--font-size-h4: 16px;
+	--font-size-h5: 16px;
+	--font-size-h6: 16px;
+	font-family: var(--font-family);
+	font-size: var(--font-size);
+	
+	.button{
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--color-text);
+		font-weight: 500;
+		font-family: var(--font-family);
+		font-size: var(--font-input-size);
+		line-height: var(--line-height);
+		text-decoration: none;
+		background-color: var(--color-background);
+		border: var(--border-width) var(--color-border) solid;
+		padding: calc(var(--space) * 0.5) calc(var(--space) * 1.5);
+		outline: none;
+		cursor: pointer;
+		border-radius: var(--border-radius);
+		transition: background-color var(--transition) var(--transition-type),
+			border-color var(--transition) var(--transition-type),
+			color var(--transition) var(--transition-type);
+		&:focus{
+			background-color: var(--color-background);
+			border: var(--border-width) var(--color-border) solid;
+			box-shadow: none;
+			outline: none;
+		}
+		&:hover{
+			color: var(--color-text);
+			background-color: var(--color-background);
+			border-color: var(--color-border);
+		}
+		&:active{
+			box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25);
+			outline: none;
+		}
 	}
-	.widget_table__table{
-		border: 1px solid #ccc;
-		border-radius: 4px;
+	.button--small{
+		padding: 6px 9px;
+		line-height: 1.2em;
 	}
-	.widget_table__th{
-		text-align: left;
+	.button--large{
+		padding: calc(var(--space) * 1) calc(var(--space) * 2);
 	}
-	.widget_table__th, .widget_table__td{
-		border-bottom: 1px solid #ccc;
-		padding: 10px;
+	.button--primary, .button--primary:focus{
+		color: var(--color-primary-text);
+		background-color: var(--color-primary);
+		border-color: var(--color-primary-border);
+		&:hover{
+			color: var(--color-primary-text);
+			background-color: var(--color-primary-hover);
+			border-color: var(--color-primary-border);
+		}
 	}
-	.widget_table__tr:nth-child(odd){
-		background-color: white;
+	.button--secondary, .button--secondary:focus{
+		color: var(--color-secondary-text);
+		background-color: var(--color-secondary);
+		border-color: var(--color-secondary-border);
+		&:hover{
+			color: var(--color-secondary-text);
+			background-color: var(--color-secondary-hover);
+			border-color: var(--color-secondary-border);
+		}
 	}
-	.widget_table__tr:nth-child(even){
-		background-color: #f0f0f0;
+	.button--outline, .button--outline:focus{
+		color: var(--color-text);
+		background-color: transparent;
+		border-color: var(--color-border);
+		&:hover{
+			color: var(--color-text);
+			background-color: var(--color-surface);
+			border-color: var(--color-border);
+		}
 	}
-}
-%(Select)widget_select{
-	max-width: 100%;
+	.button--danger, .button--danger:focus{
+		color: var(--color-danger-text);
+		background-color: var(--color-danger);
+		border-color: var(--color-danger-border);
+		&:hover{
+			color: var(--color-danger-text);
+			background-color: var(--color-danger-hover);
+			border-color: var(--color-danger-border);
+		}
+	}
+	.button--success, .button--success:focus{
+		color: var(--color-success-text);
+		background-color: var(--color-success);
+		border-color: var(--color-success-border);
+		&:hover{
+			color: var(--color-success-text);
+			background-color: var(--color-success);
+			border-color: var(--color-success-border);
+		}
+	}
+	.button--info, .button--info:focus{
+		color: var(--color-info-text);
+		background-color: var(--color-info);
+		border-color: var(--color-info-border);
+		&:hover{
+			color: var(--color-info-text);
+			background-color: var(--color-info-hover);
+			border-color: var(--color-info-border);
+		}
+	}
+	.button--warning, .button--warning:focus{
+		background-color: var(--color-warning);
+		border-color: var(--color-warning-border);
+		&:hover{
+			background-color: var(--color-warning-hover);
+			border-color: var(--color-warning-border);
+		}
+	}
+	.button--stretch, .button--stretch:focus{
+		width: 100%;
+	}
+	.dialog__header .button{
+		border-width: 0;
+	}
+	input, select, textarea{
+		&:focus{
+			border-color: var(--color-border);
+			box-shadow: none;
+		}
+	}
 }
 </style>
 

@@ -1,0 +1,181 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+
+<class name="Runtime.Widget.Sortable.FieldList"
+	extends="Runtime.Widget.Sortable.ItemList"
+>
+
+<use name="Runtime.Widget.Input" component="true" />
+<use name="Runtime.Widget.Select" component="true" />
+
+
+<style>
+.sortable_list__item{
+	align-items: stretch;
+	margin: 10px 0px;
+}
+.sortable_list__item_element{
+	display: flex;
+}
+.sortable_list__item_element--drag{
+	align-items: center;
+}
+.sortable_list__item_element--remove{
+	align-items: start;
+}
+.sortable_list__item_value{
+	padding: 5px;
+}
+.sortable_list__item_value_row{
+	display: flex;
+	align-items: center;
+	margin-bottom: 1px;
+}
+.sortable_list__item_value_label{
+	width: 80px;
+}
+.sortable_list__item_value_item{
+	flex: 1;
+}
+</style>
+
+
+<template name="renderValueItem" args="Dict field, int pos, Dict item">
+	<div class="sortable_list__item_value_row">
+		<div class="sortable_list__item_value_label">{{ field.get("label") }}</div>
+		<div class="sortable_list__item_value_item">
+			%if (item)
+			{
+				%set string field_name = field.get("name");
+				%set string field_component = field.get("component");
+				%set Dict field_props = field.get("props");
+				%if (not field_props){ %set field_props = {}; }
+				<{field_component}
+					name={{ field_name }}
+					value={{ this.getValue(field, item) }}
+					@event:valueChange="this.setValue(field, item, event)"
+					...field_props
+				/>
+			}
+		</div>
+	</div>
+</template>
+
+
+<template name="renderValue" args="int pos, Dict item">
+	%for (int i=0; i<this.fields.count(); i++)
+	{
+		%set Dict field = this.fields.get(i);
+		%render this.renderValueItem(field, pos, item);
+	}
+</template>
+
+
+<template name="renderItem" args="int pos">
+	%set var item = this.getItems().get(pos);
+	<div class="sortable_list__item"
+		data-pos={{ pos }}
+		@key={{ item }}
+	>
+		<div class="sortable_list__item_element sortable_list__item_element--drag">
+			<div class="sortable_list__item_drag"
+				@event:mousedown={{
+					void (var e) use (item){ this.onMouseDown(e, item); }
+				}}
+			>&#9776;</div>
+		</div>
+		<div class="sortable_list__item_value">
+			%render this.renderValue(pos, item);
+		</div>
+		<div class="sortable_list__item_element sortable_list__item_element--remove">
+			<div class="sortable_list__item_remove"
+				@event:click={{
+					void (var e) use (pos){ this.removeItem(pos); }
+				}}
+			>&#10005;</div>
+		</div>
+	</div>
+</template>
+
+
+<script>
+
+Collection fields = [];
+
+
+/**
+ * Create new item
+ */
+var createItem() => {};
+
+
+/**
+ * Returns value
+ */
+var getValue(Map field, Map item)
+{
+	if (field.has("value"))
+	{
+		fn value = field.get("value");
+		return value(item);
+	}
+	string field_name = field.get("name");
+	return item.get(field_name);
+}
+
+
+/**
+ * Set value
+ */
+void setValue(Map field, Map item, var message)
+{
+	if (field.has("setValue"))
+	{
+		fn setValue = field.get("setValue");
+		setValue(item, message.value);
+	}
+	else
+	{
+		string field_name = field.get("name");
+		item.set(field_name, message.value);
+	}
+	this.onValueChange();
+}
+
+
+/**
+ * Returns drag & drop element
+ */
+void getDragElement(var elem)
+{
+	if (elem.classList.contains("sortable_list__item")) return elem;
+	if (elem.parentElement.classList.contains("sortable_list__item"))
+	{
+		return elem.parentElement;
+	}
+	if (elem.parentElement.parentElement.classList.contains("sortable_list__item"))
+	{
+		return elem.parentElement.parentElement;
+	}
+	return null;
+}
+
+</script>
+
+</class>

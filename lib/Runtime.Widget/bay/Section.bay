@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,24 +18,33 @@
 
 <class name="Runtime.Widget.Section">
 
+<use name="Runtime.Widget.BoolEnum" />
 
 <style>
-.widget_section__wrap{
-	max-width: 1200px;
+.section__wrap{
+	max-width: var(--content-max-width);
 	margin-left: auto;
 	margin-right: auto;
-	padding: 0px 0px;
-	padding-left: 10px;
-	padding-right: 10px;
+	padding: 0px var(--padding-desktop);
+	width: 100%;
+	@media(max-width: 1000px)
+	{
+		padding: 0px var(--padding-tablet);
+	}
+	@media(max-width: 768px)
+	{
+		padding: 0px var(--padding-mobile);
+	}
 }
 </style>
 
 
 <template>
-	<div class="widget_section" class={{ this.class }} style={{ this.getStyle() }}>
+	%set Map attrs = this.getAttrs;
+	<div class="section" class={{ this.class }} style={{ this.getStyle() }} ...attrs>
 		%if (this.wrap == "true")
 		{
-			<div class="widget_section__wrap" style={{ this.getWrapStyle() }}>
+			<div class="section__wrap" style={{ this.getWrapStyle() }}>
 				%render this.renderSlot("default");
 			</div>
 		}
@@ -49,13 +58,26 @@
 
 <script>
 
+props string id = "";
 props string wrap = "true";
 props string flex = "false";
 props string align_items = "";
 props string justify_content = "";
+props string flex_direction = "";
 props string flex_wrap = "";
 props string height = "";
 props string min_height = "";
+
+
+/**
+ * Returns attrs
+ */
+computed Map getAttrs()
+{
+	Map attrs = {};
+	if (this.id != "") attrs.set("id", this.id);
+	return attrs;
+}
 
 
 /**
@@ -83,12 +105,95 @@ string getWrapStyle()
 		res.push("display: flex;");
 		if (this.align_items) res.push("align-items: " ~ this.align_items);
 		if (this.justify_content) res.push("justify-content: " ~ this.justify_content);
+		if (this.flex_direction) res.push("flex-direction: " ~ this.flex_direction);
 		if (this.flex_wrap) res.push("flex-wrap: " ~ this.flex_wrap);
 	}
 	if (this.height) res.push("height: " ~ this.height);
 	if (this.min_height) res.push("min-height: " ~ this.min_height);
 	return rs::join(";", res);
 }
+
+
+/**
+ * Returns widget params
+ */
+static Vector<Map> widgetParams() =>
+[
+	{
+		"type": "param",
+		"name": "wrap",
+		"label": "Wrap",
+		"component": "Runtime.Widget.Select",
+		"default": "true",
+		"props": {
+			"options": [
+				{"key": "false", "value": "No"},
+				{"key": "true", "value": "Yes"},
+			],
+		},
+	},
+	{
+		"type": "param",
+		"name": "flex",
+		"label": "Flex",
+		"component": "Runtime.Widget.Select",
+		"default": "false",
+		"props": {
+			"options": [
+				{"key": "false", "value": "No"},
+				{"key": "true", "value": "Yes"},
+			],
+		},
+	},
+	{
+		"type": "param",
+		"name": "align_items",
+		"label": "Align items",
+		"component": "Runtime.Widget.Select",
+		"default": "true",
+		"props": {
+			"options": [
+				{"key": "center", "value": "Center"},
+				{"key": "baseline", "value": "Baseline"},
+				{"key": "flex-start", "value": "Flex start"},
+				{"key": "flex-end", "value": "Flex end"},
+			],
+		},
+	},
+	{
+		"type": "param",
+		"name": "justify_content",
+		"label": "Justify content",
+		"component": "Runtime.Widget.Select",
+		"default": "true",
+		"props": {
+			"options": [
+				{"key": "center", "value": "Center"},
+				{"key": "space_around", "value": "Space around"},
+				{"key": "space_between", "value": "Space between"},
+				{"key": "left", "value": "Left"},
+				{"key": "right", "value": "Right"},
+				{"key": "flex-start", "value": "Flex start"},
+				{"key": "flex-end", "value": "Flex end"},
+			],
+		},
+	},
+	{
+		"type": "param",
+		"name": "flex_direction",
+		"label": "Flex direction",
+		"component": "Runtime.Widget.Select",
+		"default": "true",
+		"props": {
+			"options": [
+				{"key": "column", "value": "Column"},
+				{"key": "column-reverse", "value": "Column reverse"},
+				{"key": "row", "value": "Row"},
+				{"key": "row-reverse", "value": "Row reverse"},
+			],
+		},
+	},
+];
 
 </script>
 

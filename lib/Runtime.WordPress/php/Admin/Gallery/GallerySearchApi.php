@@ -17,37 +17,64 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin\Gallery;
-class GallerySearchApi extends \Runtime\Widget\Crud\SearchApi
+
+use Runtime\Web\Annotations\ApiMethod;
+use Runtime\Widget\Api\SearchApi;
+use Runtime\WordPress\Admin\AdminMiddleware;
+use Runtime\WordPress\Database\Gallery;
+
+
+class GallerySearchApi extends \Runtime\Widget\Api\SearchApi
 {
 	/**
 	 * Returns api name
 	 */
-	static function getApiName()
-	{
-		return "admin.wordpress.gallery.search";
-	}
+	static function getApiName(){ return "admin.wordpress.gallery"; }
+	
+	
 	/**
-	 * Returns service
+	 * Returns record name
 	 */
-	function createService()
+	static function getRecordName(){ return "Runtime.WordPress.Database.Gallery"; }
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	function getMiddleware()
 	{
-		return new \Runtime\WordPress\Admin\Gallery\GalleryCrudService();
+		return new \Runtime\Vector(
+			new \Runtime\WordPress\Admin\AdminMiddleware(),
+		);
 	}
+	
+	
 	/**
 	 * Returns item fields
 	 */
-	function getItemFields()
+	function getItemFields($action)
 	{
-		return \Runtime\Vector::from(["id","api_name"]);
+		return new \Runtime\Vector(
+			"id",
+			"api_name",
+		);
 	}
+	
+	
 	/**
 	 * Returns image sizes
 	 */
 	function actionImageSizes()
 	{
 		$image_sizes = \Runtime\Collection::from(get_intermediate_image_sizes());
-		$this->success(\Runtime\Map::from(["data"=>\Runtime\Map::from(["items"=>$image_sizes])]));
+		$this->success(new \Runtime\Map([
+			"data" => new \Runtime\Map([
+				"items" => $image_sizes,
+			]),
+		]));
 	}
+	
+	
 	/**
 	 * Action search
 	 */
@@ -55,59 +82,26 @@ class GallerySearchApi extends \Runtime\Widget\Crud\SearchApi
 	{
 		parent::actionSearch();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Admin.Gallery";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.Gallery.GallerySearchApi";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Crud.SearchApi";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.Gallery.GallerySearchApi"; }
 	static function getMethodsList()
 	{
-		$a=[
-			"actionImageSizes",
-			"actionSearch",
-		];
-		return \Runtime\Collection::from($a);
+		return new \Runtime\Vector("actionImageSizes", "actionSearch");
 	}
 	static function getMethodInfoByName($field_name)
 	{
-		if ($field_name == "actionImageSizes")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
-		if ($field_name == "actionSearch")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
+		if ($field_name == "actionImageSizes") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod(new \Runtime\Map(["name" => "image_sizes"]))
+		);
+		if ($field_name == "actionSearch") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod(new \Runtime\Map(["name" => "search"]))
+		);
 		return null;
 	}
 }

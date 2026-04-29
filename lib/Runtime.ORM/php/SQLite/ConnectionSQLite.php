@@ -17,9 +17,16 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\SQLite;
+
+use Runtime\ORM\Exceptions\OrmException;
+use Runtime\ORM\MySQL\ConnectionMySQL;
+
+
 class ConnectionSQLite extends \Runtime\ORM\MySQL\ConnectionMySQL
 {
-	public $path;
+	var $path;
+	
+	
 	/**
 	 * Connect
 	 */
@@ -43,6 +50,8 @@ class ConnectionSQLite extends \Runtime\ORM\MySQL\ConnectionMySQL
 		}
 		return $this;
 	}
+	
+	
 	/**
 	 * Fork connection
 	 */
@@ -52,48 +61,15 @@ class ConnectionSQLite extends \Runtime\ORM\MySQL\ConnectionMySQL
 		$connection->path = $this->path;
 		return $connection;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->path = "";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.SQLite";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.SQLite.ConnectionSQLite";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.MySQL.ConnectionMySQL";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.SQLite.ConnectionSQLite"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

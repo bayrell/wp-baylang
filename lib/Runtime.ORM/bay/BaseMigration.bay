@@ -19,7 +19,7 @@
 namespace Runtime.ORM;
 
 use Runtime.BaseObject;
-use Runtime.Callback;
+use Runtime.Method;
 use Runtime.ORM.Connection;
 use Runtime.ORM.Query;
 
@@ -62,30 +62,30 @@ class BaseMigration extends BaseObject
 	/**
 	 * Returns required migrations
 	 */
-	Collection<string> getRequired() => this.required.copy();
+	Vector<string> getRequired() => this.required.slice();
 	
 	
 	/**
 	 * Returns migrations
 	 */
-	Collection<string> getMigrations() => this.migrations.copy();
+	Vector<string> getMigrations() => this.migrations.slice();
 	
 	
 	/**
 	 * Returns migrations
 	 */
-	Collection<BaseMigration> buildMigrations()
+	Vector<BaseMigration> buildMigrations()
 	{
 		string current_name = this.name;
-		Collection<BaseMigration> result = [];
-		Collection<string> prev_required = this.getRequired();
+		Vector<BaseMigration> result = [];
+		Vector<string> prev_required = this.getRequired();
 		
 		/* Add child migrations */
-		Collection<string> items = this.getMigrations();
+		Vector<string> items = this.getMigrations();
 		for (int i=0; i<items.count(); i++)
 		{
 			string migration_name = items.get(i);
-			Callback f = new Callback(this, items.get(i));
+			Method f = new Method(this, items.get(i));
 			if (not f.exists()) continue;
 			
 			/* Get migration */
@@ -122,7 +122,7 @@ class BaseMigration extends BaseObject
 	 */
 	async void executeSQL(string sql, Dict data = null)
 	{
-		if (sql instanceof Collection)
+		if (sql instanceof Vector)
 		{
 			sql = rs::join("\n", sql);
 		}

@@ -1,0 +1,176 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Admin.Cabinet.Users;
+
+use Runtime.BaseModel;
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.VectorType;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.Table.TableManager;
+use Runtime.WordPress.Admin.Cabinet.Users.UserPage;
+
+
+class UserModel extends BaseModel
+{
+	string component = classof UserPage;
+	TableManager manager = null;
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("manager", new ObjectType());
+	}
+	
+	
+	/**
+	 * Init widget
+	 */
+	void initWidget(Map params)
+	{
+		parent(params);
+		
+		this.manager = this.createWidget(classof TableManager, {
+			"autoload": true,
+			"api_name": "admin.cabinet.users",
+			"page_name": "p",
+			"title": method this.getTableTitle,
+			"primary_rules":
+			{
+				"id": new IntegerType(),
+			},
+			"item_rules":
+			{
+				"id": new IntegerType(),
+				"login": new StringType(),
+				"email": new StringType(),
+				"name": new StringType(),
+				"is_deleted": new IntegerType(),
+			},
+			"form_fields":
+			[
+				{
+					"name": "login",
+					"label": "Login",
+					"component": "Runtime.Widget.Input",
+				},
+				{
+					"name": "email",
+					"label": "Email",
+					"component": "Runtime.Widget.Input",
+				},
+				{
+					"name": "name",
+					"label": "Name",
+					"component": "Runtime.Widget.Input",
+				},
+				{
+					"name": "is_deleted",
+					"label": "Status",
+					"component": "Runtime.Widget.Select",
+					"props":
+					{
+						"options":
+						[
+							{"key": 0, "value": "Active"},
+							{"key": 1, "value": "Inactive"},
+						]
+					}
+				},
+				{
+					"name": "password",
+					"label": "Password",
+					"component": "Runtime.Widget.Input",
+					"props":
+					{
+						"type": "password",
+					}
+				},
+				{
+					"name": "repeat_password",
+					"label": "Repeat password",
+					"component": "Runtime.Widget.Input",
+					"props":
+					{
+						"type": "password",
+					}
+				},
+			],
+			"table_fields":
+			[
+				{
+					"name": "row_number",
+				},
+				{
+					"name": "login",
+					"label": "Login",
+				},
+				{
+					"name": "email",
+					"label": "Email",
+				},
+				{
+					"name": "name",
+					"label": "Name",
+				},
+				{
+					"name": "is_deleted",
+					"label": "Status",
+					"value": string (Map item)
+					{
+						int is_deleted = item.get("is_deleted");
+						if (is_deleted == 0) return "Active";
+						return "Inactive";
+					},
+				},
+				{
+					"name": "buttons",
+					"slot": "row_buttons",
+				}
+			],
+		});
+	}
+	
+	
+	/**
+	 * Returns table title
+	 */
+	string getTableTitle(string action, Map item)
+	{
+		if (action == "add") return "Add User";
+		else if (action == "edit") return "Edit User";
+		else if (action == "delete") return "Delete User";
+		else if (action == "delete_message") return "Delete User";
+		return "Users";
+	}
+	
+	
+	/**
+	 * Build page title
+	 */
+	void buildTitle(RenderContainer container)
+	{
+		this.layout.setPageTitle("Cabinet Users");
+	}
+}

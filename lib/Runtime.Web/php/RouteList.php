@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,204 +17,101 @@
  *  limitations under the License.
  */
 namespace Runtime\Web;
-class RouteList extends \Runtime\BaseProvider
+
+use Runtime\BaseObject;
+use Runtime\SerializeInterface;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\ObjectType;
+use Runtime\Serializer\StringType;
+use Runtime\Web\Hooks\AppHook;
+
+
+class RouteList extends \Runtime\BaseObject implements \Runtime\SerializeInterface
 {
-	public $routes;
-	public $routes_list;
+	var $routes;
+	var $route_params;
+	
+	
 	/**
-	 * Init provider
+	 * Serialize
 	 */
-	function init()
+	static function serialize($rules)
 	{
-		parent::init();
-		$this->initRoutes();
+		parent::serialize($rules);
+		$rules->addType("routes", new \Runtime\Serializer\MapType(new \Runtime\Serializer\MapType(new \Runtime\Serializer\StringType())));
+		$rules->addType("route_params", new \Runtime\Serializer\MapType(new \Runtime\Serializer\StringType()));
 	}
+	
+	
 	/**
-	 * Init routes
+	 * Assign rules
 	 */
-	function initRoutes()
+	function assignRules($rule){}
+	
+	
+	/**
+	 * Returns url
+	 */
+	function url($route_name, $route_params = null, $url_params = null)
 	{
-		$this->routes = \Runtime\Map::from([]);
-		$routes = \Runtime\rtl::getContext()->getEntities("Runtime.Web.Annotations.Route");
-		for ($i = 0; $i < $routes->count(); $i++)
+		if (!$this->routes->has($route_name)) return "";
+		if ($route_params == null) $route_params = new \Runtime\Map();
+		if ($url_params == null) $url_params = new \Runtime\Map();
+		/* Merge route params */
+		$route_params = $this->route_params->concat($route_params);
+		$route = $this->routes->get($route_name);
+		$res = \Runtime\rtl::getContext()->hook(\Runtime\Web\Hooks\AppHook::MAKE_URL_PARAMS, new \Runtime\Map([
+			"route" => $route,
+			"route_name" => $route_name,
+			"route_params" => $route_params,
+			"url_params" => $url_params,
+		]));
+		$domain = $route->get("domain");
+		$url = $route->get("uri");
+		if ($route_params != null && $url != null)
 		{
-			$info = \Runtime\rtl::attr($routes, $i);
-			if (!$info->name)
+			$route_params->each(function ($value, $key) use (&$url)
 			{
-				continue;
-			}
-			/* Get method getRoutes */
-			$getRoutes = new \Runtime\Callback($info->name, "getRoutes");
-			if (!$getRoutes->exists())
-			{
-				throw new \Runtime\Exceptions\ItemNotFound($info->name, "Route");
-			}
-			/* Get routes */
-			$routes_list = \Runtime\rtl::apply($getRoutes);
-			if (!$routes_list)
-			{
-				continue;
-			}
-			/* Register routes */
-			for ($j = 0; $j < $routes_list->count(); $j++)
-			{
-				$route = $routes_list->get($j);
-				if ($route instanceof \Runtime\Web\RouteAction)
+				$pos = \Runtime\rs::indexOf($url, "{" . $key . "}");
+				if ($pos >= 0)
 				{
-					if (\Runtime\rtl::method_exists($info->name, $route->action))
-					{
-						$route->action = new \Runtime\Callback($info->name, $route->action);
-					}
-					else
-					{
-						$route->action = new \Runtime\Entity\Factory($info->name, \Runtime\Map::from(["action"=>$route->action]));
-					}
+					$url = \Runtime\rs::replace("{" . $key . "}", $value, $url);
 				}
-				$route->route_class = $info->name;
-				$route->compile();
-				$this->addRoute($route);
-			}
+			});
 		}
-		\Runtime\rtl::getContext()->callHookAsync(\Runtime\Web\Hooks\AppHook::ROUTES_INIT, \Runtime\Map::from(["routes"=>$this]));
-		/* Sort routes */
-		$this->sortRoutes();
+		/* Set url */
+		if ($url == null) $url = "";
+		/* Add route prefix */
+		$url = \Runtime\rtl::getContext()->env("ROUTE_PREFIX") . $url;
+		/* Add domain */
+		$url_with_domain = $url;
+		if ($domain)
+		{
+			$url_with_domain = "//" . $domain . $url;
+		}
+		/* Make url */
+		$res = \Runtime\rtl::getContext()->hook(\Runtime\Web\Hooks\AppHook::MAKE_URL, new \Runtime\Map([
+			"domain" => $domain,
+			"route" => $route,
+			"route_name" => $route_name,
+			"route_params" => $route_params,
+			"url" => $url,
+			"url_with_domain" => $url_with_domain,
+			"url_params" => $url_params ? $url_params : new \Runtime\Map(),
+		]));
+		$is_domain = $url_params ? $url_params->get("domain", true) : true;
+		return $is_domain ? $res->get("url_with_domain") : $res->get("url");
 	}
-	/**
-	 * Add route
-	 */
-	function addRoute($route)
-	{
-		$this->routes->set($route->name, $route);
-		$this->routes_list->push($route);
-	}
-	/**
-	 * Sort routes
-	 */
-	function sortRoutes()
-	{
-		$routes_list = $this->routes_list->map(function ($value, $index)
-		{
-			return \Runtime\Vector::from([$value,$index]);
-		});
-		$routes_list = $routes_list->sort(function ($a, $b)
-		{
-			$pos_a = $a->get(0)->pos;
-			$pos_b = $b->get(0)->pos;
-			if ($pos_a == $pos_b)
-			{
-				return $a->get(1) - $b->get(1);
-			}
-			return $pos_a - $pos_b;
-		});
-		$this->routes_list = $routes_list->map(function ($item)
-		{
-			return $item->get(0);
-		});
-	}
-	/**
-	 * Start provider
-	 */
-	function start()
-	{
-		parent::start();
-	}
-	/**
-	 * Find route
-	 */
-	function findRoute($container)
-	{
-		$request = $container->request;
-		if ($request->uri === null)
-		{
-			return null;
-		}
-		for ($i = 0; $i < $this->routes_list->count(); $i++)
-		{
-			$route = $this->routes_list->get($i);
-			$matches = $this->matchRoute($container, $route);
-			if ($matches == null)
-			{
-				continue;
-			}
-			$route = $route->copy();
-			$route->addMatches($matches);
-			return $route;
-		}
-		return null;
-	}
-	/**
-	 * Match route
-	 */
-	function matchRoute($container, $route)
-	{
-		if ($route == null)
-		{
-			return null;
-		}
-		$request = $container->request;
-		if ($route->domain && $route->domain != $request->host)
-		{
-			return null;
-		}
-		/* Get matches */
-		$matches = \Runtime\re::matchAll($route->uri_match, $request->uri);
-		if ($matches)
-		{
-			$matches = $matches->get(0, null);
-			$matches->remove(0);
-		}
-		/* Call hook */
-		$d = \Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::MATCH_ROUTE, \Runtime\Map::from(["route"=>$route,"container"=>$container,"matches"=>$matches]));
-		$matches = $d->get("matches");
-		if ($matches == null)
-		{
-			return null;
-		}
-		return $matches;
-	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->routes = \Runtime\Map::from([]);
-		$this->routes_list = \Runtime\Vector::from([]);
+		$this->routes = new \Runtime\Map();
+		$this->route_params = new \Runtime\Map();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Web";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.RouteList";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseProvider";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.RouteList"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

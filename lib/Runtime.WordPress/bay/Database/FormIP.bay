@@ -18,25 +18,27 @@
 
 namespace Runtime.WordPress.Database;
 
-use Runtime.BaseStruct;
+use Runtime.BaseObject;
+use Runtime.DateTime;
+use Runtime.ORM.Record;
 use Runtime.ORM.Relation;
 use Runtime.ORM.Annotations.BigIntType;
 use Runtime.ORM.Annotations.Primary;
 use Runtime.ORM.Annotations.StringType;
 
 
-class FormIP extends Relation
+class FormIP extends Record
 {
-    /**
-     * Returns table name
-     */
-    pure string getTableName() => "forms_ip";
-    
-    
-    /**
-     * Returns table schema
-     */
-    pure memorize Collection<BaseStruct> schema() =>
+	/**
+	 * Returns table name
+	 */
+	pure string getTableName() => "forms_ip";
+	
+	
+	/**
+	 * Returns table schema
+	 */
+	pure memorize Collection<BaseObject> schema() =>
 	[
 		/* Fields */
 		new StringType{"name": "ip"},

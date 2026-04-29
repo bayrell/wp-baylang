@@ -17,54 +17,101 @@
  *  limitations under the License.
 */
 namespace Runtime\WordPress\Theme\Components\Form;
-class Form extends \Runtime\Widget\Form\Form
+
+use Runtime\Widget\Input;
+use Runtime\Widget\TextArea;
+use Runtime\Widget\Form\Form as BaseForm;
+
+
+class Form extends \Runtime\Component
 {
-	static function components()
+	function render()
 	{
-		return \Runtime\Vector::from(["Runtime.Widget.Form.Form"]);
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
+		
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("wordpress_form", $this->class, $componentHash))])));
+		
+		/* Element Runtime.Widget.Form.Form */
+		$__v1 = $__v0->element("Runtime.Widget.Form.Form", (new \Runtime\Map(["fields" => $this->fields, "model" => $this->model])));
+		
+		/* Slot title */
+		$__v1->slot("title", function ()
+		{
+			$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+			$__v = new \Runtime\VirtualDom($this);
+			
+			$__v->push($this->renderSlot("title"));
+			
+			return $__v;
+		});
+		
+		/* Slot buttons */
+		$__v1->slot("buttons", function ()
+		{
+			$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+			$__v = new \Runtime\VirtualDom($this);
+			
+			$__v->push($this->renderSlot("buttons"));
+			
+			return $__v;
+		});
+		
+		return $__v;
 	}
-	static function css($vars)
+	var $is_show;
+	/**
+	 * Returns component name
+	 */
+	function getFieldComponent($name)
 	{
-		$res = "";
-		return $res;
+		if ($name == "textarea") return "Runtime.Widget.TextArea";
+		return "Runtime.Widget.Input";
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	/**
+	 * Returns fields
+	 */
+	function fields()
 	{
-		return "Runtime.WordPress.Theme.Components.Form";
+		return $this->model->fields->map(function ($item)
+		{
+			return new \Runtime\Map([
+				"name" => $item->get("name"),
+				"component" => $this->getFieldComponent($item->get("type")),
+				"label" => $item->get("title"),
+				"props" => new \Runtime\Map([
+					"placeholder" => $item->get("placeholder"),
+				]),
+			]);
+		});
 	}
-	static function getClassName()
+	/**
+	 * Mounted component
+	 */
+	function mounted()
 	{
-		return "Runtime.WordPress.Theme.Components.Form.Form";
+		$this->nextTick(function ()
+		{
+			$this->is_show = true;
+		});
+		$item = new \Runtime\Map();
+		for ($i = 0; $i < $this->model->fields->count(); $i++)
+		{
+			$field = $this->model->fields->get($i);
+			$item->set($field->get("name"), "");
+		}
+		$this->model->setItem($item);
 	}
-	static function getParentClassName()
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.Widget.Form.Form";
+		parent::_init();
+		$this->is_show = false;
 	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ""; }
+	static function getRequiredComponents(){ return new \Runtime\Vector("Runtime.Widget.Input", "Runtime.Widget.TextArea"); }
+	static function getClassName(){ return "Runtime.WordPress.Theme.Components.Form.Form"; }
 }

@@ -17,76 +17,62 @@
  *  limitations under the License.
  */
 namespace Runtime\XML;
+
+use Runtime\Entity\Provider;
+use Runtime\XML\PatcherProvider;
+use Runtime\XML\XMLPatcher;
+
+
 class ModuleDescription
 {
 	/**
 	 * Returns module name
 	 * @return string
 	 */
-	static function getModuleName()
-	{
-		return "Runtime.XML";
-	}
+	static function getModuleName(){ return "Runtime.XML"; }
+	
+	
 	/**
 	 * Returns module name
 	 * @return string
 	 */
-	static function getModuleVersion()
-	{
-		return "0.12.1";
-	}
+	static function getModuleVersion(){ return "0.12.1"; }
+	
+	
 	/**
 	 * Returns required modules
 	 * @return Dict<string>
 	 */
 	static function requiredModules()
 	{
-		return \Runtime\Map::from(["Runtime"=>">=0.11"]);
+		return new \Runtime\Map([
+			"Runtime" => ">=0.11",
+		]);
 	}
+	
+	
 	/**
 	 * Returns enities
 	 */
 	static function entities()
 	{
-		return \Runtime\Vector::from([new \Runtime\Entity\Provider("Runtime.XML.PatcherProvider", "Runtime.XML.PatcherProvider"),new \Runtime\XML\XMLPatcher("Runtime.XML.Patchers.AddAttribute"),new \Runtime\XML\XMLPatcher("Runtime.XML.Patchers.Append"),new \Runtime\XML\XMLPatcher("Runtime.XML.Patchers.Modify"),new \Runtime\XML\XMLPatcher("Runtime.XML.Patchers.ModifyAttribute"),new \Runtime\XML\XMLPatcher("Runtime.XML.Patchers.Remove"),new \Runtime\XML\XMLPatcher("Runtime.XML.Patchers.RemoveAttribute")]);
+		return new \Runtime\Vector(
+			new \Runtime\Entity\Provider("Runtime.XML.PatcherProvider", "Runtime.XML.PatcherProvider"),
+			new \Runtime\XML\XMLPatcher("Runtime.XML.Patchers.AddAttribute"),
+			new \Runtime\XML\XMLPatcher("Runtime.XML.Patchers.Append"),
+			new \Runtime\XML\XMLPatcher("Runtime.XML.Patchers.Modify"),
+			new \Runtime\XML\XMLPatcher("Runtime.XML.Patchers.ModifyAttribute"),
+			new \Runtime\XML\XMLPatcher("Runtime.XML.Patchers.Remove"),
+			new \Runtime\XML\XMLPatcher("Runtime.XML.Patchers.RemoveAttribute"),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.XML";
 	}
-	static function getClassName()
-	{
-		return "Runtime.XML.ModuleDescription";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.XML.ModuleDescription"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

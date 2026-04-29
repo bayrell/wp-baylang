@@ -18,15 +18,16 @@
 
 namespace Runtime.WordPress.Database;
 
-use Runtime.BaseStruct;
+use Runtime.BaseObject;
 use Runtime.ORM.Relation;
+use Runtime.ORM.Record;
 use Runtime.ORM.Annotations.AutoIncrement;
 use Runtime.ORM.Annotations.BigIntType;
 use Runtime.ORM.Annotations.Primary;
 use Runtime.ORM.Annotations.StringType;
 
 
-class GalleryItem extends Relation
+class GalleryItem extends Record
 {
 	/**
 	 * Returns table name
@@ -37,7 +38,7 @@ class GalleryItem extends Relation
 	/**
 	 * Returns table schema
 	 */
-	pure memorize Collection<BaseStruct> schema() =>
+	pure memorize Collection<BaseObject> schema() =>
 	[
 		/* Fields */
 		new BigIntType{"name": "id"},

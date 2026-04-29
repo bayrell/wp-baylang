@@ -1,0 +1,116 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Auth.Database;
+
+use Runtime.BaseStruct;
+use Runtime.DateTime;
+use Runtime.Crypt.Password;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryFilter;
+use Runtime.ORM.Record;
+use Runtime.ORM.Relation;
+use Runtime.ORM.Annotations.AutoIncrement;
+use Runtime.ORM.Annotations.BigIntType;
+use Runtime.ORM.Annotations.BooleanType;
+use Runtime.ORM.Annotations.DateTimeType;
+use Runtime.ORM.Annotations.Primary;
+use Runtime.ORM.Annotations.StringType;
+
+
+class User extends Record
+{
+	/**
+	 * Returns table name
+	 */
+	pure string getTableName() => "users";
+	
+	
+	/**
+	 * Returns table schema
+	 */
+	pure Vector<BaseObject> schema() =>
+	[
+		/* Fields */
+		new BigIntType{"name": "id"},
+		new StringType{"name": "login"},
+		new StringType{"name": "password"},
+		new BooleanType{"name": "is_deleted"},
+		new DateTimeType{"name": "gmtime_add", "autocreate": true},
+		new DateTimeType{"name": "gmtime_edit", "autocreate": true},
+		
+		/* Index */
+		new AutoIncrement{"name": "id"},
+		new Primary{"keys": ["id"]},
+	];
+	
+	
+	/**
+	 * Returns token data
+	 */
+	Map getTokenData() =>
+	{
+		"id": this.id,
+		"login": this.login,
+	};
+	
+	
+	/**
+	 * Save
+	 */
+	async void save(Map params = null)
+	{
+		await parent(params);
+	}
+	
+	
+	/**
+	 * Check password
+	 */
+	bool checkPassword(string password)
+	{
+		return Password::verify(password, this.get("password"));
+	}
+	
+	
+	/**
+	 * Set new password
+	 */
+	void setPassword(string password)
+	{
+		this.password = Password::createHash(password);
+	}
+	
+	
+	/**
+	 * Find user
+	 */
+	static async User findUser(
+		string login, Relation<User> relation = null
+	)
+	{
+		if (!relation) relation = new Relation(static::getClassName());
+		User user = await relation.fetchRecord(
+			relation.select()
+				.where("login", "=", login)
+				.where("is_deleted", "=", 0)
+		);
+		return user;
+	}
+}

@@ -17,133 +17,85 @@
  *  limitations under the License.
 */
 namespace Runtime\WordPress\Theme\Components;
-class Captcha extends \Runtime\Web\Component
+
+use Runtime\DateTime;
+use Runtime\Core\Message;
+use Runtime\Web\Messages\ValueChangeMessage;
+use Runtime\Widget\Button;
+use Runtime\Widget\Input;
+
+
+class Captcha extends \Runtime\Component
 {
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("captcha", $componentHash))])));
 		
-		/* Element 'div' */
-		$__v1 = new \Runtime\Vector();
+		/* Element div */
+		$__v1 = $__v0->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("captcha__label", $componentHash))])));
+		$__v1->push("Введите код, указанный на картинке");
 		
-		/* Text */
-		$this->_t($__v1, "Введите код, указанный на картинке");
+		/* Element div */
+		$__v2 = $__v0->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("captcha__wrap", $componentHash))])));
 		
-		/* Element 'div' */
-		$this->_e($__v0, "div", ["class" => $this->_class_name(["captcha__label"])], $__v1);
+		/* Element div */
+		$__v3 = $__v2->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("captcha__image", $componentHash))])));
 		
-		/* Element 'div' */
-		$__v1 = new \Runtime\Vector();
+		/* Element img */
+		$__v3->element("img");
 		
-		/* Element 'div' */
-		$__v2 = new \Runtime\Vector();
+		/* Element button */
+		$__v4 = $__v3->element("button", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("reload", $componentHash))])));
+		$__v4->push("Reload image");
 		
-		/* Element 'img' */
-		$this->_e($__v2, "img", []);
+		/* Element div */
+		$__v5 = $__v2->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("captcha__input", $componentHash))])));
 		
-		/* Element 'button' */
-		$__v3 = new \Runtime\Vector();
+		/* Element Runtime.Widget.Input */
+		$__v5->element("Runtime.Widget.Input");
 		
-		/* Text */
-		$this->_t($__v3, "Reload image");
-		
-		/* Element 'button' */
-		$this->_e($__v2, "button", ["class" => $this->_class_name(["reload"])], $__v3);
-		
-		/* Element 'div' */
-		$this->_e($__v1, "div", ["class" => $this->_class_name(["captcha__image"])], $__v2);
-		
-		/* Element 'div' */
-		$__v2 = new \Runtime\Vector();
-		
-		/* Component 'Input' */
-		$this->_c($__v2, "Runtime.Widget.Input", []);
-		
-		/* Element 'div' */
-		$this->_e($__v1, "div", ["class" => $this->_class_name(["captcha__input"])], $__v2);
-		
-		/* Element 'div' */
-		$this->_e($__v0, "div", ["class" => $this->_class_name(["captcha__wrap"])], $__v1);
-		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["captcha"])], $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
 	/**
- * Reload image
- */
+	 * Reload image
+	 */
 	function reloadImage()
 	{
 		$image = $this->getRef("image");
 		$image->src = static::getImageHref();
 	}
 	/**
- * Change event
- */
+	 * Change event
+	 */
 	function onChange($e)
 	{
 		$input = $this->getRef("input");
 		/* Send value change */
-		$this->emit("valueChange", new \Runtime\Web\Messages\ValueChangeMessage(\Runtime\Map::from(["value"=>$input->value,"old_value"=>$this->value,"data"=>$this->data])));
+		$this->emit("valueChange", new \Runtime\Web\Messages\ValueChangeMessage(new \Runtime\Map([
+			"value" => $input->value,
+			"old_value" => $this->value,
+			"data" => $this->data,
+		])));
 	}
 	/**
- * Returns image href
- */
+	 * Returns image href
+	 */
 	static function getImageHref()
 	{
-		return "/generate_captcha/?_" . \Runtime\rtl::toStr(\Runtime\DateTime::now()->timestamp()) . \Runtime\rtl::toStr(\Runtime\rtl::urandom());
+		return "/generate_captcha/?_" . \Runtime\DateTime::now()->timestamp() . \Runtime\rtl::urandom();
 	}
-	static function components()
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return \Runtime\Vector::from(["Runtime.Widget.Button","Runtime.Widget.Input"]);
+		parent::_init();
 	}
-	static function css($vars)
-	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".captcha__label.h-6ea2{font-weight: bold;margin-bottom: 5px}.captcha__wrap.h-6ea2{display: flex;align-items: center;justify-content: space-between}.captcha__image.h-6ea2{width: 225px;padding-right: 10px}.captcha__input.h-6ea2{width: 50%;padding-left: 10px}.captcha__image.h-6ea2 img{height: 86px}.captcha__image.h-6ea2 img,.captcha__image.h-6ea2 .reload{width: 100%}.captcha__image.h-6ea2 .reload{cursor: pointer;background-color: white;border: 1px #ccc solid;color: black}.captcha__image.h-6ea2 .reload:hover{background-color: white;border: 1px #ccc solid;color: black}.captcha__image.h-6ea2 .reload:active{box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25)}");
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Theme.Components";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.Components.Captcha";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".captcha__label.h-6ea1{font-weight: bold;margin-bottom: 5px}.captcha__wrap.h-6ea1{display: flex;align-items: center;justify-content: space-between}.captcha__image.h-6ea1{width: 225px;padding-right: 10px}.captcha__input.h-6ea1{width: 50%;padding-left: 10px}.captcha__image.h-6ea1 img{height: 86px}.captcha__image.h-6ea1 img, .captcha__image.h-6ea1 .reload{width: 100%}.captcha__image.h-6ea1 .reload{cursor: pointer;background-color: white;border: 1px #ccc solid;color: black}.captcha__image.h-6ea1 .reload:hover{background-color: white;border: 1px #ccc solid;color: black}.captcha__image.h-6ea1 .reload:active{box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25)}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector("Runtime.Widget.Button", "Runtime.Widget.Input"); }
+	static function getClassName(){ return "Runtime.WordPress.Theme.Components.Captcha"; }
 }

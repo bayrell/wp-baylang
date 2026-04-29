@@ -17,73 +17,58 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Database;
-class FormData extends \Runtime\ORM\Relation
+
+use Runtime\BaseObject;
+use Runtime\DateTime;
+use Runtime\ORM\Connection;
+use Runtime\ORM\Record;
+use Runtime\ORM\Relation;
+use Runtime\ORM\Annotations\AutoIncrement;
+use Runtime\ORM\Annotations\BigIntType;
+use Runtime\ORM\Annotations\BooleanType;
+use Runtime\ORM\Annotations\DateTimeType;
+use Runtime\ORM\Annotations\JsonType;
+use Runtime\ORM\Annotations\Primary;
+use Runtime\ORM\Annotations\StringType;
+use Runtime\ORM\Annotations\TinyIntType;
+use Runtime\WordPress\EmailProvider;
+use Runtime\WordPress\Theme\Components\Email\FormMessage;
+
+
+class FormData extends \Runtime\ORM\Record
 {
 	/**
-     * Returns table name
-     */
-	static function getTableName()
-	{
-		return "forms_data";
-	}
+	 * Returns table name
+	 */
+	static function getTableName(){ return "forms_data"; }
+	
+	
 	/**
-     * Returns table schema
-     */
+	 * Returns table schema
+	 */
 	static function schema()
 	{
-		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.WordPress.Database.FormData.schema", func_get_args());
-		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;$__memorize_value = \Runtime\Vector::from([new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"form_id"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"form_title"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"metrika_id"])),new \Runtime\ORM\Annotations\JsonType(\Runtime\Map::from(["name"=>"data"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"utm"])),new \Runtime\ORM\Annotations\BooleanType(\Runtime\Map::from(["name"=>"spam"])),new \Runtime\ORM\Annotations\DateTimeType(\Runtime\Map::from(["name"=>"gmtime_add"])),new \Runtime\ORM\Annotations\AutoIncrement(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\Primary(\Runtime\Map::from(["keys"=>\Runtime\Vector::from(["id"])]))]);
-		\Runtime\rtl::_memorizeSave("Runtime.WordPress.Database.FormData.schema", func_get_args(), $__memorize_value);
-		return $__memorize_value;
+		return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "form_id"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "form_title"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "metrika_id"])),
+			new \Runtime\ORM\Annotations\JsonType(new \Runtime\Map(["name" => "data"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "utm"])),
+			new \Runtime\ORM\Annotations\BooleanType(new \Runtime\Map(["name" => "spam"])),
+			new \Runtime\ORM\Annotations\DateTimeType(new \Runtime\Map(["name" => "gmtime_add", "autocreate" => true])),
+			new \Runtime\ORM\Annotations\AutoIncrement(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\Primary(new \Runtime\Map(["keys" => new \Runtime\Vector("id")])),
+		);
 	}
-	/**
-	 * Save
-	 */
-	function save($connection, $params=null)
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		if ($this->get("gmtime_add") == null)
-		{
-			$this->set("gmtime_add", \Runtime\DateTime::now());
-		}
-		parent::save($connection, $params);
+		parent::_init();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Database";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Database.FormData";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Relation";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Database.FormData"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,98 +19,122 @@
 <class name="Runtime.Widget.Button">
 
 
-<style>
-.widget_button{
-	color: var(--widget-color-text);
-	font-family: var(--widget-font-family);
-	font-size: var(--widget-font-size);
-	line-height: var(--widget-line-height);
-	background-color: var(--widget-color-default);
-	border: var(--widget-border-width) var(--widget-color-border) solid;
-	padding: var(--widget-button-padding-y) var(--widget-button-padding-x);
-	outline: 0;
+<style global="true">
+.button{
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--color-text);
+	font-weight: 500;
+	font-family: var(--font-family);
+	font-size: var(--font-input-size);
+	line-height: var(--line-height);
+	text-decoration: none;
+	background-color: var(--color-background);
+	border: var(--border-width) var(--color-border) solid;
+	padding: calc(var(--space) * 0.75) calc(var(--space) * 1.5);
+	outline: none;
 	cursor: pointer;
-	border-radius: 4px;
+	border-radius: var(--border-radius);
+	transition: background-color var(--transition) var(--transition-type),
+		border-color var(--transition) var(--transition-type),
+		color var(--transition) var(--transition-type);
+	&:active{
+		box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25);
+		outline: none;
+	}
 }
-.widget_button:active{
-	box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25);
-}
-.widget_button--bold{
-	font-weight: bold;
-}
-.widget_button--small{
-	padding: var(--widget-button-padding-small-y) var(--widget-button-padding-small-x);
+.button--small{
+	padding: calc(var(--space) * 0.5) calc(var(--space) * 1);
 	line-height: 1.2em;
 }
-.widget_button--large{
-	padding: var(--widget-button-padding-large-y) var(--widget-button-padding-large-x);
+.button--large{
+	padding: calc(var(--space) * 1) calc(var(--space) * 2);
 }
-.widget_button--primary{
-	color: var(--widget-color-primary-text);
-	background-color: var(--widget-color-primary);
-	border-color: var(--widget-color-primary);
+.button--primary{
+	color: var(--color-primary-text);
+	background-color: var(--color-primary);
+	border-color: var(--color-primary-border);
+	&:hover{
+		background-color: var(--color-primary-hover);
+	}
 }
-.widget_button--danger{
-	color: var(--widget-color-danger-text);
-	background-color: var(--widget-color-danger);
-	border-color: var(--widget-color-danger);
+.button--secondary{
+	color: var(--color-secondary-text);
+	background-color: var(--color-secondary);
+	border-color: var(--color-secondary-border);
+	&:hover{
+		background-color: var(--color-secondary-hover);
+	}
 }
-.widget_button--success{
-	color: var(--widget-color-success-text);
-	background-color: var(--widget-color-success);
-	border-color: var(--widget-color-success);
+.button--outline{
+	background-color: transparent;
+	color: var(--color-text);
+	border-color: var(--color-border);
+	&:hover{
+		background-color: var(--color-surface);
+	}
 }
-.widget_button--stretch{
+.button--danger{
+	color: var(--color-danger-text);
+	background-color: var(--color-danger);
+	border-color: var(--color-danger-border);
+	&:hover{
+		background-color: var(--color-danger-hover);
+	}
+}
+.button--success{
+	color: var(--color-success-text);
+	background-color: var(--color-success);
+	border-color: var(--color-success-border);
+	&:hover{
+		background-color: var(--color-success-hover);
+	}
+}
+.button--info{
+	color: var(--color-info-text);
+	background-color: var(--color-info);
+	border-color: var(--color-info-border);
+	&:hover{
+		background-color: var(--color-info-hover);
+	}
+}
+.button--warning{
+	background-color: var(--color-warning);
+	border-color: var(--color-warning-border);
+	&:hover{
+		background-color: var(--color-warning-hover);
+	}
+}
+.button--stretch{
 	width: 100%;
 }
 </style>
 
 
 <template>
-	%set Dict data = this.getData();
-	%if (data.get("href") == null)
+	%if (this.href == null)
 	{
 		<button type={{ this.type }}
-			class="widget_button"
-			class={{ static::mergeStyles("widget_button", data.get("styles")) }}
-			class={{ this.renderListClass() }}
+			class="button"
+			class={{ rs::mergeStyles("button", this.styles) }}
 			class={{ this.class }}
 			@event:click={{ this.onClick }}
 			@ref="widget"
 		>
-			%set string content = data.get("content");
-			%if (content)
-			{
-				%render content;
-			}
-			%else
-			{
-				%render this.renderSlot("default");
-			}
+			%render this.renderSlot("default");
 		</button>
 	}
 	%else
 	{
-		<a class="nolink" class={{ this.class }} class="widget_button__link"
-			href={{ data.get("href") }} target={{ data.get("target") }}
+		<a class="button" class={{ this.class }}
+			class={{ rs::mergeStyles("button", this.styles) }}
+			href={{ this.href }}
+			target={{ this.target }}
+			@event:click={{ this.onClick }}
 			@ref="widget"
 		>
-			<button type={{ this.type }}
-				class="widget_button"
-				class={{ static::mergeStyles("widget_button", data.get("styles")) }}
-				class={{ this.renderListClass() }}
-				@event:click={{ this.onClick }}
-			>
-				%set string content = data.get("content");
-				%if (content)
-				{
-					%render content;
-				}
-				%else
-				{
-					%render this.renderSlot("default");
-				}
-			</button>
+			%render this.renderSlot("default");
 		</a>
 	}
 </template>
@@ -118,7 +142,6 @@
 
 <script>
 
-props string class = "";
 props string type = "button";
 props string target = "_self";
 props string content = "";
@@ -127,36 +150,11 @@ props Collection<string> styles = [];
 
 
 /**
- * Returns props
- */
-Dict getData()
-{
-	if (this.model)
-	{
-		Dict props = this.model.getProps(this.data);
-		props.set("styles", this.styles.concat(this.model.styles).removeDuplicates());
-		return props;
-	}
-	return {
-		"content": this.content,
-		"href": this.href,
-		"styles": this.styles,
-		"target": this.target,
-	};
-}
-
-
-/**
  * Button click
  */
 void onClick(var e)
 {
 	e.stopPropagation();
-	Dict data = this.getData();
-	if (this.model and data.get("href") == null)
-	{
-		this.model.onClick(this.data);
-	}
 }
 
 

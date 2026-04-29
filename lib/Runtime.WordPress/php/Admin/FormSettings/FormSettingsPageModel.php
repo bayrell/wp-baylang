@@ -17,42 +17,153 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin\FormSettings;
-class FormSettingsPageModel extends \Runtime\Web\BasePageModel
+
+use Runtime\ApiResult;
+use Runtime\BaseModel;
+use Runtime\Method;
+use Runtime\Serializer\BooleanType;
+use Runtime\Serializer\IntegerType;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\ObjectType;
+use Runtime\Serializer\StringType;
+use Runtime\Serializer\VectorType;
+use Runtime\Web\RenderContainer;
+use Runtime\Widget\Table\TableManager;
+use Runtime\WordPress\Admin\FormSettings\FormItem;
+use Runtime\WordPress\Admin\FormSettings\FormSettingsPage;
+
+
+class FormSettingsPageModel extends \Runtime\BaseModel
 {
-	public $component;
-	public $form;
-	public $table;
-	public $top_buttons;
+	var $component;
+	var $manager;
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static function serialize($rules)
+	{
+		parent::serialize($rules);
+		$rules->addType("manager", new \Runtime\Serializer\ObjectType());
+	}
+	
+	
 	/**
 	 * Init widget settings
 	 */
 	function initWidget($params)
 	{
 		parent::initWidget($params);
-		/* Add form */
-		$this->form = $this->addWidget("Runtime.WordPress.Admin.FormSettings.FormSaveModel", \Runtime\Map::from(["widget_name"=>"form","primary_key"=>\Runtime\Vector::from(["id"]),"storage"=>new \Runtime\Entity\Factory("Runtime.Widget.Form.FormSaveStorage", \Runtime\Map::from(["api_name"=>"admin.wordpress.forms.settings.save"])),"fields"=>\Runtime\Vector::from([\Runtime\Map::from(["name"=>"name","label"=>"Name","component"=>"Runtime.Widget.Input"]),\Runtime\Map::from(["name"=>"api_name","label"=>"Api name","component"=>"Runtime.Widget.Input"]),\Runtime\Map::from(["name"=>"email_to","label"=>"Email to","component"=>"Runtime.Widget.Input"]),\Runtime\Map::from(["name"=>"settings","label"=>"Settings","component"=>"Runtime.WordPress.Admin.FormSettings.FieldSettings","default"=>\Runtime\Map::from(["fields"=>\Runtime\Vector::from([\Runtime\Map::from(["name"=>"name","title"=>"Name","placeholder"=>"","required"=>true]),\Runtime\Map::from(["name"=>"phone","title"=>"Phone","placeholder"=>""]),\Runtime\Map::from(["name"=>"email","title"=>"E-mail","placeholder"=>"","required"=>true]),\Runtime\Map::from(["name"=>"message","title"=>"Message","placeholder"=>"","type"=>"textarea"])])])])])]));
-		/* Add table */
-		$this->table = $this->addWidget("Runtime.Widget.Table.TableDialogModel", \Runtime\Map::from(["widget_name"=>"table","styles"=>\Runtime\Vector::from(["border"]),"get_title"=>function ($params)
-		{
-			$action = $params->get("action");
-			$item = $params->get("item");
-			if ($action == "add")
-			{
-				return "Add form";
-			}
-			if ($action == "edit")
-			{
-				return "Edit form '" . \Runtime\rtl::toStr($item->get("api_name")) . \Runtime\rtl::toStr("'");
-			}
-			if ($action == "delete")
-			{
-				return "Delete form '" . \Runtime\rtl::toStr($item->get("api_name")) . \Runtime\rtl::toStr("'");
-			}
-			return "";
-		},"storage"=>new \Runtime\Entity\Factory("Runtime.Widget.Table.TableStorage", \Runtime\Map::from(["api_name"=>"admin.wordpress.forms.settings.search"])),"page"=>$this->layout->request_query->get("p", 1) - 1,"pagination_props"=>\Runtime\Map::from(["name"=>"p"]),"add_form"=>$this->form,"edit_form"=>$this->form,"delete_form"=>new \Runtime\Web\ModelFactory("Runtime.WordPress.Admin.FormSettings.FormSaveModel", \Runtime\Map::from(["widget_name"=>"delete_form","primary_key"=>\Runtime\Vector::from(["id"]),"storage"=>new \Runtime\Entity\Factory("Runtime.Widget.Form.FormDeleteStorage", \Runtime\Map::from(["api_name"=>"admin.wordpress.forms.settings.save"]))])),"fields"=>\Runtime\Vector::from([\Runtime\Map::from(["name"=>"row_number"]),\Runtime\Map::from(["name"=>"name","label"=>"Name","component"=>"Runtime.Widget.Label"]),\Runtime\Map::from(["name"=>"api_name","label"=>"Api name","component"=>"Runtime.Widget.Label"]),\Runtime\Map::from(["name"=>"email_to","label"=>"Email to","component"=>"Runtime.Widget.Label"]),\Runtime\Map::from(["name"=>"row_buttons","model"=>new \Runtime\Web\ModelFactory("Runtime.Widget.Table.TableRowButtonsModel")])])]));
-		/* Add top buttons */
-		$this->top_buttons = $this->addWidget("Runtime.Widget.RowButtonsModel", \Runtime\Map::from(["widget_name"=>"top_buttons","styles"=>\Runtime\Vector::from(["top_buttons"]),"buttons"=>\Runtime\Vector::from([new \Runtime\Web\ModelFactory("Runtime.Widget.Table.AddButtonModel", \Runtime\Map::from(["table"=>$this->table]))])]));
+		$this->manager = $this->createWidget("Runtime.Widget.Table.TableManager", new \Runtime\Map([
+			"autoload" => true,
+			"api_name" => "admin.wordpress.forms.settings",
+			"page_name" => "p",
+			"title" => new \Runtime\Method($this, "getItemTitle"),
+			"primary_rules" => new \Runtime\Serializer\MapType(new \Runtime\Map([
+				"id" => new \Runtime\Serializer\IntegerType(),
+			])),
+			"item_rules" => new \Runtime\Serializer\MapType(new \Runtime\Map([
+				"id" => new \Runtime\Serializer\IntegerType(),
+				"name" => new \Runtime\Serializer\StringType(),
+				"api_name" => new \Runtime\Serializer\StringType(),
+				"email_to" => new \Runtime\Serializer\StringType(),
+				"settings" => new \Runtime\Serializer\MapType(new \Runtime\Map([
+					"fields" => new \Runtime\Serializer\VectorType(new \Runtime\Serializer\MapType(new \Runtime\Map([
+						"name" => new \Runtime\Serializer\StringType(),
+						"type" => new \Runtime\Serializer\StringType(),
+						"title" => new \Runtime\Serializer\StringType(),
+						"placeholder" => new \Runtime\Serializer\StringType(),
+						"required" => new \Runtime\Serializer\StringType(),
+					]))),
+				])),
+			])),
+			"form_fields" => new \Runtime\Vector(
+				new \Runtime\Map([
+					"name" => "name",
+					"label" => "Name",
+					"component" => "Runtime.Widget.Input",
+				]),
+				new \Runtime\Map([
+					"name" => "api_name",
+					"label" => "Api name",
+					"component" => "Runtime.Widget.Input",
+				]),
+				new \Runtime\Map([
+					"name" => "email_to",
+					"label" => "Email to",
+					"component" => "Runtime.Widget.Input",
+				]),
+				new \Runtime\Map([
+					"name" => "fields",
+					"label" => "Fields",
+					"component" => "Runtime.WordPress.Admin.FormSettings.FieldSettings",
+					"value" => function ($item)
+					{
+						$settings = $item->get("settings");
+						if (!$settings) return new \Runtime\Vector();
+						$fields = $settings->get("fields");
+						return $fields ? $fields : new \Runtime\Vector();
+					},
+					"setValue" => function ($item, $value)
+					{
+						$settings = $item->get("settings");
+						if (!$settings)
+						{
+							$settings = new \Runtime\Map();
+							$item->set("settings", $settings);
+						}
+						$settings->set("fields", $value);
+					},
+				]),
+			),
+			"table_fields" => new \Runtime\Vector(
+				new \Runtime\Map([
+					"name" => "row_number",
+				]),
+				new \Runtime\Map([
+					"name" => "name",
+					"label" => "Name",
+				]),
+				new \Runtime\Map([
+					"name" => "api_name",
+					"label" => "Api name",
+				]),
+				new \Runtime\Map([
+					"name" => "email_to",
+					"label" => "Email to",
+				]),
+				new \Runtime\Map([
+					"name" => "buttons",
+					"slot" => "row_buttons",
+				]),
+			),
+		]));
 	}
+	
+	
+	/**
+	 * Returns item title
+	 */
+	function getItemTitle($action, $item)
+	{
+		if ($action == "add") return "Add item";
+		else if ($action == "edit") return "Edit item";
+		else if ($action == "delete") return "Delete item";
+		else if ($action == "delete_message") return "Delete item";
+		return "";
+	}
+	
+	
+	/**
+	 * Load data
+	 */
+	function loadData($container)
+	{
+		parent::loadData($container);
+	}
+	
+	
 	/**
 	 * Build title
 	 */
@@ -60,51 +171,16 @@ class FormSettingsPageModel extends \Runtime\Web\BasePageModel
 	{
 		$this->layout->setPageTitle("Forms settings");
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->component = "Runtime.WordPress.Admin.FormSettings.FormSettingsPage";
-		$this->form = null;
-		$this->table = null;
-		$this->top_buttons = null;
+		$this->manager = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Admin.FormSettings";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.FormSettings.FormSettingsPageModel";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.BasePageModel";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.FormSettings.FormSettingsPageModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

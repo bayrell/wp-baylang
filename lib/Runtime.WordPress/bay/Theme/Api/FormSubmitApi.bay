@@ -18,11 +18,17 @@
 
 namespace Runtime.WordPress.Theme.Api;
 
-use Runtime.re;
 use Runtime.DateTime;
 use Runtime.Exceptions.ApiError;
 use Runtime.Exceptions.ItemNotFound;
+use Runtime.Exceptions.FieldException;
 use Runtime.Exceptions.RuntimeException;
+use Runtime.Serializer.BaseType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.Required;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.TypeError;
 use Runtime.ORM.Connection;
 use Runtime.ORM.Cursor;
 use Runtime.ORM.Query;
@@ -30,21 +36,28 @@ use Runtime.ORM.QueryField;
 use Runtime.ORM.QueryFilter;
 use Runtime.ORM.QueryResult;
 use Runtime.ORM.Relation;
+use Runtime.ORM.Record;
+use Runtime.Web.ApiRequest;
+use Runtime.Web.ApiResult;
 use Runtime.Web.BaseApi;
 use Runtime.Web.Annotations.ApiMethod;
-use Runtime.Widget.Crud.FieldException;
-use Runtime.Widget.Crud.RulesManager;
+use Runtime.Widget.Api.FieldErrors;
 use Runtime.WordPress.EmailProvider;
 use Runtime.WordPress.Database.Form;
 use Runtime.WordPress.Database.FormData;
 use Runtime.WordPress.Database.FormIP;
-use Runtime.WordPress.Theme.Components.Email.FormMessage;
+use Runtime.WordPress.Service.FormService;
 
 
 class FormSubmitApi extends BaseApi
 {
-	Relation form = null;
-	RulesManager rules = new RulesManager();
+	Record form = null;
+	Relation relation_form = new Relation(classof Form);
+	Relation relation_form_data = new Relation(classof FormData);
+	Relation relation_form_ip = new Relation(classof FormIP);
+	FormService form_service = new FormService();
+	EmailProvider email = @.provider("email");
+	string client_ip = "";
 	
 	
 	/**
@@ -54,33 +67,43 @@ class FormSubmitApi extends BaseApi
 	
 	
 	/**
+	 * Set request
+	 */
+	void setRequest(ApiRequest request)
+	{
+		parent(request);
+		this.client_ip = request.storage.get("client_ip");
+	}
+	
+	
+	/**
 	 * Returns form settings
 	 */
-	@ApiMethod
-	async void actionSettings()
+	@ApiMethod{ "name": "settings" }
+	async ApiResult actionSettings()
 	{
-		Connection conn = Connection::get();
+		/* Validate data */
+		Map update_data = this.filter(this.request.data, new MapType{
+			"form_name": new StringType(),
+		});
 		
 		/* Find form */
-		string form_name = this.post_data["form_name"];
-		this.form = await Form::findByFilter(conn, [
-			new QueryFilter("api_name", "=", form_name),
-		]);
-		if (not this.form)
+		string form_name = update_data.get("form_name");
+		Form form = await this.form_service.findForm(form_name);
+		if (not form)
 		{
 			throw new ApiError(new ItemNotFound(form_name, "Form"));
 		}
 		
 		/* Get form settings */
-		string settings = this.form.get("settings");
-		Dict form_settings = rtl::json_decode(settings);
+		Map form_settings = form.settings;
 		if (not form_settings)
 		{
 			throw new ApiError(new ItemNotFound(form_name, "Form settings"));
 		}
 		
 		/* Set result */
-		this.result.success({
+		return this.result.success({
 			"message": "Ok",
 			"data": {
 				"name": form_name,
@@ -91,162 +114,51 @@ class FormSubmitApi extends BaseApi
 	
 	
 	/**
-	 * Check spam
-	 */
-	async bool checkSpam()
-	{
-		Connection conn = Connection::get();
-		
-		string client_ip = this.layout.getStorage().backend.get("client_ip");
-		int time = DateTime::now().getTimestamp();
-		
-		Relation item = await FormIP::findByFilter(conn, [
-			new QueryFilter("ip", "=", client_ip),
-		]);
-		
-		if (not item)
-		{
-			item = new FormIP();
-			item.set("count", 1);
-			item.set("ip", client_ip);
-			item.set("last", time);
-			
-			await item.save(conn);
-			
-			return false;
-		}
-		
-		bool spam_result = false;
-		int count = item.get("count") + 1;
-		
-		if (item.get("last") + 15*60 > time)
-		{
-			if (count > 3)
-			{
-				spam_result = true;
-			}
-		}
-		else
-		{
-			count = 1;
-		}
-		
-		item.set("count", count);
-		item.set("last", time);
-		await item.save(conn);
-		
-		return spam_result;
-	}
-	
-	
-	/**
-	 * Validate item
-	 */
-	async Map validateItem(Map update_data)
-	{
-		/* Get settings */
-		string settings_str = this.form.get("settings");
-		Dict settings = rtl::json_decode(settings_str);
-		if (not settings)
-		{
-			throw new ApiError(new RuntimeException("Settings error"));
-		}
-		
-		/* Default update data */
-		if (update_data == null) update_data = {};
-		
-		/* Creat new data */
-		Map new_data = new Map();
-		Map value_data = new Map();
-		
-		/* Add site name */
-		string site_name = "";
-		#ifcode PHP then
-		$site_name = get_bloginfo("", "name");
-		#endif
-		
-		/* Check fields */
-		Collection<Dict> fields = settings["fields"];
-		if (fields)
-		{
-			for (int i=0; i<fields.count(); i++)
-			{
-				Dict field_settings = fields.get(i);
-				string field_name = field_settings["name"];
-				string field_title = field_settings["title"];
-				bool required = (bool)field_settings["required"];
-				string value = update_data.has(field_name) ? rs::trim(update_data[field_name]) : "";
-				
-				/* Set value */
-				new_data.set(field_name, value);
-				value_data.set(field_title, value);
-				
-				/* Check field */
-				if (not required) continue;
-				if (value == "")
-				{
-					this.rules.addFieldError(field_name, "Field is required");
-				}
-			}
-		}
-		
-		/* Check fields error */
-		if (not this.rules.correct())
-		{
-			throw new ApiError(new FieldException());
-		}
-		
-		return {
-			"data": new_data,
-			"values": value_data,
-			"site_name": site_name,
-		};
-	}
-	
-	
-	/**
 	 * Action save
 	 */
-	@ApiMethod
-	async void actionSave()
+	@ApiMethod{ "name": "save" }
+	async ApiResult actionSave()
 	{
-		Connection conn = Connection::get();
+		Vector errors = [];
+		
+		/* Validate data */
+		Map update_data = this.filter(this.request.data, new MapType{
+			"form_name": new StringType(),
+			"form_title": new StringType(),
+			"form_id": new StringType(),
+			"item": new Required(),
+		});
+		
+		/* Get data */
+		string site_name = "";
+		string form_name = update_data.get("form_name");
+		string form_title = update_data.get("form_title");
+		string form_id = update_data.get("form_id");
+		
+		/* Site name */
+		#ifcode PHP then
+		$site_name = get_bloginfo("name");
+		#endif
 		
 		/* Find form */
-		string form_name = this.post_data["form_name"];
-		this.form = await Form::findByFilter(conn, [
-			new QueryFilter("api_name", "=", form_name),
-		]);
-		if (!this.form)
+		Form form = await this.form_service.findForm(form_name);
+		if (!form)
 		{
 			throw new ApiError(new ItemNotFound(form_name, "Form"));
 		}
 		
-		/* Create field result */
-		this.result.data.set("fields", this.rules.fields);
-		
 		/* Validate item */
-		Map update_data = this.post_data["item"];
-		Map result = await this.validateItem(update_data);
-		
-		/* Get form title */
-		string form_title = "";
-		if (this.post_data.has("form_title"))
+		BaseType rules = form.getRules();
+		Map item_data = rules.filter(update_data.get("item"), errors);
+		if (not item_data or errors.count() > 0)
 		{
-			form_title = this.post_data.get("form_title");
+			return this.result.fail(new FieldException({
+				"fields": TypeError::getMap(errors),
+			}));
 		}
-		if (form_title == "") form_title = this.form.get("name");
-		
-		/* Get metrika id */
-		string metrika_form_id = "";
-		if (this.post_data.has("metrika_form_id"))
-		{
-			metrika_form_id = this.post_data.get("metrika_form_id");
-		}
-		if (metrika_form_id == "") metrika_form_id = "form";
 		
 		/* Spam check */
-		bool spam_check = await this.checkSpam();
+		bool spam_check = await this.form_service.checkSpam(this.client_ip);
 		if (spam_check)
 		{
 			return this.result.success({
@@ -255,43 +167,24 @@ class FormSubmitApi extends BaseApi
 		}
 		
 		/* Save form */
-		Relation form_data = new FormData();
-		form_data.set("form_id", this.form.get("id"));
-		form_data.set("form_title", form_title);
-		form_data.set("metrika_id", metrika_form_id);
-		form_data.set("data", result.get("data"));
-		form_data.set("spam", spam_check);
-		await form_data.save(conn);
+		FormData form_data = this.relation_form_data.createRecord();
+		form_data.form_id = form.id;
+		form_data.form_title = form_title ? form_title : form.name;
+		form_data.metrika_id = form_id ? form_id : "form";
+		form_data.data = update_data.get("item");
+		form_data.spam = spam_check;
+		await this.relation_form_data.save(form_data);
 		
 		/* Send email */
 		if (not spam_check)
 		{
-			EmailProvider email = @.provider("email");
-			string email_dest = this.form.get("email_to");
-			string email_title = rs::join(" ", [
-				form_title,
-				"from",
-				result.get("site_name"),
-				"N" ~ form_data.get("id"),
-			]);
-			await email.send({
-				"dest": email_dest,
-				"title": email_title,
-				"component": classof FormMessage,
-				"props":
-				{
-					"site_name": result.get("site_name"),
-					"form_name": this.form.get("name"),
-					"form_title": form_title,
-					"invoice_id": form_data.get("id"),
-					"metrika_form_id": metrika_form_id,
-					"data": result.get("values")
-				},
-			});
+			await this.form_service.sendEmail(
+				form, form_data, this.email, site_name
+			);
 		}
 		
 		/* Set result */
-		this.result.success({
+		return this.result.success({
 			"message": "Ok",
 		});
 	}

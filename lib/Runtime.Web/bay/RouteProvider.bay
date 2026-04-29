@@ -1,0 +1,259 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Web;
+
+use Runtime.re;
+use Runtime.BaseLayout;
+use Runtime.BaseProvider;
+use Runtime.Method;
+use Runtime.Entity.Factory;
+use Runtime.Exceptions.ItemNotFound;
+use Runtime.Hooks.RuntimeHook;
+use Runtime.Providers.HookProvider;
+use Runtime.Web.BaseRoute;
+use Runtime.Web.RenderContainer;
+use Runtime.Web.Request;
+use Runtime.Web.RouteAction;
+use Runtime.Web.RouteInfo;
+use Runtime.Web.RouteList;
+use Runtime.Web.RouteModel;
+use Runtime.Web.RoutePage;
+use Runtime.Web.Annotations.Route;
+use Runtime.Web.Hooks.AppHook;
+
+
+class RouteProvider extends BaseProvider
+{
+	public Map routes = {};
+	public Vector routes_list = [];
+	
+	
+	/**
+	 * Init provider
+	 */
+	async void init()
+	{
+		await parent::init();
+		await this.initRoutes();
+	}
+	
+	
+	/**
+	 * Init routes
+	 */
+	async void initRoutes()
+	{
+		this.routes = {};
+		Collection<Route> routes = @.getEntities(classof Route);
+		for (int i=0; i<routes.count(); i++)
+		{
+			Route info = routes[i];
+			if (not info.name) continue;
+			
+			/* Get method getRoutes */
+			Method getRoutes = new Method(info.name, "getRoutes");
+			if (not getRoutes.exists())
+			{
+				throw new ItemNotFound(info.name, "Route");
+			}
+			
+			/* Get routes */
+			Collection<RouteInfo> routes_list = getRoutes.apply();
+			if (not routes_list) continue;
+			
+			/* Register routes */
+			for (int j=0; j<routes_list.count(); j++)
+			{
+				RouteInfo route = routes_list.get(j);
+				route.route_class = info.name;
+				route.compile();
+				this.addRoute(route);
+			}
+		}
+		
+		await @.hook(AppHook::ROUTES_INIT, {
+			"routes": this,
+		});
+		
+		/* Sort routes */
+		this.sortRoutes();
+	}
+	
+	
+	/**
+	 * Add route
+	 */
+	void addRoute(RouteInfo route)
+	{
+		if (route.uri_match === null) route.compile();
+		this.routes.set(route.name, {
+			"uri": route.uri,
+			"domain": route.domain,
+		});
+		this.routes_list.push(route);
+	}
+	
+	
+	/**
+	 * Returns true if route is exists
+	 */
+	bool hasRoute(string route_name) => this.routes.has(route_name);
+	
+	
+	/**
+	 * Sort routes
+	 */
+	void sortRoutes()
+	{
+		Vector routes_list = this.routes_list.map(
+			list (RouteInfo value, int index) => [ value, index ]
+		);
+		
+		routes_list.sort(
+			int (list a, list b)
+			{
+				int pos_a = a.get(0).pos;
+				int pos_b = b.get(0).pos;
+				
+				if (pos_a == pos_b)
+				{
+					return a.get(1) - b.get(1);
+				}
+				
+				return pos_a - pos_b;
+			}
+		);
+		
+		this.routes_list = routes_list.map(
+			RouteInfo (list item) => item.get(0)
+		);
+	}
+	
+	
+	/**
+	 * Start provider
+	 */
+	async void start()
+	{
+		await parent::start();
+	}
+	
+	
+	/**
+	 * Register hooks
+	 */
+	void register_hooks()
+	{
+		HookProvider hook = @.provider("hook");
+		hook.register(AppHook::ROUTE_BEFORE,
+			new Method(this, "routeBefore"), 50);
+	}
+	
+	
+	/**
+	 * Route before
+	 */
+	void routeBefore(Map params)
+	{
+		RenderContainer container = params.get("container");
+		BaseLayout layout = container.layout;
+		
+		/* Create route */
+		RouteList router = layout.storage.createWidget(classof RouteList);
+		router.routes = this.routes.copy();
+		layout.storage.set("router", router);
+	}
+	
+	
+	/**
+	 * Returns route by name
+	 */
+	RouteInfo getRoute(string route_name) =>
+		this.routes_list.find(
+			bool (RouteInfo route) => route.name == route_name
+		)
+	;
+	
+	
+	/**
+	 * Remove route by name
+	 */
+	void removeRoute(string route_name)
+	{
+		int index = this.routes_list.findIndex(
+			bool (RouteInfo route) => route.name == route_name
+		);
+		if (index == -1) return;
+		
+		this.routes_list.remove(index);
+		this.routes.remove(route_name);
+	}
+	
+	
+	/**
+	 * Find route
+	 */
+	RouteInfo findRoute(Request request)
+	{
+		if (request.uri === null) return null;
+		
+		for (int i=0; i<this.routes_list.count(); i++)
+		{
+			RouteInfo route = this.routes_list.get(i);
+			
+			Collection<string> matches = this.matchRoute(request, route);
+			if (matches == null) continue;
+			
+			route = route.copy();
+			route.addMatches(matches);
+			return route;
+		}
+		
+		return null;
+	}
+	
+	
+	/**
+	 * Match route
+	 */
+	Collection<string> matchRoute(Request request, RouteInfo route)
+	{
+		if (route == null) return null;
+		if (route.domain and route.domain != request.host) return null;
+		
+		/* Get matches */
+		Vector<string> matches = re::matchAll(route.uri_match, request.uri);
+		if (matches)
+		{
+			matches = matches.get(0, null);
+			matches.remove(0);
+		}
+		
+		/* Call hook */
+		Dict d = @.hook(AppHook::MATCH_ROUTE, {
+			"route": route,
+			"request": request,
+			"matches": matches,
+		});
+		matches = d.get("matches");
+		if (matches == null) return null;
+		
+		return matches;
+	}
+}

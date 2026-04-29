@@ -18,9 +18,9 @@
 
 namespace Runtime.ORM.Annotations;
 
-use Runtime.BaseStruct;
+use Runtime.ORM.Annotations.BaseStruct;
 
 
-struct Virtual extends BaseStruct
+class Virtual extends BaseStruct
 {
 }

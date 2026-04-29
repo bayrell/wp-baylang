@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@
 
 namespace Runtime;
 
+use Runtime.Entity.Entity;
 use Runtime.Entity.Provider;
 
 
-static class ModuleDescription
+class ModuleDescription
 {
 	/**
 	 * Returns module name
@@ -34,7 +35,7 @@ static class ModuleDescription
 	 * Returns module name
 	 * @return string
 	 */
-	pure string getModuleVersion() => "0.12.1";
+	pure string getModuleVersion() => "1.0";
 	
 	
 	/**
@@ -47,12 +48,21 @@ static class ModuleDescription
 	/**
 	 * Returns enities
 	 */
-	pure Collection<Dict> entities() => 
+	pure Vector<Entity> entities() =>
 	[
+		new Provider("hash", "Runtime.Providers.GlobalHash"),
 		/*new Provider("input", null),*/
 		new Provider("output", "Runtime.Providers.OutputProvider"),
 		/*new Provider("log", null),*/
 		new Provider("hook", "Runtime.Providers.HookProvider"),
+		
+		#ifdef BACKEND then
+		new Provider("render", "Runtime.Providers.RenderContent"),
+		#endif
+		
+		#ifdef FRONTEND then
+		new Provider("api", "Runtime.BusHttp"),
+		new Provider("render", "Runtime.Providers.RenderProvider"),
+		#endif
 	];
-	
 }

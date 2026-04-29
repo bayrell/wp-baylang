@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,12 +18,10 @@
 
 namespace Runtime.Entity;
 
-use Runtime.rtl;
-use Runtime.Entity.Entity;
-use Runtime.BaseHook;
+use Runtime.Entity.Factory;
 
 
-struct Hook extends Entity
+class Hook extends Factory
 {
 	Dict params = null;
 	
@@ -33,18 +31,6 @@ struct Hook extends Entity
 	 */
 	void constructor(string name, Map params = null)
 	{
-		parent({
-			"name": name,
-			"params": params,
-		});
-	}
-	
-	
-	/**
-	 * Create hook instance
-	 */
-	BaseHook createHook()
-	{
-		return rtl::newInstance(this.name, [this.params]);
+		parent(name, params);
 	}
 }

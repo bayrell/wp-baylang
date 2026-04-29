@@ -35,7 +35,6 @@ use Runtime.ORM.Provider;
 use Runtime.ORM.QueryField;
 use Runtime.ORM.QueryFilter;
 use Runtime.ORM.Record;
-use Runtime.ORM.StructBuilder;
 
 
 class Query extends BaseObject
@@ -48,13 +47,14 @@ class Query extends BaseObject
 	static const string QUERY_INSERT_OR_UPDATE = "insert_or_update";
 	
 	string _kind = "";
-	string _relation_name = "";
 	string _table_name = "";
 	string _table_alias = "";
 	Vector<string> _fields = new Vector();
 	Vector<Dict> _join = new Vector();
 	Vector<Collection> _order = new Vector();
 	Vector<QueryFilter> _filter = new Vector();
+	Vector<string> _group_by = new Vector();
+	Vector<QueryFilter> _having = new Vector();
 	string _sql = "";
 	Map _data = new Map();
 	int _start = 0;
@@ -83,15 +83,16 @@ class Query extends BaseObject
 	{
 		Query q = new Query();
 		q._kind = this._kind;
-		q._relation_name = this._relation_name;
 		q._table_name = this._table_name;
 		q._table_alias = this._table_alias;
-		q._fields = this._fields.toVector();
-		q._join = this._join.toVector();
-		q._order = this._order.toVector();
-		q._filter = this._filter.toVector();
+		q._fields = this._fields.slice();
+		q._join = this._join.slice();
+		q._order = this._order.slice();
+		q._filter = this._filter.slice();
+		q._group_by = this._group_by.slice();
+		q._having = this._having.slice();
 		q._sql = this._sql;
-		q._data = this._data ? this._data.toMap() : null;
+		q._data = this._data ? this._data.copy() : null;
 		q._start = this._start;
 		q._limit = this._limit;
 		q._debug = this._debug;
@@ -111,12 +112,6 @@ class Query extends BaseObject
 		this._db_params = db_params;
 		return this;
 	}
-	
-	
-	/**
-	 * Returns relation class name
-	 */
-	string getRelationName() => this._relation_name;
 	
 	
 	/**
@@ -168,6 +163,7 @@ class Query extends BaseObject
 	{
 		this._kind = static::QUERY_SELECT;
 		if (fields) this.fields(fields);
+		else this.fields([this._table_name ~ ".*"]);
 		return this;
 	}
 	
@@ -179,23 +175,6 @@ class Query extends BaseObject
 	{
 		this._table_name = table_name != "" ? table_name : this._table_name;
 		this._table_alias = alias_name == "" ? this._table_name : alias_name;
-		
-		Provider provider = @.provider(classof Provider);
-		this._relation_name = provider.getRelationName(this._table_name);
-		
-		return this;
-	}
-	
-	
-	/**
-	 * Set relation
-	 */
-	Query relation(string class_name = "", string alias_name = "")
-	{
-		string table_name = new Callback(class_name, "getTableName").apply();
-		this._table_name = table_name != "" ? table_name : this._table_name;
-		this._table_alias = alias_name == "" ? this._table_name : alias_name;
-		this._relation_name = class_name;
 		return this;
 	}
 	
@@ -267,8 +246,9 @@ class Query extends BaseObject
 	/**
 	 * Set fields
 	 */
-	Query fields(Collection fields)
+	Query fields(Vector fields)
 	{
+		if (rtl::isString(fields)) fields = [fields];
 		this._fields = new Vector();
 		for (int i=0; i<fields.count(); i++)
 		{
@@ -320,26 +300,27 @@ class Query extends BaseObject
 			string table_name = field.table_name;
 			if (table_name == "") return this;
 			
-			Collection<BaseStruct> annotations = this._provider.getAnotations(table_name);
+			Collection<BaseObject> annotations = this._provider.getAnotations(table_name);
 			if (not annotations) return this;
 			
 			/* Add fields from annotation */
 			for (int i=0; i<annotations.count(); i++)
 			{
-				BaseStruct annotation = annotations[i];
+				BaseObject annotation = annotations[i];
 				if (annotation instanceof BaseType)
 				{
 					QueryField field = new QueryField();
 					field.annotation = annotation;
 					field.field_name = annotation.name;
 					field.table_name = table_name;
-					this._fields.append(field);
+					this._fields.push(field);
 				}
 			}
 		}
 		else
 		{
-			this._fields.append(field);
+			field.annotation = this._provider.getFieldType(field.table_name, field.field_name);
+			this._fields.push(field);
 		}
 		
 		return this;
@@ -351,7 +332,7 @@ class Query extends BaseObject
 	 */
 	Query addRawField(string field_name)
 	{
-		this._fields.append(field_name);
+		this._fields.push(field_name);
 		return this;
 	}
 	
@@ -385,7 +366,7 @@ class Query extends BaseObject
 	 */
 	Query values(Dict data)
 	{
-		this._data = data.toMap();
+		this._data = data;
 		return this;
 	}
 	
@@ -395,7 +376,7 @@ class Query extends BaseObject
 	 */
 	Query data(Dict data)
 	{
-		this._data = data.toMap();
+		this._data = data;
 		return this;
 	}
 	
@@ -405,7 +386,7 @@ class Query extends BaseObject
 	 */
 	Query page(int page, int limit = null)
 	{
-		int limit = (limit > 0) ? limit : this._limit;
+		limit = (limit > 0) ? limit : this._limit;
 		int start = page * limit;
 		if (start < 0) start = 0;
 		
@@ -454,7 +435,7 @@ class Query extends BaseObject
 		int offset = this._start;
 		if (limit <= 0) return 0;
 		if (offset <= 0) return 0;
-		return Math::floor(offset / limit);
+		return rtl::floor(offset / limit);
 	}
 	
 	
@@ -465,7 +446,7 @@ class Query extends BaseObject
 	{
 		int limit = this._limit;
 		if (limit <= 0) return 0;
-		return rows > 0 ? Math::floor((rows - 1) / limit) + 1 : 0;
+		return rows > 0 ? rtl::floor((rows - 1) / limit) + 1 : 0;
 	}
 	
 	
@@ -484,7 +465,7 @@ class Query extends BaseObject
 	 */
 	Query orderBy(string name, string sort)
 	{
-		this._order.append([ name, sort ]);
+		this._order.push([ name, sort ]);
 		return this;
 	}
 	
@@ -498,7 +479,7 @@ class Query extends BaseObject
 		filter.key = key;
 		filter.op = op;
 		filter.value = value;
-		this._filter.append(filter);
+		this._filter.push(filter);
 		return this;
 	}
 	
@@ -508,7 +489,7 @@ class Query extends BaseObject
 	 */
 	Query setFilter(Collection<QueryFilter> filter)
 	{
-		this._filter = filter.toVector();
+		this._filter = filter;
 		return this;
 	}
 	
@@ -518,14 +499,8 @@ class Query extends BaseObject
 	 */
 	Query addFilter(var filter)
 	{
-		if (filter instanceof QueryFilter)
-		{
-			this._filter.append(filter);
-		}
-		else if (filter instanceof Collection)
-		{
-			this._filter.appendItems(filter);
-		}
+		if (filter instanceof Vector) this._filter.appendItems(filter);
+		else this._filter.push(filter);
 		return this;
 	}
 	
@@ -535,7 +510,7 @@ class Query extends BaseObject
 	 */
 	Query addOrFilter(Collection filter)
 	{
-		this._filter.append(["$or", null, filter]);
+		this._filter.push(new QueryFilter("$or", null, filter));
 		return this;
 	}
 	
@@ -551,12 +526,70 @@ class Query extends BaseObject
 	
 	
 	/**
+	 * Clear group by
+	 */
+	Query clearGroupBy()
+	{
+		this._group_by = new Vector;
+		return this;
+	}
+	
+	
+	/**
+	 * Add group by
+	 */
+	Query groupBy(string field)
+	{
+		this._group_by.push(field);
+		return this;
+	}
+	
+	
+	/**
+	 * Add group by fields
+	 */
+	Query addGroupBy(Collection<string> fields)
+	{
+		for (int i=0; i<fields.count(); i++)
+		{
+			string field_name = fields[i];
+			this._group_by.push(field_name);
+		}
+		return this;
+	}
+	
+	
+	/**
+	 * Clear having
+	 */
+	Query clearHaving()
+	{
+		this._having = new Vector;
+		return this;
+	}
+	
+	
+	/**
+	 * Add having
+	 */
+	Query having(string key, string op, var value)
+	{
+		QueryFilter filter = new QueryFilter;
+		filter.key = key;
+		filter.op = op;
+		filter.value = value;
+		this._having.push(filter);
+		return this;
+	}
+	
+	
+	/**
 	 * Inner join
 	 */
 	Query innerJoin(string table_name, Collection filter, string alias_name = "")
 	{
 		if (alias_name == "") alias_name = table_name;
-		this._join.append({
+		this._join.push({
 			"kind": "join",
 			"alias_name": alias_name,
 			"table_name": table_name,
@@ -572,7 +605,7 @@ class Query extends BaseObject
 	Query leftJoin(string table_name, Collection filter, string alias_name = "")
 	{
 		if (alias_name == "") alias_name = table_name;
-		this._join.append({
+		this._join.push({
 			"kind": "left",
 			"alias_name": alias_name,
 			"table_name": table_name,

@@ -18,7 +18,7 @@
 
 
 <class name="Runtime.WordPress.Admin.FormSettings.FieldSettings"
-	extends="Runtime.Widget.SortableFieldList"
+	extends="Runtime.Widget.Sortable.FieldList"
 >
 
 <use name="Runtime.Widget.Input" component="true" />
@@ -71,26 +71,6 @@ Collection fields = [
 
 
 /**
- * Create value
- */
-var createValue() => {
-	"fields": [],
-};
-
-
-/**
- * Returns items
- */
-Collection getItems()
-{
-	if (not this.value) return null;
-	if (not this.value instanceof Dict) return null;
-	if (not this.value.has("fields")) return null;
-	return this.value.get("fields");
-}
-
-
-/**
  * Create new item
  */
 var createItem() => {
@@ -100,6 +80,12 @@ var createItem() => {
 	"placeholder": "",
 	"required": true,
 };
+
+
+/**
+ * Copy item
+ */
+var copyItem(Map item) => item.copy();
 
 </script>
 

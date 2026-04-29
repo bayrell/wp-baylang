@@ -17,72 +17,71 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Theme\WidgetSettings\Form;
+
+use Runtime\BaseObject;
+use Runtime\Web\BaseModel;
+use BayLang\Constructor\Frontend\Editor\Parameters\ParameterDictModel;
+use BayLang\Constructor\Frontend\Editor\Parameters\ParameterFactoryModel;
+use BayLang\Constructor\Frontend\Editor\Parameters\ParameterModel;
+use BayLang\Constructor\WidgetPage\ParameterFactory;
+use BayLang\Constructor\WidgetPage\WidgetSettingsInterface;
+
+
 class FormSettings extends \Runtime\BaseObject implements \BayLang\Constructor\WidgetPage\WidgetSettingsInterface
 {
 	/**
 	 * Returns widget name
 	 */
-	function getWidgetName()
-	{
-		return "WordPress Form";
-	}
+	function getWidgetName(){ return "WordPress Form"; }
+	
+	
 	/**
 	 * Returns alias name
 	 */
-	function getAliasName()
-	{
-		return "WP_Form";
-	}
+	function getAliasName(){ return "WP_Form"; }
+	
+	
 	/**
 	 * Returns component name
 	 */
-	function getComponentName()
-	{
-		return "Runtime.WordPress.Theme.Components.Form.Form";
-	}
+	function getComponentName(){ return "Runtime.WordPress.Theme.Components.Form.Form"; }
+	
+	
 	/**
 	 * Returns model name
 	 */
-	function getModelName()
-	{
-		return "Runtime.WordPress.Theme.Components.Form.FormModel";
-	}
+	function getModelName(){ return "Runtime.WordPress.Theme.Components.Form.FormModel"; }
+	
+	
 	/**
 	 * Returns selector name
 	 */
-	function getSelectorName()
-	{
-		return "form";
-	}
+	function getSelectorName(){ return "form"; }
+	
+	
 	/**
 	 * Returns group name
 	 */
-	function getGroupName()
-	{
-		return "widget";
-	}
+	function getGroupName(){ return "widget"; }
+	
+	
 	/**
 	 * Returns true if model
 	 */
-	function isModel()
-	{
-		return false;
-	}
+	function isModel(){ return false; }
+	
+	
 	/**
 	 * Returns true if is widget settings
 	 */
 	function checkWidget($widget)
 	{
-		if (!$widget->isComponent())
-		{
-			return false;
-		}
-		if ($widget->component_class_name != $this->getComponentName())
-		{
-			return false;
-		}
+		if (!$widget->isComponent()) return false;
+		if ($widget->component_class_name != $this->getComponentName()) return false;
 		return true;
 	}
+	
+	
 	/**
 	 * Can insert widget
 	 */
@@ -90,60 +89,39 @@ class FormSettings extends \Runtime\BaseObject implements \BayLang\Constructor\W
 	{
 		return false;
 	}
+	
+	
 	/**
 	 * Returns params
 	 */
 	function getParams()
 	{
-		return \Runtime\Vector::from([]);
+		return new \Runtime\Vector(
+		);
 	}
+	
+	
 	/**
 	 * Returns default template
 	 */
 	function getDefaultTemplate()
 	{
-		return \Runtime\Map::from(["default"=>function ()
-		{
-			return \Runtime\Map::from([]);
-		}]);
-	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Theme.WidgetSettings.Form";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
+		return new \Runtime\Map([
+			"default" => function ()
+			{
+				return new \Runtime\Map([
+				]);
+			},
 		]);
 	}
-	static function getFieldsList()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		$a = [];
-		return \Runtime\Collection::from($a);
+		parent::_init();
 	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Theme.WidgetSettings.Form.FormSettings"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

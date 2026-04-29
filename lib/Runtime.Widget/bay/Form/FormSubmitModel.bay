@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,39 +18,138 @@
 
 namespace Runtime.Widget.Form;
 
-use Runtime.Callback;
-use Runtime.Widget.ButtonModel;
+use Runtime.ApiResult;
+use Runtime.BaseModel;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.VectorType;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.Form.FormMessage;
 use Runtime.Widget.Form.FormModel;
+use Runtime.Widget.Form.FormSubmit;
 
 
 class FormSubmitModel extends FormModel
 {
+	string component = classof FormSubmit;
+	Vector<Map> fields = [];
+	Map submit_button = {};
+	string api_name = "";
+	string method_name = "submit";
+	
+	
 	/**
-	 * Init widget settings
+	 * Serialize object
 	 */
-	void initWidget(Dict params)
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+	}
+	
+	
+	/**
+	 * Init params
+	 */
+	void initParams(Map params)
 	{
 		parent(params);
 		
-		string content = "Submit";
-		string styles = ["danger", "large"];
-		
-		/* Submit button params */
+		if (!params) return;
+		if (params.has("fields"))
+		{
+			this.fields = params.get("fields");
+		}
 		if (params.has("submit_button"))
 		{
-			Dict submit_button = params.get("submit_button");
-			if (submit_button.has("text")) content = submit_button.get("text");
-			if (submit_button.has("styles")) styles = submit_button.get("styles");
+			this.submit_button = params.get("submit_button");
+		}
+		if (params.has("api_name"))
+		{
+			this.api_name = params.get("api_name");
+		}
+		if (params.has("method_name"))
+		{
+			this.method_name = params.get("method_name");
+		}
+	}
+	
+	
+	/**
+	 * Init widget
+	 */
+	void initWidget(Map params)
+	{
+		parent(params);
+		
+		this.field_errors.error_name = "error";
+		for (Map field in this.fields)
+		{
+			string component = field.get("component");
+			this.layout.addComponent(component);
+		}
+	}
+	
+	
+	/**
+	 * Submit form
+	 */
+	async void submit()
+	{
+		/* Prepare data from fields */
+		Map data = {};
+		for (Map field in this.fields.values())
+		{
+			string field_name = field.get("name");
+			data.set(field_name, this.item.get(field_name));
 		}
 		
-		/* Add submit Button */
-		ButtonModel submit_button = this.bottom_buttons.addButton({
-			"widget_name": "submit",
-			"content": content,
-			"styles": styles,
-			"events": {
-				"click": new Callback(this, "submit"),
-			},
+		/* Send API request */
+		if (this.api_name)
+		{
+			this.result.setWaitMessage();
+			
+			/* Send api */
+			ApiResult result = await this.layout.sendApi({
+				"api_name": this.api_name,
+				"method_name": this.method_name,
+				"data": data,
+			});
+			
+			/* Set api result */
+			this.setApiResult(result);
+			if (result.isSuccess())
+			{
+				await this.onSubmitSuccess(result);
+			}
+			else
+			{
+				await this.onSubmitError(result);
+			}
+		}
+	}
+	
+	
+	/**
+	 * Handle successful submission
+	 */
+	async void onSubmitSuccess(ApiResult result)
+	{
+		this.listener.emit(new FormMessage{
+			"name": "submit",
+			"result": result,
+		});
+	}
+	
+	
+	/**
+	 * Handle submission error
+	 */
+	async void onSubmitError(ApiResult result)
+	{
+		this.listener.emit(new FormMessage{
+			"name": "submit",
+			"result": result,
 		});
 	}
 }

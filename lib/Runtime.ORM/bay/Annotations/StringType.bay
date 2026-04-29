@@ -18,12 +18,18 @@
 
 namespace Runtime.ORM.Annotations;
 
-use Runtime.BaseStruct;
+use Runtime.Serializer.StringType as RuntimeType;
 use Runtime.ORM.Annotations.BaseType;
 
 
-struct StringType extends BaseType
+class StringType extends BaseType
 {
 	int length = 255;
 	string default = "";
+	
+	
+	/**
+	 * Returns rule
+	 */
+	BaseType getRule() => new RuntimeType();
 }

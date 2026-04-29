@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,15 +17,24 @@
  *  limitations under the License.
  */
 namespace Runtime;
+
+use Runtime\BaseObject;
+
 class Reference extends \Runtime\BaseObject
 {
-	public $uq;
-	public $ref;
-	function __construct($ref=null)
+	var $ref;
+	
+	
+	/**
+	 * Constructor
+	 */
+	function __construct($ref = null)
 	{
 		parent::__construct();
 		$this->ref = $ref;
 	}
+	
+	
 	/**
 	 * Returns value
 	 */
@@ -33,56 +42,21 @@ class Reference extends \Runtime\BaseObject
 	{
 		$this->ref = $new_value;
 	}
+	
+	
 	/**
 	 * Returns value
 	 */
-	function value()
-	{
-		return $this->ref;
-	}
-	/* ======================= Class Init Functions ======================= */
+	function value(){ return $this->ref; }
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->uq = \Runtime\rtl::unique();
 		$this->ref = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Reference";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Reference"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,48 +19,109 @@
 namespace Runtime.Web;
 
 use Runtime.BaseObject;
-use Runtime.Exceptions.AbstractException;
+use Runtime.Exceptions.ApiError;
+use Runtime.Exceptions.FieldException;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.Serializer.BaseType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.TypeError;
+use Runtime.Web.ApiRequest;
 use Runtime.Web.ApiResult;
-use Runtime.Web.BaseLayoutModel;
-use Runtime.Web.Cookie;
-use Runtime.Web.RenderContainer;
+use Runtime.Web.Middleware;
 
 
 class BaseApi extends BaseObject
 {
 	string action = "";
-	Dict post_data = null;
-	BaseLayoutModel layout = null;
-	ApiResult result = null;
-
+	ApiRequest request = null;
+	ApiResult result = new ApiResult;
+	Map data = null;
+	Map storage = null;
+	
+	
+	/**
+	 * Create object
+	 */
+	void constructor(Map params = null)
+	{
+		parent();
+		
+		this.initParams(params);
+	}
+	
+	
+	/**
+	 * Setup api
+	 */
+	void initParams(Map params)
+	{
+	}
+	
 	
 	/**
 	 * Returns api name
 	 */
-	pure string getApiName() => "";
+	static string getApiName() => "";
 	
 	
 	/**
-	 * Init api
+	 * Returns data rules
 	 */
-	void init()
+	void getDataRules(MapType rules)
 	{
 	}
 	
 	
 	/**
-	 * Before route
+	 * Returns middleware
 	 */
-	async void onActionBefore()
+	Vector<Middleware> getMiddleware() => [];
+	
+	
+	/**
+	 * Set action
+	 */
+	void setAction(string action)
 	{
+		this.action = action;
 	}
 	
 	
 	/**
-	 * After route
+	 * Set request
 	 */
-	async void onActionAfter()
+	void setRequest(ApiRequest request)
 	{
+		this.request = request;
+		this.storage = request.storage;
+	}
+	
+	
+	/**
+	 * Filter rules
+	 */
+	Map filter(Map data, BaseType rules, Vector error = [])
+	{
+		data = rules.filter(data, error);
+		if (error.count() > 0)
+		{
+			throw new ApiError(new FieldException({
+				"error": TypeError::getMap(error),
+			}));
+		}
+		return data;
+	}
+	
+	
+	/**
+	 * Filter data
+	 */
+	void filterData()
+	{
+		Vector errors = [];
+		MapType rules = new MapType();
+		this.getDataRules(rules);
+		this.data = this.filter(this.request.data, rules, errors);
 	}
 	
 	
@@ -69,16 +130,16 @@ class BaseApi extends BaseObject
 	 */
 	void success(Dict data = null)
 	{
-		this.result.success(data);
+		return this.result.success(data);
 	}
 	
 	
 	/**
 	 * Setup exception
 	 */
-	ApiResult exception(AbstractException e)
+	ApiResult exception(RuntimeException e)
 	{
-		this.result.exception(e);
+		return this.result.exception(e);
 	}
 	
 	
@@ -87,6 +148,6 @@ class BaseApi extends BaseObject
 	 */
 	ApiResult fail(var data = null)
 	{
-		this.result.fail(data);
+		return this.result.fail(data);
 	}
 }

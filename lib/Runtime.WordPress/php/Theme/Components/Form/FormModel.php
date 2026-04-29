@@ -17,170 +17,163 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Theme\Components\Form;
-class FormModel extends \Runtime\Widget\Form\FormSubmitModel
+
+use Runtime\ApiResult;
+use Runtime\Serializer\BooleanType;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\ObjectType;
+use Runtime\Serializer\StringType;
+use Runtime\Serializer\VectorType;
+use Runtime\Web\RenderContainer;
+use Runtime\Widget\Form\FormModel as BaseFormModel;
+use Runtime\WordPress\Theme\Components\Form\Form;
+
+
+class FormModel extends \Runtime\Widget\Form\FormModel
 {
-	public $form_name;
-	public $form_title;
-	public $metrika_event;
-	public $metrika_form_id;
-	public $redirect_url;
+	var $component;
+	var $form_name;
+	var $form_title;
+	var $form_event;
+	var $form_id;
+	var $redirect_url;
+	var $fields;
+	var $item;
+	
+	
 	/**
-	 * Process frontend data
+	 * Serialize object
 	 */
-	function serialize($serializer, $data)
+	static function serialize($rules)
 	{
-		$serializer->process($this, "fields", $data);
-		parent::serialize($serializer, $data);
+		parent::serialize($rules);
+		$rules->addType("form_name", new \Runtime\Serializer\StringType());
+		$rules->addType("form_title", new \Runtime\Serializer\StringType());
+		$rules->addType("form_event", new \Runtime\Serializer\StringType());
+		$rules->addType("form_id", new \Runtime\Serializer\StringType());
+		$rules->addType("redirect_url", new \Runtime\Serializer\StringType());
+		$rules->addType("fields", new \Runtime\Serializer\VectorType(new \Runtime\Serializer\MapType(new \Runtime\Map([
+			"name" => new \Runtime\Serializer\StringType(),
+			"title" => new \Runtime\Serializer\StringType(),
+			"type" => new \Runtime\Serializer\StringType(),
+			"placeholder" => new \Runtime\Serializer\StringType(),
+			"required" => new \Runtime\Serializer\BooleanType(),
+		]))));
 	}
+	
+	
 	/**
 	 * Init widget params
 	 */
 	function initParams($params)
 	{
 		parent::initParams($params);
-		if ($params == null)
-		{
-			return ;
-		}
-		if ($params->has("form_name"))
-		{
-			$this->form_name = $params->get("form_name");
-		}
-		if ($params->has("form_title"))
-		{
-			$this->form_title = $params->get("form_title");
-		}
-		if ($params->has("metrika_event"))
-		{
-			$this->metrika_event = $params->get("metrika_event");
-		}
-		if ($params->has("metrika_form_id"))
-		{
-			$this->metrika_form_id = $params->get("metrika_form_id");
-		}
-		if ($params->has("redirect_url"))
-		{
-			$this->redirect_url = $params->get("redirect_url");
-		}
+		if ($params == null) return;
+		if ($params->has("form_name")) $this->form_name = $params->get("form_name");
+		if ($params->has("form_title")) $this->form_title = $params->get("form_title");
+		if ($params->has("form_event")) $this->form_event = $params->get("form_event");
+		if ($params->has("form_id")) $this->form_id = $params->get("form_id");
+		if ($params->has("redirect_url")) $this->redirect_url = $params->get("redirect_url");
 	}
+	
+	
 	/**
 	 * Init widget settings
 	 */
 	function initWidget($params)
 	{
 		parent::initWidget($params);
-		/* Setup storage */
-		if ($this->storage == null)
-		{
-			$this->storage = new \Runtime\Widget\Form\FormSubmitStorage(\Runtime\Map::from(["api_name"=>"runtime.wordpress.form.submit"]));
-			$this->storage->setForm($this);
-		}
 	}
-	/**
-	 * Merge post data
-	 */
-	function mergePostData($post_data, $action)
-	{
-		$post_data = parent::mergePostData($post_data, $action);
-		$post_data->set("form_name", $this->form_name);
-		$post_data->set("form_title", $this->form_title);
-		$post_data->set("metrika_form_id", $this->metrika_form_id);
-		return $post_data;
-	}
+	
+	
 	/**
 	 * Returns field component
 	 */
 	function getFieldComponent($field_type)
 	{
-		if ($field_type == "textarea")
-		{
-			return "Runtime.Widget.TextArea";
-		}
+		if ($field_type == "textarea") return "Runtime.Widget.TextArea";
 		return "Runtime.Widget.Input";
 	}
+	
+	
+	/**
+	 * Load data
+	 */
+	function loadData($container)
+	{
+		parent::loadData($container);
+		$this->loadForm();
+	}
+	
+	
 	/**
 	 * Load form
 	 */
 	function loadForm()
 	{
-		$result = $this->layout->callApi(\Runtime\Map::from(["api_name"=>"runtime.wordpress.form.submit","method_name"=>"actionSettings","data"=>\Runtime\Map::from(["form_name"=>$this->form_name])]));
+		$result = $this->layout->sendApi(new \Runtime\Map([
+			"api_name" => "runtime.wordpress.form.submit",
+			"method_name" => "settings",
+			"data" => new \Runtime\Map([
+				"form_name" => $this->form_name,
+			]),
+		]));
 		if ($result->isSuccess())
 		{
 			/* Clear fields */
-			$this->fields = \Runtime\Vector::from([]);
+			$this->fields = new \Runtime\Vector();
 			/* Add new fields */
-			$fields = $result->data->get("settings")->get("fields");
-			if ($fields)
-			{
-				for ($i = 0; $i < $fields->count(); $i++)
-				{
-					$field = $fields->get($i);
-					$this->addField(\Runtime\Map::from(["name"=>$field->get("name"),"label"=>$field->get("title"),"component"=>$this->getFieldComponent($field->get("type")),"props"=>\Runtime\Map::from(["placeholder"=>$field->get("placeholder")])]));
-				}
-			}
+			$settings = $result->data->get("settings");
+			$this->fields = $settings->get("fields");
 		}
 	}
+	
+	
 	/**
 	 * Submit form
 	 */
 	function submit()
 	{
-		$res = parent::submit();
+		$this->setWaitMessage();
+		$result = $this->layout->sendApi(new \Runtime\Map([
+			"api_name" => "runtime.wordpress.form.submit",
+			"method_name" => "save",
+			"data" => new \Runtime\Map([
+				"form_name" => $this->form_name,
+				"form_title" => $this->form_title,
+				"form_id" => $this->form_id,
+				"item" => $this->item,
+			]),
+		]));
+		$this->setApiResult($result);
 		/* Send event */
-		\Runtime\rtl::getContext()->callHook("runtime.wordpress::form_submit", \Runtime\Map::from(["form"=>$this,"res"=>$res]));
+		\Runtime\rtl::getContext()->hook("runtime.wordpress::form_submit", new \Runtime\Map([
+			"form" => $this,
+			"result" => $result,
+		]));
 		/* Redirect */
-		if ($res->isSuccess() && $this->redirect_url != "")
+		if ($result->isSuccess() && $this->redirect_url != "")
 		{
 			$document->location = $this->redirect_url;
 		}
-		return $res;
+		return $result;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
+		$this->component = "Runtime.WordPress.Theme.Components.Form.Form";
 		$this->form_name = "";
 		$this->form_title = "";
-		$this->metrika_event = "";
-		$this->metrika_form_id = "";
+		$this->form_event = "";
+		$this->form_id = "";
 		$this->redirect_url = "";
+		$this->fields = new \Runtime\Vector();
+		$this->item = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Theme.Components.Form";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.Components.Form.FormModel";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Form.FormSubmitModel";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Theme.Components.Form.FormModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

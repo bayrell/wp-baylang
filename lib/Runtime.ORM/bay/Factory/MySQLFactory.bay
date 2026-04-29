@@ -21,12 +21,14 @@ namespace Runtime.ORM.Factory;
 use Runtime.BaseObject;
 use Runtime.BaseProvider;
 use Runtime.Entity.Entity;
+use Runtime.ORM.ConnectionPool;
 use Runtime.ORM.Factory.ConnectionFactory;
 use Runtime.ORM.MySQL.ConnectionMySQL;
 
 
-struct MySQLFactory extends ConnectionFactory
+class MySQLFactory extends ConnectionFactory
 {
+	string name = "default";
 	string host = "";
 	string login = "";
 	string password = "";
@@ -37,15 +39,19 @@ struct MySQLFactory extends ConnectionFactory
 	/**
 	 * Create connection
 	 */
-	ConnectionMySQL createConnection()
+	async ConnectionPool createConnection()
 	{
-		ConnectionMySQL conn = new ConnectionMySQL(this.name);
-		conn.host = this.host;
-		conn.login = this.login;
-		conn.password = this.password;
-		conn.database = this.database;
-		conn.prefix = this.prefix;
-		await conn.connect();
-		return conn;
+		Map params = {
+			"host": this.host,
+			"login": this.login,
+			"password": this.password,
+			"database": this.database,
+			"prefix": this.prefix,
+		};
+		ConnectionPool pool = new ConnectionPool(
+			this.name, params, classof ConnectionMySQL
+		);
+		await pool.connect();
+		return pool;
 	}
 }

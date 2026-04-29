@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -22,12 +22,12 @@
 
 
 <style>
-.widget_text_image--text_left, .widget_text_image--text_right{
+.text_image--text_left, .text_image--text_right{
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 }
-.widget_text_image--text_top, .widget_text_image--text_bottom{
+.text_image--text_top, .text_image--text_bottom{
 	text-align: center;
 }
 </style>
@@ -51,22 +51,22 @@
 
 
 <template>
-	<div class="widget_text_image" class={{ this.getClass() }} class={{ this.class }}>
+	<div class="text_image" class={{ this.getClass() }} class={{ this.class }}>
 		%if (this.kind == "text_bottom" or this.kind == "text_right")
 		{
-			<div class="widget_text_image__image">
+			<div class="text_image__image">
 				<Image src={{ this.image }} />
 			</div>
-			<div class="widget_text_image__text">
+			<div class="text_image__text">
 				%render this.renderContent(this.content);
 			</div>
 		}
 		%elseif (this.kind == "text_top" or this.kind == "text_left")
 		{
-			<div class="widget_text_image__text">
+			<div class="text_image__text">
 				%render this.renderContent(this.content);
 			</div>
-			<div class="widget_text_image__image">
+			<div class="text_image__image">
 				<Image src={{ this.image }} />
 			</div>
 		}

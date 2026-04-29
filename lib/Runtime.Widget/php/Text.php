@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,37 +17,20 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
-class Text extends \Runtime\Web\Component
+
+use Runtime\VirtualDom;
+
+class Text extends \Runtime\Component
 {
-	public $tag;
-	public $raw;
-	public $content;
-	function renderText($content)
-	{
-		$__v = new \Runtime\Vector();
-		
-		if ($this->raw == "true")
-		{
-			/* Raw */
-			$this->_t($__v, new \Runtime\RawString($content));
-		}
-		else
-		{
-			/* Text */
-			$this->_t($__v, $this->_escape($content));
-		}
-		
-		return $__v;
-	}
 	function renderContent()
 	{
-		$__v = new \Runtime\Vector();
-		$content = \Runtime\rs::split("\n", $this->content);
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
 		
+		$content = \Runtime\rs::split("\n", $this->content);
 		if ($content->count() == 1)
 		{
-			/* Text */
-			$this->_t($__v, $this->renderText($content->get(0)));
+			$__v->push($this->renderText($content->get(0)));
 		}
 		else
 		{
@@ -55,14 +38,9 @@ class Text extends \Runtime\Web\Component
 			{
 				$item = $content->get($i);
 				
-				/* Element 'div' */
-				$__v0 = new \Runtime\Vector();
-				
-				/* Text */
-				$this->_t($__v0, $this->renderText($item));
-				
-				/* Element 'div' */
-				$this->_e($__v, "div", [], $__v0);
+				/* Element div */
+				$__v0 = $__v->element("div");
+				$__v0->push($this->renderText($item));
 			}
 		}
 		
@@ -70,107 +48,79 @@ class Text extends \Runtime\Web\Component
 	}
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
 		if ($this->tag == "p")
 		{
-			/* Element 'p' */
-			$__v0 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v0, $this->renderContent());
-			
-			/* Element 'p' */
-			$this->_e($__v, "p", ["class" => $this->_class_name(["widget_text", $this->class])], $__v0);
+			/* Element p */
+			$__v0 = $__v->element("p", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("text", $this->class, $componentHash))])));
+			$__v0->push($this->renderContent());
 		}
 		else if ($this->tag == "h1")
 		{
-			/* Element 'h1' */
-			$__v0 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v0, $this->renderContent());
-			
-			/* Element 'h1' */
-			$this->_e($__v, "h1", ["class" => $this->_class_name(["widget_text", $this->class])], $__v0);
+			/* Element h1 */
+			$__v1 = $__v->element("h1", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("text", $this->class, $componentHash))])));
+			$__v1->push($this->renderContent());
 		}
 		else if ($this->tag == "h2")
 		{
-			/* Element 'h2' */
-			$__v0 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v0, $this->renderContent());
-			
-			/* Element 'h2' */
-			$this->_e($__v, "h2", ["class" => $this->_class_name(["widget_text", $this->class])], $__v0);
+			/* Element h2 */
+			$__v2 = $__v->element("h2", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("text", $this->class, $componentHash))])));
+			$__v2->push($this->renderContent());
 		}
 		else if ($this->tag == "h3")
 		{
-			/* Element 'h3' */
-			$__v0 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v0, $this->renderContent());
-			
-			/* Element 'h3' */
-			$this->_e($__v, "h3", ["class" => $this->_class_name(["widget_text", $this->class])], $__v0);
+			/* Element h3 */
+			$__v3 = $__v->element("h3", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("text", $this->class, $componentHash))])));
+			$__v3->push($this->renderContent());
 		}
 		else if ($this->tag == "h4")
 		{
-			/* Element 'h4' */
-			$__v0 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v0, $this->renderContent());
-			
-			/* Element 'h4' */
-			$this->_e($__v, "h4", ["class" => $this->_class_name(["widget_text", $this->class])], $__v0);
+			/* Element h4 */
+			$__v4 = $__v->element("h4", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("text", $this->class, $componentHash))])));
+			$__v4->push($this->renderContent());
 		}
 		else if ($this->tag == "html")
 		{
-			/* Element 'div' */
-			$__v0 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v0, $this->renderContent());
-			
-			/* Element 'div' */
-			$this->_e($__v, "div", ["class" => $this->_class_name(["widget_text", $this->class])], $__v0);
+			/* Element div */
+			$__v5 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("text", $this->class, $componentHash))])));
+			$__v5->push($this->renderContent());
 		}
 		else
 		{
-			/* Element 'div' */
-			$__v0 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v0, $this->renderContent());
-			
-			/* Element 'div' */
-			$this->_e($__v, "div", ["class" => $this->_class_name(["widget_text", $this->class])], $__v0);
+			/* Element div */
+			$__v6 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("text", $this->class, $componentHash))])));
+			$__v6->push($this->renderContent());
 		}
 		
-		return $this->_flatten($__v);
+		return $__v;
 	}
+	var $tag;
+	var $raw;
+	var $content;
 	/**
- * Returns key
- */
+	 * Returns key
+	 */
 	function getKey()
 	{
 		$key = $this->tag;
-		if ($this->raw == "true")
-		{
-			$key = $key . \Runtime\rtl::toStr("-raw");
-		}
+		if ($this->raw == "true") $key = $key . "-raw";
 		return $key;
 	}
-	static function css($vars)
+	/**
+	 * Render content
+	 */
+	function renderText($content)
 	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_text.h-8fb5{padding: 0;margin: 0}");
-		return $res;
+		$vdom = new \Runtime\VirtualDom();
+		$vdom->push($content);
+		$vdom->is_raw = $this->raw == "true";
+		return $vdom;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -178,42 +128,7 @@ class Text extends \Runtime\Web\Component
 		$this->raw = "false";
 		$this->content = "Text";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Text";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".text.h-8fb4{padding: 0;margin: 0}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.Text"; }
 }

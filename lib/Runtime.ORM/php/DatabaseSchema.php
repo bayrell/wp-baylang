@@ -17,87 +17,36 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM;
-class DatabaseSchema extends \Runtime\BaseHook
+
+use Runtime\Hooks\BaseHook;
+
+class DatabaseSchema extends \Runtime\Hooks\BaseHook
 {
-	const REGISTER="runtime.orm.database::register";
-	const SAVE_AFTER="runtime.orm.database::save_after";
-	const SAVE_BEFORE="runtime.orm.database::save_before";
-	/**
-	 * Returns method name by hook name
-	 */
-	function getMethodName($hook_name)
-	{
-		if ($hook_name == static::REGISTER)
-		{
-			return "onRegister";
-		}
-		if ($hook_name == static::SAVE_AFTER)
-		{
-			return "onAfterSave";
-		}
-		if ($hook_name == static::SAVE_BEFORE)
-		{
-			return "onBeforeSave";
-		}
-		return "";
-	}
+	const REGISTER = "runtime.orm.database::register";
+	const SAVE_AFTER = "runtime.orm.database::save_after";
+	const SAVE_BEFORE = "runtime.orm.database::save_before";
+	
+	
 	/**
 	 * Register hooks
 	 */
 	function register_hooks()
 	{
+		parent::register_hooks();
+		$this->provider->setAsync(new \Runtime\Vector(
+			static::REGISTER,
+			static::SAVE_AFTER,
+			static::SAVE_BEFORE,
+		));
 	}
-	/**
-	 * Save before item
-	 */
-	function onBeforeSave($d)
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return $d;
+		parent::_init();
 	}
-	/**
-	 * Save after item
-	 */
-	function onAfterSave($d)
-	{
-		return $d;
-	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.ORM";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.DatabaseSchema";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseHook";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.DatabaseSchema"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

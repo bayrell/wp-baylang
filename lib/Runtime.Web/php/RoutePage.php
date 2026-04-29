@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,23 +17,38 @@
  *  limitations under the License.
  */
 namespace Runtime\Web;
+
+use Runtime\BaseModel;
+use Runtime\Serializer\ObjectType;
+use Runtime\Serializer\StringType;
+use Runtime\Web\RouteInfo;
+use Runtime\Web\RenderContainer;
+
+
 class RoutePage extends \Runtime\Web\RouteInfo
 {
-	public $page;
+	var $page;
+	
+	
 	/**
 	 * Process frontend data
 	 */
-	function serialize($serializer, $data)
+	static function serialize($rules)
 	{
-		$serializer->process($this, "page", $data);
-		parent::serialize($serializer, $data);
+		parent::serialize($rules);
+		$rules->addType("page", new \Runtime\Serializer\StringType());
 	}
+	
+	
 	/**
 	 * Render route
 	 */
 	function render($container)
 	{
-		$container->layout->setPageComponent($this->page);
+		$container->layout->current_page_model = "page_model";
+		$container->layout->pages->set("page_model", $container->layout->createWidget("Runtime.BaseModel", new \Runtime\Map([
+			"component" => $this->page,
+		])));
 		if ($this->data)
 		{
 			$title = $this->data->get("title");
@@ -41,48 +56,15 @@ class RoutePage extends \Runtime\Web\RouteInfo
 			$container->layout->setPageTitle($title, $is_full_title);
 		}
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->page = "";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Web";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.RoutePage";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.RouteInfo";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.RoutePage"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

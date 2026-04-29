@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,60 +17,33 @@
  *  limitations under the License.
  */
 namespace Runtime\Web\Annotations;
+
+use Runtime\Entity\Entity;
+
 class Route extends \Runtime\Entity\Entity
 {
-	public $__params;
-	function __construct($name, $params=null)
+	var $params;
+	
+	
+	/**
+	 * Create route
+	 */
+	function __construct($name, $params = null)
 	{
-		parent::__construct(\Runtime\Map::from(["name"=>$name,"params"=>$params]));
+		parent::__construct(new \Runtime\Map([
+			"name" => $name,
+			"params" => $params,
+		]));
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->__params = null;
+		$this->params = null;
 	}
-	function takeValue($k,$d=null)
-	{
-		if ($k == "params")return $this->__params;
-	}
-	static function getNamespace()
-	{
-		return "Runtime.Web.Annotations";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.Annotations.Route";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Entity.Entity";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		$a[]="params";
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.Annotations.Route"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

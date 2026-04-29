@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,123 +17,142 @@
  *  limitations under the License.
  */
 namespace Runtime\Unit;
+
+use Runtime\BaseObject;
+
 class AssertHelper
 {
 	/**
 	 * Check equals of types
 	 */
-	static function equalValueType($value1, $value2, $message)
+	static function equalValueType($value1, $value2)
 	{
+		$message = "Type mismatch \"" . $value1 . "\" and \"" . $value2 . "\"";
 		$type1 = \Runtime\rtl::getType($value1);
 		$type2 = \Runtime\rtl::getType($value2);
 		\Runtime\rtl::assert($type1 == $type2, $message);
 	}
+	
+	
+	/**
+	 * Check equals of types
+	 */
+	static function equalType($value1, $type1)
+	{
+		$type2 = \Runtime\rtl::getType($value1);
+		$message = "Type mismatch. Needs \"" . $type1 . "\". Exists \"" . $type2 . "\"";
+		\Runtime\rtl::assert($type1 == $type2, $message);
+	}
+	
+	
+	/**
+	 * Check class name
+	 */
+	static function equalClass($value, $class_name)
+	{
+		$message = "Class \"" . $class_name . "\" not found";
+		$is_object = $value instanceof \Runtime\BaseObject || $value instanceof \Runtime\Map || $value instanceof \Runtime\Vector;
+		\Runtime\rtl::assert($is_object, $message);
+		\Runtime\rtl::assert($value::getClassName() == $class_name, $message);
+	}
+	
+	
 	/**
 	 * Check equals of values
 	 */
-	static function equalValue($value1, $value2, $message)
+	static function equalValue($value1, $value2, $message = "")
 	{
-		static::equalValueType($value1, $value2, $message);
-		$value_type1 = \Runtime\rtl::getType($value1);
-		$value_type2 = \Runtime\rtl::getType($value2);
-		\Runtime\rtl::assert($value_type1 == $value_type2, $message);
-		if (\Runtime\rtl::isScalarValue($value1))
+		static::equalValueType($value1, $value2);
+		if ($value1 instanceof \Runtime\Vector)
 		{
-			\Runtime\rtl::assert($value1 === $value2, $message);
-			return ;
+			static::equalVector($value1, $value2);
+			return;
 		}
-		if ($value_type1 == "collection")
+		if ($value1 instanceof \Runtime\Map)
 		{
-			static::equalCollection($value1, $value2, $message);
-			return ;
+			static::equalMap($value1, $value2);
+			return;
 		}
-		if ($value_type1 == "dict")
-		{
-			static::equalDict($value1, $value2, $message);
-			return ;
-		}
-		\Runtime\rtl::assert(false, $message);
+		if ($message == "") $message = "\"" . $value1 . "\" != \"" . $value2 . "\"";
+		\Runtime\rtl::assert($value1 === $value2, $message);
 	}
+	
+	
 	/**
-	 * Check equals of two collections
+	 * Check not equals of values
 	 */
-	static function equalCollection($c1, $c2, $message)
+	static function notEqualValue($value1, $value2, $message = "")
+	{
+		if ($message == "") $message = "\"" . $value1 . "\" == \"" . $value2 . "\"";
+		\Runtime\rtl::assert($value1 !== $value2, $message);
+	}
+	
+	
+	/**
+	 * Check if value1 is greater than value2
+	 */
+	static function greaterThan($value1, $value2, $message = "")
+	{
+		if ($message == "") $message = "\"" . $value1 . "\" is not greater than \"" . $value2 . "\"";
+		\Runtime\rtl::assert($value1 > $value2, $message);
+	}
+	
+	
+	/**
+	 * Check equals of two vectors
+	 */
+	static function equalVector($c1, $c2)
 	{
 		if ($c1->count() != $c2->count())
 		{
+			$message = "Vectors has different counts";
 			\Runtime\rtl::assert(false, $message);
 		}
 		for ($i = 0; $i < $c1->count(); $i++)
 		{
 			$value1 = $c1->get($i);
 			$value2 = $c2->get($i);
-			static::equalValue($value1, $value2, $message);
+			static::equalValue($value1, $value2);
 		}
 	}
+	
+	
 	/**
-	 * Check equals of two dicts
+	 * Check equals of two maps
 	 */
-	static function equalDict($d1, $d2, $message)
+	static function equalMap($d1, $d2)
 	{
-		$d1_keys = $d1->keys();
-		$d2_keys = $d2->keys();
+		$d1_keys = \Runtime\rtl::list($d1->keys());
+		$d2_keys = \Runtime\rtl::list($d2->keys());
 		for ($i = 0; $i < $d1_keys->count(); $i++)
 		{
 			$key1 = $d1_keys->get($i);
 			if (!$d2->has($key1))
 			{
+				$message = "Map does not has key \"" . $key1 . "\"";
 				\Runtime\rtl::assert(false, $message);
 			}
 			$value1 = $d1->get($key1);
 			$value2 = $d2->get($key1);
-			static::equalValue($value1, $value2, $message);
+			static::equalValue($value1, $value2);
 		}
 		for ($i = 0; $i < $d2_keys->count(); $i++)
 		{
 			$key2 = $d2_keys->get($i);
 			if (!$d1->has($key2))
 			{
+				$message = "Map does not has key \"" . $key2 . "\"";
 				\Runtime\rtl::assert(false, $message);
 			}
 		}
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.Unit";
 	}
-	static function getClassName()
-	{
-		return "Runtime.Unit.AssertHelper";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Unit.AssertHelper"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

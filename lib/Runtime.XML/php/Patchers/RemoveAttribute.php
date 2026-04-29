@@ -17,6 +17,11 @@
  *  limitations under the License.
  */
 namespace Runtime\XML\Patchers;
+
+use Runtime\XML\BasePatcher;
+use Runtime\XML\XML;
+
+
 class RemoveAttribute extends \Runtime\XML\BasePatcher
 {
 	/**
@@ -24,8 +29,21 @@ class RemoveAttribute extends \Runtime\XML\BasePatcher
 	 */
 	function types()
 	{
-		return \Runtime\Vector::from(["attr_delete","attr_remove","attribute_delete","attribute_remove","delete_attr","delete_attribute","remove_attr","remove_attribute","deleteAttribute","removeAttribute"]);
+		return new \Runtime\Vector(
+			"attr_delete",
+			"attr_remove",
+			"attribute_delete",
+			"attribute_remove",
+			"delete_attr",
+			"delete_attribute",
+			"remove_attr",
+			"remove_attribute",
+			"deleteAttribute",
+			"removeAttribute",
+		);
 	}
+	
+	
 	/**
 	 * Patch XML with operation
 	 */
@@ -33,60 +51,25 @@ class RemoveAttribute extends \Runtime\XML\BasePatcher
 	{
 		$path = $operation->get("path")->get(0);
 		$name = $operation->get("name")->get(0);
-		if (!$path)
-		{
-			return ;
-		}
-		if (!$name)
-		{
-			return ;
-		}
+		if (!$path) return;
+		if (!$name) return;
 		$path_value = $path->value();
 		$name_value = $name->value();
 		$items = $xml->xpath($path_value);
 		for ($i = 0; $i < $items->count(); $i++)
 		{
-			$item = \Runtime\rtl::attr($items, $i);
+			$item = $items[$i];
 			$item->removeAttribute($name_value);
 		}
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.XML.Patchers";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.XML.Patchers.RemoveAttribute";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.XML.BasePatcher";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.XML.Patchers.RemoveAttribute"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

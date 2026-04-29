@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,56 +17,70 @@
  *  limitations under the License.
  */
 namespace Runtime\Unit;
+
+use Runtime\lib;
+use Runtime\BaseProvider;
+use Runtime\BaseStruct;
+use Runtime\Method;
+use Runtime\Exceptions\AssertException;
+use Runtime\Exceptions\ItemNotFound;
+use Runtime\Unit\Test;
+use Runtime\Unit\UnitTest;
+
+
 class TestProvider extends \Runtime\BaseProvider
 {
-	public $tests_list;
+	var $tests_list;
+	
+	
 	/**
 	 * Start provider
 	 */
 	function start()
 	{
-		$this->tests_list = \Runtime\rtl::getContext()->entities->filter(\Runtime\lib::isInstance("Runtime.Unit.UnitTest"));
+		$this->tests_list = \Runtime\rtl::getContext()->getEntities("Runtime.Unit.UnitTest");
 	}
+	
+	
 	/**
 	 * Returns commands list
 	 */
-	function getTests()
-	{
-		return $this->tests_list;
-	}
+	function getTests(){ return $this->tests_list; }
+	
+	
 	/**
 	 * Returns unit test by pos
 	 */
-	function get($pos)
-	{
-		return $this->tests_list->get($pos);
-	}
+	function get($pos){ return $this->tests_list->get($pos); }
+	
+	
 	/**
 	 * Returns count of unit tests
 	 */
-	function count()
-	{
-		return $this->tests_list->count();
-	}
+	function count(){ return $this->tests_list->count(); }
+	
+	
 	/**
 	 * Run
 	 */
-	static function run($test_name="")
+	static function run($test_name = "")
 	{
 		$provider = new \Runtime\Unit\TestProvider();
 		$provider->start();
 		if ($test_name == "")
 		{
-			\Runtime\io::print("List of all tests:");
+			\Runtime\rtl::print("List of all tests:");
 			for ($i = 0; $i < $provider->count(); $i++)
 			{
 				$test = $provider->get($i);
-				\Runtime\io::print($i + 1 . \Runtime\rtl::toStr(") ") . \Runtime\rtl::toStr($test->name));
+				\Runtime\rtl::print($i + 1 . ") " . $test->name);
 			}
-			return ;
+			return;
 		}
 		$provider->runTestByName($test_name);
 	}
+	
+	
 	/**
 	 * Run
 	 */
@@ -77,14 +91,16 @@ class TestProvider extends \Runtime\BaseProvider
 		for ($i = 0; $i < $provider->count(); $i++)
 		{
 			$test = $provider->get($i);
-			\Runtime\io::print("Run " . \Runtime\rtl::toStr($test->name));
+			\Runtime\rtl::print("Run " . $test->name);
 			$error_code = $provider->runTestByName($test->name);
 			if ($error_code != 1)
 			{
-				return ;
+				return;
 			}
 		}
 	}
+	
+	
 	/**
 	 * Run test
 	 */
@@ -104,40 +120,42 @@ class TestProvider extends \Runtime\BaseProvider
 		}
 		return $error_code;
 	}
+	
+	
 	/**
 	 * Returns true if TestMethod
 	 */
-	static function isTestMethod($method_info)
+	static function isTestMethod($annotations)
 	{
-		$annotations = \Runtime\rtl::attr($method_info, "annotations");
-		if ($annotations)
+		for ($j = 0; $j < $annotations->count(); $j++)
 		{
-			for ($j = 0; $j < $annotations->count(); $j++)
+			$annotation = $annotations->get($j);
+			if ($annotation instanceof \Runtime\Unit\Test)
 			{
-				$annotation = $annotations->get($j);
-				if ($annotation instanceof \Runtime\Unit\Test)
-				{
-					return true;
-				}
+				return true;
 			}
 		}
 		return false;
 	}
+	
+	
 	/**
 	 * Returns all test methods
 	 */
 	function getTestMethods($class_name)
 	{
-		$getMethodsList = new \Runtime\Callback($class_name, "getMethodsList");
-		$getMethodInfoByName = new \Runtime\Callback($class_name, "getMethodInfoByName");
-		$methods = \Runtime\rtl::apply($getMethodsList);
+		$getMethodsList = new \Runtime\Method($class_name, "getMethodsList");
+		$getMethodInfoByName = new \Runtime\Method($class_name, "getMethodInfoByName");
+		$methods = $getMethodsList->apply();
 		$methods = $methods->filter(function ($method_name) use (&$getMethodInfoByName)
 		{
-			$method_info = \Runtime\rtl::apply($getMethodInfoByName, \Runtime\Vector::from([$method_name]));
+			$method_info = $getMethodInfoByName->apply(new \Runtime\Vector($method_name));
 			return static::isTestMethod($method_info);
 		});
 		return $methods;
 	}
+	
+	
 	/**
 	 * Run all test in class
 	 */
@@ -157,10 +175,12 @@ class TestProvider extends \Runtime\BaseProvider
 		}
 		if ($error_code == 1)
 		{
-			\Runtime\io::print(\Runtime\io::color("green", "Success"));
+			\Runtime\rtl::print(\Runtime\rtl::color("green", "Success"));
 		}
 		return $error_code;
 	}
+	
+	
 	/**
 	 * Run test method
 	 */
@@ -169,81 +189,39 @@ class TestProvider extends \Runtime\BaseProvider
 		$error_code = 0;
 		try
 		{
-			
-			$callback = new \Runtime\Callback($class_name, $method_name);
+			$callback = new \Runtime\Method($class_name, $method_name);
 			if (!$callback->exists())
 			{
 				$obj = \Runtime\rtl::newInstance($class_name);
-				$callback = new \Runtime\Callback($obj, $method_name);
+				$callback = new \Runtime\Method($obj, $method_name);
 			}
 			if ($callback->exists())
 			{
-				\Runtime\rtl::apply($callback);
+				$res = $callback->apply();
 				$error_code = 1;
-				\Runtime\io::print($class_name . \Runtime\rtl::toStr("::") . \Runtime\rtl::toStr($method_name) . \Runtime\rtl::toStr(" ") . \Runtime\rtl::toStr(\Runtime\io::color("green", "Ok")));
+				\Runtime\rtl::print($class_name . "::" . $method_name . " " . \Runtime\rtl::color("green", "Ok"));
 			}
 			else
 			{
-				throw new \Runtime\Exceptions\ItemNotFound($class_name . \Runtime\rtl::toStr("::") . \Runtime\rtl::toStr($method_name), "Method");
+				throw new \Runtime\Exceptions\ItemNotFound($class_name . "::" . $method_name, "Method");
 			}
 		}
-		catch (\Exception $_ex)
+		catch (\Runtime\Exceptions\AssertException $e)
 		{
-			if ($_ex instanceof \Runtime\Exceptions\AssertException)
-			{
-				$e = $_ex;
-				\Runtime\io::print($class_name . \Runtime\rtl::toStr("::") . \Runtime\rtl::toStr($method_name) . \Runtime\rtl::toStr(" ") . \Runtime\rtl::toStr(\Runtime\io::color("red", "Error: " . \Runtime\rtl::toStr($e->getErrorMessage()))));
-				$error_code = $e->getErrorCode();
-			}
-			else
-			{
-				throw $_ex;
-			}
+			\Runtime\rtl::print($class_name . "::" . $method_name . " " . \Runtime\rtl::color("red", "Error: " . $e->getErrorMessage()));
+			$error_code = $e->getErrorCode();
 		}
 		return $error_code;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->tests_list = \Runtime\Vector::from([]);
+		$this->tests_list = new \Runtime\Vector();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Unit";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Unit.TestProvider";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseProvider";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Unit.TestProvider"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

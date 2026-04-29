@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,57 +18,26 @@
 
 namespace Runtime.Entity;
 
-use Runtime.BaseObject;
-use Runtime.BaseProvider;
-use Runtime.Entity.Entity;
+use Runtime.Entity.Factory;
 
-
-struct Provider extends Entity
+class Provider extends Factory
 {
 	/* Provider class name */
 	string value = null;
 	
-	/* Factory params */
-	Dict params = null;
-	
 	
 	/**
-	 * Constructor
+	 * Create factory
 	 */
-	void constructor(string name, string value = null, Dict params = null)
+	void constructor(string name, string value = "", Dict params = null)
 	{
-		if (value instanceof Dict)
-		{
-			params = value;
-			value = null;
-		}
-		if (value == null) value = name;
-		parent({
-			"name": name,
-			"value": value,
-			"params": params,
-		});
+		parent(name, params);
+		this.value = value;
 	}
 	
 	
 	/**
-	 * Create provider
+	 * Returns class name
 	 */
-	BaseProvider createProvider()
-	{
-		BaseProvider provider = null;
-		var class_name = this.value;
-		
-		if (class_name == null) class_name = this.name;
-		if (class_name instanceof BaseProvider)
-		{
-			provider = class_name;
-		}
-		else if (rtl::isString(class_name))
-		{
-			provider = rtl::newInstance(class_name, [this.params]);
-		}
-		
-		return provider;
-	}
+	string getName() => this.value ? this.value : this.name;
 }

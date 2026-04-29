@@ -113,7 +113,7 @@ class GallerySettings extends BaseObject implements WidgetSettingsInterface
 				"\t\tmargin: 35px;",
 				"\t}",
 				"\t&__item_title{",
-				"\t}"
+				"\t}",
 				"\t&__item_image{",
 				"\t\timg{",
 				"\t\t\tmax-width: 300px;",

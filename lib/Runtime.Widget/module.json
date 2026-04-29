@@ -3,28 +3,27 @@
 	"assets":
 	[
 		"AppHook.bay",
+		"BoolEnum.bay",
 		"Button.bay",
-		"ButtonModel.bay",
-		"ButtonWrap.bay",
-		"BackButtonModel.bay",
 		"CSS.bay",
+		"DatePicker.bay",
 		"Field.bay",
 		"Image.bay",
 		"Input.bay",
 		"Label.bay",
 		"Link.bay",
+		"ListData.bay",
 		"Menu.bay",
 		"Pagination.bay",
-		"Container.bay",
-		"RenderList.bay",
-		"RenderListModel.bay",
+		"RangePicker.bay",
+		"Result.bay",
+		"ResultModel.bay",
 		"RowButtons.bay",
-		"RowButtonsModel.bay",
+		"Container.bay",
 		"Section.bay",
 		"Select.bay",
-		"SelectLabel.bay",
 		"SelectModel.bay",
-		"SelectWrap.bay",
+		"SelectLabel.bay",
 		"SortableList.bay",
 		"SortableFieldList.bay",
 		"Tag.bay",
@@ -33,8 +32,8 @@
 		"TextEditable.bay",
 		"TextImage.bay",
 		"UploadFileButton.bay",
-		"WidgetResult.bay",
-		"WidgetResultModel.bay",
+		"Messages/ClickMessage.bay",
+		"Messages/ValueChangeMessage.bay",
 		"ModuleDescription.bay"
 	],
 	"require": [
@@ -75,6 +74,10 @@
 			"type": "module"
 		},
 		{
+			"src": "bay/Sortable",
+			"type": "module"
+		},
+		{
 			"src": "bay/Tab",
 			"type": "module"
 		},
@@ -95,7 +98,8 @@
 	"dest":
 	{
 		"php": "./php",
-		"es6": "./es6"
+		"es6": "./es6",
+		"nodejs": "./nodejs"
 	},
 	"allow":
 	[

@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,6 +17,9 @@
  *  limitations under the License.
  */
 namespace Runtime\Web\Hooks;
+
+use Runtime\Web\Hooks\AppHook as BaseAppHook;
+
 class AssetsHook extends \Runtime\Web\Hooks\AppHook
 {
 	/**
@@ -26,51 +29,24 @@ class AssetsHook extends \Runtime\Web\Hooks\AppHook
 	{
 		$this->register(static::ASSETS);
 	}
+	
+	
 	/**
 	 * Assets path
 	 */
 	function assets($params)
 	{
-		$path = \Runtime\rs::join_path(\Runtime\Vector::from([\Runtime\rtl::getContext()->env("ROUTE_PREFIX"),"assets"]));
+		$path = \Runtime\rs::join_path(new \Runtime\Vector(\Runtime\rtl::getContext()->env("ROUTE_PREFIX"), "assets"));
 		$params->set("assets_path", $path);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.Web.Hooks";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.Web.Hooks.AssetsHook";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Hooks.AppHook";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.Hooks.AssetsHook"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

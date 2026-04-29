@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,112 +17,52 @@
  *  limitations under the License.
  */
 namespace Runtime\Hooks;
-class RuntimeHook extends \Runtime\BaseHook
+
+use Runtime\Hooks\BaseHook;
+
+class RuntimeHook extends \Runtime\Hooks\BaseHook
 {
-	const INIT="runtime::init";
-	const START="runtime::start";
-	const LAUNCHED="runtime::launched";
-	const RUN="runtime::run";
-	const ENV="runtime::env";
+	const INIT = "runtime::init";
+	const START = "runtime::start";
+	const LAUNCHED = "runtime::launched";
+	const RUN = "runtime::run";
+	const ENV = "runtime::env";
+	const MOUNT = "runtime::mount";
+	const ASSETS = "runtime::assets";
+	const COMPONENTS = "runtime::components";
+	const CREATE_VUE = "runtime::create_vue";
+	const LAYOUT_HEADER = "runtime::header";
+	const LAYOUT_FOOTER = "runtime::footer";
+	const LAYOUT_NAME = "runtime::layout_name";
+	const CREATE_CONTAINER = "runtime::create_container";
+	const CREATE_CONTAINER_DATA = "runtime::create_container_data";
+	const CREATE_LAYOUT = "runtime::create_layout";
+	const CHANGE_LAYOUT = "runtime::change_layout";
+	const SEND_API_BEFORE = "runtime::send_api_before";
+	const TITLE = "runtime::title";
+	
+	
 	/**
-	 * Returns method name by hook name
+	 * Register hooks
 	 */
-	function getMethodName($hook_name)
+	function register_hooks()
 	{
-		if ($hook_name == static::INIT)
-		{
-			return "init";
-		}
-		if ($hook_name == static::START)
-		{
-			return "start";
-		}
-		if ($hook_name == static::LAUNCHED)
-		{
-			return "launched";
-		}
-		if ($hook_name == static::RUN)
-		{
-			return "run";
-		}
-		if ($hook_name == static::ENV)
-		{
-			return "env";
-		}
-		return "";
+		parent::register_hooks();
+		$this->provider->setAsync(new \Runtime\Vector(
+			static::INIT,
+			static::START,
+			static::LAUNCHED,
+			static::RUN,
+		));
 	}
-	/**
-	 * Init context
-	 */
-	function init($d)
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return $d;
+		parent::_init();
 	}
-	/**
-	 * Start context
-	 */
-	function start($d)
-	{
-		return $d;
-	}
-	/**
-	 * Launched context
-	 */
-	function launched($d)
-	{
-		return $d;
-	}
-	/**
-	 * Run entry point
-	 */
-	function run($d)
-	{
-		return $d;
-	}
-	/**
-	 * Init context
-	 */
-	function env($d)
-	{
-		return $d;
-	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.Hooks";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Hooks.RuntimeHook";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseHook";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Hooks.RuntimeHook"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

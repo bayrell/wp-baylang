@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,64 +17,109 @@
  *  limitations under the License.
  */
 namespace Runtime\Web;
-class Request extends \Runtime\BaseObject
+
+use Runtime\BaseObject;
+use Runtime\SerializeInterface;
+use Runtime\Serializer\BooleanType;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\ObjectType;
+use Runtime\Serializer\StringType;
+use Runtime\Web\Cookie;
+use Runtime\Web\Hooks\AppHook;
+
+
+class Request extends \Runtime\BaseObject implements \Runtime\SerializeInterface
 {
-	const METHOD_GET="GET";
-	const METHOD_HEAD="HEAD";
-	const METHOD_POST="POST";
-	const METHOD_PUT="PUT";
-	const METHOD_DELETE="DELETE";
-	const METHOD_CONNECT="CONNECT";
-	const METHOD_OPTIONS="OPTIONS";
-	const METHOD_TRACE="TRACE";
-	const METHOD_PATCH="PATCH";
-	public $uri;
-	public $full_uri;
-	public $host;
-	public $method;
-	public $protocol;
-	public $is_https;
-	public $query;
-	public $payload;
-	public $cookies;
-	public $headers;
-	public $start_time;
+	const METHOD_GET = "GET";
+	const METHOD_HEAD = "HEAD";
+	const METHOD_POST = "POST";
+	const METHOD_PUT = "PUT";
+	const METHOD_DELETE = "DELETE";
+	const METHOD_CONNECT = "CONNECT";
+	const METHOD_OPTIONS = "OPTIONS";
+	const METHOD_TRACE = "TRACE";
+	const METHOD_PATCH = "PATCH";
+	
+	var $uri;
+	var $full_uri;
+	var $host;
+	var $method;
+	var $protocol;
+	var $is_https;
+	var $query;
+	var $payload;
+	var $cookies;
+	var $headers;
+	var $start_time;
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static function serialize($rules)
+	{
+		parent::serialize($rules);
+		$rules->addType("uri", new \Runtime\Serializer\StringType());
+		$rules->addType("full_uri", new \Runtime\Serializer\StringType());
+		$rules->addType("host", new \Runtime\Serializer\StringType());
+		$rules->addType("method", new \Runtime\Serializer\StringType());
+		$rules->addType("protocol", new \Runtime\Serializer\StringType());
+		$rules->addType("is_https", new \Runtime\Serializer\BooleanType());
+		$rules->addType("query", new \Runtime\Serializer\MapType(new \Runtime\Serializer\StringType()));
+	}
+	
+	
+	/**
+	 * Assign rules
+	 */
+	function assignRules($rules){}
+	
+	
 	/**
 	 * Returns client ip
 	 */
-	function getClientIp()
+	function getClientIP()
 	{
-		return $this->headers->get("REMOTE_ADDR");
+		$params = \Runtime\rtl::getContext()->hook(\Runtime\Web\Hooks\AppHook::CLIENT_IP, new \Runtime\Map([
+			"headers" => $this->headers,
+			"client_ip" => $this->headers->get("REMOTE_ADDR"),
+		]));
+		return $params->get("client_ip");
 	}
+	
+	
 	/**
 	 * Init request
 	 */
 	function initUri($full_uri)
 	{
 		$res = \Runtime\rs::parse_url($full_uri);
-		$uri = \Runtime\rtl::attr($res, "uri");
-		$query = \Runtime\rtl::attr($res, "query_arr");
+		$uri = $res->get("uri");
+		$query = $res->get("query_arr");
 		$this->full_uri = $full_uri;
 		$this->uri = $uri;
 		$this->query = $query;
-		if ($this->uri == "")
-		{
-			$this->uri = "/";
-		}
-		/* Route prefix */
-		$route_prefix = \Runtime\rtl::getContext()->env("ROUTE_PREFIX");
-		if ($route_prefix == null)
-		{
-			$route_prefix = "";
-		}
-		$route_prefix_sz = \Runtime\rs::strlen($route_prefix);
-		if ($route_prefix_sz != 0 && \Runtime\rs::substr($this->uri, 0, $route_prefix_sz) == $route_prefix)
-		{
-			$this->uri = \Runtime\rs::substr($this->uri, $route_prefix_sz);
-			$this->full_uri = \Runtime\rs::substr($this->full_uri, $route_prefix_sz);
-		}
+		if ($this->uri == "") $this->uri = "/";
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/**
+	 * Split prefix
+	 */
+	static function splitPrefix($uri, $route_prefix = "")
+	{
+		/* Route prefix */
+		if ($route_prefix == null) $route_prefix = "";
+		$route_prefix_sz = \Runtime\rs::strlen($route_prefix);
+		if ($route_prefix_sz != 0 && \Runtime\rs::substr($uri, 0, $route_prefix_sz) == $route_prefix)
+		{
+			$uri = \Runtime\rs::substr($uri, $route_prefix_sz);
+		}
+		return $uri;
+	}
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -90,42 +135,7 @@ class Request extends \Runtime\BaseObject
 		$this->headers = null;
 		$this->start_time = 0;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Web";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.Request";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.Request"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

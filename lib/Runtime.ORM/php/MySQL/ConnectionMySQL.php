@@ -17,67 +17,75 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\MySQL;
+
+use Runtime\io;
+use Runtime\re;
+use Runtime\ORM\Annotations\BaseType;
+use Runtime\ORM\Factory\CursorFactory;
+use Runtime\ORM\Connection;
+use Runtime\ORM\Cursor;
+use Runtime\ORM\Query;
+use Runtime\ORM\QueryField;
+use Runtime\ORM\QueryFilter;
+use Runtime\ORM\Exceptions\OrmException;
+use Runtime\ORM\MySQL\Adapter;
+use Runtime\ORM\MySQL\CursorMySQL;
+use Runtime\ORM\MySQL\SQLBuilder;
+
+
 class ConnectionMySQL extends \Runtime\ORM\Connection
 {
-	public $host;
-	public $port;
-	public $login;
-	public $password;
-	public $database;
-	public $prefix;
-	public $connect_error;
-	public $pdo;
-	public $is_transaction;
-	function __construct($name="")
+	var $host;
+	var $port;
+	var $login;
+	var $password;
+	var $database;
+	var $prefix;
+	var $connect_error;
+	var $pdo;
+	var $is_transaction;
+	
+	
+	/**
+	 * Constructor
+	 */
+	function __construct($name = "")
 	{
 		parent::__construct($name);
 		$this->cursor = new \Runtime\ORM\Factory\CursorFactory("Runtime.ORM.MySQL.CursorMySQL");
 	}
+	
+	
 	/**
-	 * Connect
+	 * Create adapter
 	 */
-	function connect()
-	{
-		$this->connect_error = "";
-		try
-		{
-			$str = 'mysql:host='.$this->host;
-			if ($this->port != null) $str .= ':'.$this->port;
-			if ($this->database != null) $str .= ';dbname='.$this->database;
-			$this->pdo = new \PDO(
-				$str, $this->login, $this->password, 
-				array(
-					\PDO::ATTR_PERSISTENT => false
-				)
-			);
-			$this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-			$this->pdo->exec("set names utf8");
-		}
-		catch (\PDOException $e)
-		{
-			$this->connect_error = $e->getMessage();
-			throw new \Runtime\ORM\Exceptions\OrmException('Failed connected to database!');
-		}
-		catch (\Excepion $e)
-		{
-			$this->connect_error = $e->getMessage();
-		}
-		return $this;
-	}
+	static function createAdapter(){ return new \Runtime\ORM\MySQL\Adapter(); }
+	
+	
 	/**
 	 * Connect
 	 */
 	function isConnected()
 	{
-		return $this->pdo != null;
+		return $this->adapter->isConnected();
 	}
+	
+	
+	/**
+	 * Convert item from database
+	 */
+	function fromDatabase($annotation, $item, $field_name)
+	{
+		return $item;
+	}
+	
+	
 	/**
 	 * Create SQLBuilder
 	 */
-	function createBuilder($q)
-	{
-		return new \Runtime\ORM\MySQL\SQLBuilder($this, $q);
-	}
+	function createBuilder($q){ return new \Runtime\ORM\MySQL\SQLBuilder($this, $q); }
+	
+	
 	/**
 	 * Fork connection
 	 */
@@ -94,15 +102,14 @@ class ConnectionMySQL extends \Runtime\ORM\Connection
 		$connection->pdo = $this->pdo;
 		return $connection;
 	}
+	
+	
 	/**
 	 * Add to query log
 	 */
-	function logQuery($params=null)
+	function logQuery($params = null)
 	{
-		if ($params == null)
-		{
-			$params = \Runtime\Map::from([]);
-		}
+		if ($params == null) $params = new \Runtime\Map();
 		$q = $params->get("query");
 		$builder = $params->get("builder", false);
 		/* Check is debug */
@@ -112,40 +119,34 @@ class ConnectionMySQL extends \Runtime\ORM\Connection
 			$is_debug = true;
 		}
 		/* Is debug */
-		if (!$is_debug && !$this->log)
-		{
-			return ;
-		}
+		if (!$is_debug && !$this->log) return;
 		/* Get SQL query */
 		$sql_debug = "";
-		if ($builder != null)
-		{
-			$sql_debug = $builder->formatSQL();
-		}
-		else if ($params->has($sql_debug))
-		{
-			$sql_debug = $params->get("sql_debug");
-		}
+		if ($builder != null) $sql_debug = $builder->formatSQL();
+		else if ($params->has($sql_debug)) $sql_debug = $params->get("sql_debug");
 		/* Print debug SQL */
 		if ($is_debug)
 		{
-			\Runtime\io::print($sql_debug);
+			\Runtime\rtl::print($sql_debug);
 		}
 		/* Query log */
 		if ($this->log)
 		{
-			$this->log->push(\Runtime\Map::from(["query"=>$params->get("query"),"builder"=>$params->get("builder"),"sql"=>$sql_debug]));
+			$this->log->push(new \Runtime\Map([
+				"query" => $params->get("query"),
+				"builder" => $params->get("builder"),
+				"sql" => $sql_debug,
+			]));
 		}
 	}
+	
+	
 	/**
 	 * Execute Query
 	 */
-	function execute($q, $params=null)
+	function execute($q, $params = null)
 	{
-		if ($params == null)
-		{
-			$params = \Runtime\Map::from([]);
-		}
+		if ($params == null) $params = new \Runtime\Map();
 		/* Build query */
 		$builder = $this->createBuilder($q)->build();
 		/* Check builder correct */
@@ -154,42 +155,48 @@ class ConnectionMySQL extends \Runtime\ORM\Connection
 			throw new \Runtime\ORM\Exceptions\OrmException("SQL builder is not correct");
 		}
 		/* Log query */
-		$this->logQuery($params->concat(\Runtime\Map::from(["builder"=>$builder,"query"=>$q->copy()])));
+		$this->logQuery($params->concat(new \Runtime\Map([
+			"builder" => $builder,
+			"query" => $q->copy(),
+		])));
 		/* Create cursor */
 		$cursor = $this->createCursor();
 		$cursor->q = $q->copy();
 		/* Execute sql */
 		if ($cursor instanceof \Runtime\ORM\MySQL\CursorMySQL)
 		{
-			$cursor = $cursor->executeSQL($builder);
+			$cursor->executeSQL($builder);
 		}
 		return $cursor;
 	}
+	
+	
 	/**
 	 * Execute Query
 	 */
-	function executeSQL($sql, $data=null, $params=null)
+	function executeSQL($sql, $data = null, $params = null)
 	{
-		if ($params == null)
-		{
-			$params = \Runtime\Map::from([]);
-		}
+		if ($params == null) $params = new \Runtime\Map();
 		/* Build query */
 		$builder = $this->createBuilder(null);
 		$builder->sql = $sql;
 		$builder->data = $data;
 		/* Log query */
-		$this->logQuery($params->concat(\Runtime\Map::from(["builder"=>$builder])));
+		$this->logQuery($params->concat(new \Runtime\Map([
+			"builder" => $builder,
+		])));
 		/* Create cursor */
 		$cursor = $this->createCursor();
 		/* Execute sql */
 		if ($cursor instanceof \Runtime\ORM\MySQL\CursorMySQL)
 		{
-			$cursor = $cursor->executeSQL($builder);
+			$cursor->executeSQL($builder);
 		}
 		return $cursor;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -203,42 +210,7 @@ class ConnectionMySQL extends \Runtime\ORM\Connection
 		$this->pdo = null;
 		$this->is_transaction = false;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.MySQL";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.MySQL.ConnectionMySQL";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Connection";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.MySQL.ConnectionMySQL"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

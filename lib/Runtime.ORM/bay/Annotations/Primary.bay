@@ -18,10 +18,10 @@
 
 namespace Runtime.ORM.Annotations;
 
-use Runtime.BaseStruct;
+use Runtime.ORM.Annotations.BaseStruct;
 
 
-struct Primary extends BaseStruct
+class Primary extends BaseStruct
 {
 	Collection<string> keys = null;
 }

@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,173 +17,84 @@
  *  limitations under the License.
  */
 namespace Runtime\Widget;
-class SelectModel extends \Runtime\Web\BaseModel
+
+use Runtime\BaseModel;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\ObjectType;
+use Runtime\Serializer\StringType;
+use Runtime\Serializer\VectorType;
+use Runtime\Web\RenderContainer;
+
+
+class SelectModel extends \Runtime\BaseModel
 {
-	public $component;
-	public $items;
-	public $foreign_key;
-	public $storage;
-	public $result;
-	public $filter;
-	public $transform;
-	public $page;
-	public $limit;
+	/* Options for select */
+	var $options;
+	
+	
 	/**
-	 * Init widget params
+	 * Serialize object
 	 */
-	function initParams($params)
+	static function serialize($rules)
 	{
-		parent::initParams($params);
-		if ($params == null)
-		{
-			return ;
-		}
-		if ($params->has("filter"))
-		{
-			$this->filter = $params->get("filter");
-		}
-		if ($params->has("foreign_key"))
-		{
-			$this->foreign_key = $params->get("foreign_key");
-		}
-		if ($params->has("transform"))
-		{
-			$this->transform = $params->get("transform");
-		}
-		/* Setup storage */
-		if ($params->has("storage"))
-		{
-			$this->storage = $this->createModel($params->get("storage"));
-		}
-		if ($this->storage != null)
-		{
-			$this->storage->setTable($this);
-		}
+		parent::serialize($rules);
+		$rules->addType("options", new \Runtime\Serializer\VectorType(new \Runtime\Serializer\MapType(new \Runtime\Map([
+			"key" => new \Runtime\Serializer\StringType(),
+			"value" => new \Runtime\Serializer\StringType(),
+		]))));
 	}
+	
+	
 	/**
-	 * Init widget settings
+	 * Set options
 	 */
-	function initWidget($params)
+	function setOptions($options)
 	{
-		parent::initWidget($params);
-		/* Result */
-		$this->result = $this->addWidget("Runtime.Widget.WidgetResultModel", \Runtime\Map::from(["widget_name"=>"result"]));
+		$this->options = $options;
 	}
+	
+	
 	/**
-	 * Process frontend data
+	 * Add option
 	 */
-	function serialize($serializer, $data)
+	function addOption($option)
 	{
-		$serializer->process($this, "items", $data);
-		$serializer->process($this, "result", $data);
-		parent::serialize($serializer, $data);
+		$this->options->push($option);
 	}
+	
+	
 	/**
-	 * Set api result
+	 * Returns options
 	 */
-	function setApiResult($res, $action)
-	{
-		if ($res == null)
-		{
-			return ;
-		}
-		/* Set items */
-		if ($res->data->has("items"))
-		{
-			$this->items = $res->data->get("items");
-			if ($this->transform)
-			{
-				$this->items = $this->items->map($this->transform);
-			}
-		}
-		/* Set result */
-		$this->result->setApiResult($res);
-	}
+	function getOptions(){ return $this->options; }
+	
+	
 	/**
-	 * Merge post data
+	 * Returns value
 	 */
-	function mergePostData($post_data, $action)
+	function getValue($id)
 	{
-		if ($this->foreign_key)
-		{
-			$post_data->set("foreign_key", $this->foreign_key);
-		}
-		return $post_data;
+		$option = $this->options->find(function ($item) use (&$id){ return $item->get("key") == $id; });
+		return $option ? $option->get("value") : "";
 	}
+	
+	
 	/**
-	 * Load table data
+	 * Load data
 	 */
 	function loadData($container)
 	{
 		parent::loadData($container);
-		$res = $this->storage->load();
-		$this->setApiResult($res, "load");
 	}
-	/**
-	 * Returns options
-	 */
-	function getOptions()
-	{
-		return ($this->filter) ? ($this->items->filter($this->filter)) : ($this->items);
-	}
-	/**
-	 * Returns props
-	 */
-	function getProps($data)
-	{
-		$result = \Runtime\Map::from(["options"=>$this->getOptions()]);
-		return $result;
-	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->component = "Runtime.Widget.SelectWrap";
-		$this->items = \Runtime\Vector::from([]);
-		$this->foreign_key = null;
-		$this->storage = null;
-		$this->result = null;
-		$this->filter = null;
-		$this->transform = null;
-		$this->page = 0;
-		$this->limit = -1;
+		$this->options = new \Runtime\Vector();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.SelectModel";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.BaseModel";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Widget.SelectModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

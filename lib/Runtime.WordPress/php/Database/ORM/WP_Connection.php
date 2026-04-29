@@ -17,19 +17,32 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Database\ORM;
+
+use Runtime\ORM\Query;
+use Runtime\ORM\Factory\CursorFactory;
+use Runtime\ORM\MySQL\ConnectionMySQL;
+use Runtime\WordPress\Database\ORM\WP_Cursor;
+use Runtime\WordPress\Database\ORM\WP_SQLBuilder;
+
+
 class WP_Connection extends \Runtime\ORM\MySQL\ConnectionMySQL
 {
-	function __construct($name="")
+	/**
+	 * Constructor
+	 */
+	function __construct($name = "")
 	{
 		parent::__construct($name);
 		$this->cursor = new \Runtime\ORM\Factory\CursorFactory("Runtime.WordPress.Database.ORM.WP_Cursor");
 	}
+	
+	
 	/**
 	 * Connect
 	 */
-	function connect()
-	{
-	}
+	function connect(){}
+	
+	
 	/**
 	 * Connect
 	 */
@@ -37,50 +50,20 @@ class WP_Connection extends \Runtime\ORM\MySQL\ConnectionMySQL
 	{
 		return true;
 	}
+	
+	
 	/**
 	 * Create SQLBuilder
 	 */
-	function createBuilder($q)
+	function createBuilder($q){ return new \Runtime\WordPress\Database\ORM\WP_SQLBuilder($this, $q); }
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return new \Runtime\WordPress\Database\ORM\WP_SQLBuilder($this, $q);
+		parent::_init();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Database.ORM";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Database.ORM.WP_Connection";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.MySQL.ConnectionMySQL";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Database.ORM.WP_Connection"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

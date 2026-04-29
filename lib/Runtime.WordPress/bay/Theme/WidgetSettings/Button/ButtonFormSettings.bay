@@ -109,7 +109,7 @@ class ButtonFormSettings extends BaseObject implements WidgetSettingsInterface
 				"<use name='Runtime.Widget.Button' component='true' />",
 				"<style>",
 				"%(Button)widget_button{",
-				"}"
+				"}",
 				"</style>",
 				"<template>Click</template>",
 			]),

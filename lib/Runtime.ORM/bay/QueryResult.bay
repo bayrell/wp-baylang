@@ -18,79 +18,41 @@
 
 namespace Runtime.ORM;
 
-use Runtime.BaseStruct;
-use Runtime.ORM.Connection;
 use Runtime.ORM.Query;
-use Runtime.ORM.QueryField;
-use Runtime.ORM.Relation;
-use Runtime.ORM.Annotations.ForeignKey;
 
 
 class QueryResult extends Vector<Dict>
 {
 	Query q = null;
-	Connection conn = null;
 	int rows = 0;
-	
-	
-	/**
-	 * Create new QueryResult
-	 */
-	void constructor()
-	{
-		parent();
-	}
 	
 	
 	/**
 	 * Returns pages
 	 */
-	async int getPages() => this.q ? this.q.getPages(this.rows) : 0;
+	int getPages() => this.q ? this.q.getPages(this.rows) : 0;
 	
 	
 	/**
 	 * Returns page
 	 */
-	async int getPage() => this.q ? this.q.getPage() : 0;
+	int getPage() => this.q ? this.q.getPage() : 0;
 	
 	
 	/**
-	 * Returns relation by index
+	 * Returns count
 	 */
-	Relation getRelation(int index)
-	{
-		string class_name = this.q.getRelationName();
-		Dict item = this.get(index);
-		return Relation::newInstance(class_name, item);
-	}
+	int getCount() => this.rows;
 	
 	
 	/**
-	 * Convert to Vector
+	 * Returns limit
 	 */
-	Vector<Dict> toDict(Collection fields = null) => this
-		.map(
-			BaseStruct (Dict item) use (fields)
-				=> (fields == null)
-					? item.toDict()
-					: item.intersect(fields)
-		)
-		.toVector()
-	;
+	int getLimit() => this.q ? this.q._limit : 1;
 	
 	
 	/**
-	 * Transform item to Relation
+	 * Intersect
 	 */
-	Vector<Relation> toRelation()
-	{
-		string class_name = this.q.getRelationName();
-		return this
-			.map(
-				BaseStruct (Dict item) use (class_name)
-					=> Relation::newInstance(class_name, item)
-			)
-			.toVector()
-		;
-	}
+	Vector intersect(Vector fields) => this.map(Map (var item) => item.intersect(fields));
 }

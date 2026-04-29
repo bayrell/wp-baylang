@@ -1,0 +1,218 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Auth.Providers;
+
+use Runtime.Method;
+use Runtime.BaseProvider;
+use Runtime.Entity.Provider;
+use Runtime.Auth.Api.LoginApi;
+use Runtime.Auth.Models.UserData;
+use Runtime.Auth.Models.UserSettings;
+use Runtime.Crypt.JWT;
+use Runtime.Web.Annotations.ApiMethod;
+use Runtime.Web.Hooks.AppHook as WebHook;
+use Runtime.Web.BaseApi;
+use Runtime.Web.RenderContainer;
+use Runtime.Web.RouteInfo;
+use Runtime.Web.RouteList;
+use Runtime.Web.RouteProvider;
+
+
+class AuthProvider extends BaseProvider
+{
+	UserSettings settings = null;
+	bool enable_login = true;
+	
+	
+	/**
+	 * Returns settings name
+	 */
+	static string getSettingsName() => classof UserSettings;
+	
+	
+	/**
+	 * Setup hook params
+	 */
+	void initParams(Dict params)
+	{
+		parent(params);
+		
+		if (params == null) return;
+		if (params.has("settings"))
+		{
+			this.settings = params.get("settings");
+		}
+	}
+	
+	
+	/**
+	 * Returns provider name
+	 */
+	static string getProviderName() => static::getClassName();
+	
+	
+	/**
+	 * Create hook
+	 */
+	static var hook(string settings_name = "") =>
+		new Provider(
+			static::getProviderName(), static::getClassName(),
+			{
+				"settings": rtl::newInstance(settings_name ?
+					settings_name : static::getSettingsName()
+				),
+			}
+		)
+	;
+	
+	
+	/**
+	 * Register hooks
+	 */
+	void register_hooks()
+	{
+		parent();
+		
+		#ifdef BACKEND then
+		this.register(WebHook::FIND_API, "findApi");
+		this.register(WebHook::ROUTE_BEFORE, "routeBefore");
+		this.register(WebHook::ROUTES_INIT, "routeInit");
+		#endif
+	}
+	
+	
+	/**
+	 * Disable login
+	 */
+	void disableLogin()
+	{
+		this.enable_login = false;
+		
+		string url_name = this.settings.getUrlName();
+		RouteProvider routes = @.provider(
+			classof RouteProvider
+		);
+		routes.removeRoute(url_name ~ ":login");
+		routes.removeRoute(url_name ~ ":logout");
+	}
+	
+	
+	#ifdef BACKEND then
+	
+	/**
+	 * Find api
+	 */
+	void findApi(Map params)
+	{
+		string api_name = params.get("api_name");
+		string method_name = params.get("method_name");
+		
+		ApiMethod api = params.get("api");
+		if (api) return;
+		
+		/* If login is enable */
+		if (not this.enable_login) return;
+		
+		/* Setup login api */
+		if (api_name == this.settings.getApiName())
+		{
+			Map obj = {
+				"settings": this.settings,
+			};
+			if (method_name == "login")
+			{
+				BaseApi api_item = rtl::newInstance
+				(
+					this.settings.getLoginApi(), [obj]
+				);
+				api = new ApiMethod
+				{
+					"name": "login",
+					"item": new Method(api_item, "actionLogin"),
+				};
+			}
+			else if (method_name == "logout")
+			{
+				BaseApi api_item = rtl::newInstance
+				(
+					this.settings.getLogoutApi(), [obj]
+				);
+				api = new ApiMethod
+				{
+					"name": "logout",
+					"item": new Method(api_item, "actionLogout"),
+				};
+			}
+		}
+		
+		/* Setup api */
+		if (api)
+		{
+			params.set("api", api);
+		}
+	}
+	
+	
+	/**
+	 * Routes init
+	 */
+	async void routeInit(Map params)
+	{
+		RouteList routes = params.get("routes");
+		
+		/* Add login */
+		RouteInfo route_login = this.settings.getLoginRoute();
+		if (not routes.hasRoute(route_login.name))
+		{
+			routes.addRoute(route_login);
+		}
+		
+		/* Add logout */
+		RouteInfo route_logout = this.settings.getLogoutRoute();
+		if (not routes.hasRoute(route_logout.name))
+		{
+			routes.addRoute(route_logout);
+		}
+	}
+	
+	
+	/**
+	 * Route before
+	 */
+	async void routeBefore(Map params)
+	{
+		RenderContainer container = params.get("container");
+		string token_name = this.settings.getTokenName();
+		string jwt_algo = @.env(token_name ~ "_jwt_algo");
+		string jwt_secret_key = @.env(token_name ~ "_jwt_secret_key");
+		
+		if (not container.request.cookies) return;
+		string jwt_string = container.request.cookies.get(token_name);
+		
+		/* Decode JWT */
+		JWT jwt = JWT::decode(jwt_string, jwt_secret_key);
+		if (jwt and jwt.isCorrect())
+		{
+			container.layout.storage.backend.set(token_name, jwt);
+			container.layout.storage.set(token_name, new UserData(jwt.data));
+		}
+	}
+	
+	#endif
+}

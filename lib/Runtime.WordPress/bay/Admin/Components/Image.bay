@@ -20,6 +20,7 @@
 
 <use name="Runtime.Web.Messages.ValueChangeMessage" />
 <use name="Runtime.Widget.Button" component="true" />
+<use name="Runtime.WordPress.Theme.Components.ImageType" />
 
 
 <style>
@@ -48,7 +49,7 @@
 		%if (this.upload)
 		{
 			<div class="widget_image__upload_button">
-				<Button type="small" @event:click={{ this.onUploadImage }}>
+				<Button @event:click="this.onUploadImage()">
 					Upload image
 				</Button>
 			</div>
@@ -97,17 +98,8 @@ string getStyles()
  */
 string getImage()
 {
-	if (not(this.value instanceof Dict)) return;
-	string image = this.value.get("file");
-	
-	/* Resolve size */
-	Dict sizes = this.value.get("sizes");
-	if (sizes and sizes.has(this.size))
-	{
-		image = sizes.get(this.size).get("file");
-	}
-	
-	return image;
+	if (not(this.value instanceof ImageType)) return;
+	return this.value.getImage(this.size);
 }
 
 
@@ -130,34 +122,33 @@ public void onUploadImage()
 		let attachments = uploader.state().get('selection').toJSON();
 		let attachment = attachments[0];
 		
-		let sizes = {};
+		let sizes = new Runtime.Map();
 		for (let size_name in attachment.sizes)
 		{
 			let size = attachment.sizes[size_name];
-			sizes[size_name] = Runtime.Dict.from({
+			sizes.set(size_name, Runtime.Map.create({
 				"size": size_name,
 				"file": size.url,
 				"width": size.width,
 				"height": size.height,
 				"mime_type": "",
-			});
+			}));
 		}
 		
-		let image = Runtime.Dict.from({
-			"id": attachment.id,
-			"width": attachment.width,
-			"height": attachment.height,
-			"file": attachment.url,
-			"sizes": Runtime.Dict.from(sizes),
-		});
+		let image = new Runtime.WordPress.Admin.Components.ImageType();
+		image.id = attachment.id;
+		image.width = attachment.width;
+		image.height = attachment.height;
+		image.file = attachment.url;
+		image.sizes = sizes;
 		
 		/* Send value change */
-		var message_data = Runtime.Dict.from({
+		var message_data = Runtime.Map.create({
 			"value": image,
 			"old_value": this.value,
 			"data": this.data,
 		});
-		this.emit("valueChange", new Runtime.Web.Messages.ValueChangeMessage(message_data));
+		this.emit(new Runtime.Widget.Messages.ValueChangeMessage(message_data));
 	})
 	.open();
 	

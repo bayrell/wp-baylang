@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,56 +17,34 @@
  *  limitations under the License.
  */
 namespace Runtime\Entity;
-class Entity extends \Runtime\BaseStruct
+
+use Runtime\BaseObject;
+use Runtime\BaseStruct;
+
+
+class Entity extends \Runtime\BaseObject
 {
-	public $__name;
-	/* ======================= Class Init Functions ======================= */
+	/* Entity name */
+	var $name;
+	
+	
+	/**
+	 * Constructor
+	 */
+	function __construct($obj = null)
+	{
+		parent::__construct();
+		$this->_assign_values($obj);
+	}
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->__name = "";
+		$this->name = "";
 	}
-	function takeValue($k,$d=null)
-	{
-		if ($k == "name")return $this->__name;
-	}
-	static function getNamespace()
-	{
-		return "Runtime.Entity";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Entity.Entity";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseStruct";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		$a[]="name";
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Entity.Entity"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

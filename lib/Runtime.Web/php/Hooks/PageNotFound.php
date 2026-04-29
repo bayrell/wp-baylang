@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,93 +17,94 @@
  *  limitations under the License.
  */
 namespace Runtime\Web\Hooks;
-class PageNotFound extends \Runtime\Web\Hooks\AppHook
+
+use Runtime\BaseModel;
+use Runtime\Entity\Hook;
+use Runtime\Hooks\RuntimeHook;
+use Runtime\Web\RenderContainer;
+use Runtime\Web\RouteInfo;
+use Runtime\Web\RouteModel;
+use Runtime\Web\Hooks\AppHook;
+
+
+class PageNotFound extends \Runtime\Hooks\RuntimeHook
 {
-	public $model;
+	var $model;
+	var $layout_name;
+	
+	
 	/**
-     * Setup
-     */
-	function setup($params)
+	 * Hook factory
+	 */
+	static function hook($model, $layout = "default")
 	{
-		parent::setup($params);
-		if ($params == null)
-		{
-			return ;
-		}
-		if ($params->has("model"))
-		{
-			$this->model = $params->get("model");
-		}
+		return new \Runtime\Entity\Hook(static::getClassName(), new \Runtime\Map(["model" => $model, "layout" => $layout]));
 	}
+	
+	
+	/**
+	 * Init params
+	 */
+	function initParams($params)
+	{
+		parent::initParams($params);
+		if ($params->has("model")) $this->model = $params->get("model");
+	}
+	
+	
 	/**
 	 * Register hooks
 	 */
 	function register_hooks()
 	{
-		$this->register(static::ROUTE_AFTER, "renderPageNotFound");
+		parent::register_hooks();
+		$this->register(\Runtime\Web\Hooks\AppHook::FIND_ROUTE_AFTER, "routeNotFound");
+		$this->register(\Runtime\Web\Hooks\AppHook::ROUTE_AFTER, "renderPageNotFound");
 	}
+	
+	
+	/**
+	 * Route not found
+	 */
+	function routeNotFound($params)
+	{
+		$container = $params->get("container");
+		if ($container->route) return null;
+		/* Set route */
+		$container->route = new \Runtime\Web\RouteModel(new \Runtime\Map([
+			"model" => $this->model,
+			"layout" => $this->layout_name,
+		]));
+	}
+	
+	
 	/**
 	 * Render page not found
 	 */
 	function renderPageNotFound($params)
 	{
 		$container = $params->get("container");
-		if ($container->response)
+		if ($container->response) return;
+		/* Create default layout */
+		if ($container->layout == null)
 		{
-			return ;
+			$container->createLayout($this->layout_name);
 		}
-		if ($container->layout->current_page_class != "")
-		{
-			return ;
-		}
-		if ($container->layout->current_page_model != "")
-		{
-			return ;
-		}
+		/* Get page model */
+		$page_model = $container->layout->getPageModel();
+		if ($page_model) return;
 		$container->renderPageModel($this->model);
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->model = "";
+		$this->layout_name = "default";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Web.Hooks";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.Hooks.PageNotFound";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Hooks.AppHook";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.Hooks.PageNotFound"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

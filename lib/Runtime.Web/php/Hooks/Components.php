@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,125 +17,134 @@
  *  limitations under the License.
  */
 namespace Runtime\Web\Hooks;
-class Components extends \Runtime\Web\Hooks\AppHook
+
+use Runtime\Entity\Hook;
+use Runtime\Hooks\RuntimeHook;
+
+
+class Components extends \Runtime\Hooks\RuntimeHook
 {
-	public $items;
+	var $items;
+	var $priority;
+	var $strategy;
+	
+	
 	/**
 	 * Hook factory
 	 */
-	static function create($items)
+	static function hook($items, $priority = 100)
 	{
-		return new \Runtime\Entity\Hook(static::getClassName(), \Runtime\Map::from(["components"=>$items]));
+		return new \Runtime\Entity\Hook(static::getClassName(), new \Runtime\Map(["components" => $items, "priority" => $priority]));
 	}
+	
+	
+	/**
+	 * Prepend item
+	 */
+	static function prependItems($items, $priority = 100)
+	{
+		return new \Runtime\Entity\Hook(static::getClassName(), new \Runtime\Map([
+			"components" => $items,
+			"priority" => $priority,
+			"strategy" => "prependItems",
+		]));
+	}
+	
+	
 	/**
 	 * Hook factory
 	 */
-	static function header($items)
+	static function header($items, $priority = 100)
 	{
-		return new \Runtime\Entity\Hook(static::getClassName(), \Runtime\Map::from(["header"=>$items]));
+		return new \Runtime\Entity\Hook(static::getClassName(), new \Runtime\Map(["header" => $items, "priority" => $priority]));
 	}
+	
+	
 	/**
 	 * Hook factory
 	 */
-	static function footer($items)
+	static function footer($items, $priority = 100)
 	{
-		return new \Runtime\Entity\Hook(static::getClassName(), \Runtime\Map::from(["footer"=>$items]));
+		return new \Runtime\Entity\Hook(static::getClassName(), new \Runtime\Map(["footer" => $items, "priority" => $priority]));
 	}
+	
+	
 	/**
-	 * Setup
+	 * Init params
 	 */
-	function setup($params)
+	function initParams($params)
 	{
-		parent::setup($params);
-		if ($params == null)
-		{
-			return ;
-		}
-		if ($params->has("components"))
-		{
-			$this->items->set("components", $params->get("components"));
-		}
-		if ($params->has("footer"))
-		{
-			$this->items->set("footer", $params->get("footer"));
-		}
-		if ($params->has("header"))
-		{
-			$this->items->set("header", $params->get("header"));
-		}
+		parent::initParams($params);
+		if ($params == null) return;
+		if ($params->has("priority")) $this->priority = $params->get("priority");
+		if ($params->has("strategy")) $this->strategy = $params->get("strategy");
+		if ($params->has("components")) $this->items->set("components", $params->get("components"));
+		if ($params->has("footer")) $this->items->set("footer", $params->get("footer"));
+		if ($params->has("header")) $this->items->set("header", $params->get("header"));
 	}
+	
+	
 	/**
 	 * Register hooks
 	 */
 	function register_hooks()
 	{
-		$this->register(static::COMPONENTS);
-		$this->register(static::RENDER_HEAD);
-		$this->register(static::RENDER_FOOTER);
+		$this->register(\Runtime\Hooks\RuntimeHook::COMPONENTS, "components", $this->priority);
+		$this->register(\Runtime\Hooks\RuntimeHook::LAYOUT_HEADER, "render_head", $this->priority);
+		$this->register(\Runtime\Hooks\RuntimeHook::LAYOUT_FOOTER, "render_footer", $this->priority);
 	}
+	
+	
+	/**
+	 * Add action
+	 */
+	function action($arr, $items)
+	{
+		if ($this->strategy == "appendItems") $arr->appendItems($items);
+		else $arr->prependItems($items);
+	}
+	
+	
 	/**
 	 * Components
 	 */
 	function components($params)
 	{
-		$params->get("components")->appendItems($this->items->get("components"));
+		$this->action($params->get("components"), $this->items->get("components"));
 	}
+	
+	
 	/**
 	 * Render head
 	 */
 	function render_head($params)
 	{
-		$params->get("components")->appendItems($this->items->get("header"));
+		$this->action($params->get("components"), $this->items->get("header"));
 	}
+	
+	
 	/**
 	 * Render footer
 	 */
 	function render_footer($params)
 	{
-		$params->get("components")->appendItems($this->items->get("footer"));
+		$this->action($params->get("components"), $this->items->get("footer"));
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->items = \Runtime\Map::from(["components"=>\Runtime\Vector::from([]),"footer"=>\Runtime\Vector::from([]),"header"=>\Runtime\Vector::from([])]);
-	}
-	static function getNamespace()
-	{
-		return "Runtime.Web.Hooks";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.Hooks.Components";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Hooks.AppHook";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
+		$this->items = new \Runtime\Map([
+			"components" => new \Runtime\Vector(),
+			"footer" => new \Runtime\Vector(),
+			"header" => new \Runtime\Vector(),
 		]);
+		$this->priority = 100;
+		$this->strategy = "appendItems";
 	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.Hooks.Components"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

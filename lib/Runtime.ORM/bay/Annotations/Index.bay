@@ -18,9 +18,9 @@
 
 namespace Runtime.ORM.Annotations;
 
-use Runtime.BaseStruct;
+use Runtime.ORM.Annotations.BaseStruct;
 
 
-struct Index extends BaseStruct
+class Index extends BaseStruct
 {
 }

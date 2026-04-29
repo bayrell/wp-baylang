@@ -17,6 +17,13 @@
  *  limitations under the License.
  */
 namespace Runtime\XML\Test;
+
+use Runtime\io;
+use Runtime\Unit\Test;
+use Runtime\XML\XML;
+use Runtime\XML\Test\XmlTest;
+
+
 class PatcherRemoveAttribute
 {
 	static function testAdd1()
@@ -26,50 +33,22 @@ class PatcherRemoveAttribute
 		$xml->patch($operation);
 		\Runtime\XML\Test\XmlTest::assertEqualXml("Patch xml error", $xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\t\t\t<root>\n\t\t\t\t<item>1</item>\n\t\t\t\t<item>2</item>\n\t\t\t\t<item>3</item>\n\t\t\t</root>");
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.XML.Test";
 	}
-	static function getClassName()
-	{
-		return "Runtime.XML.Test.PatcherRemoveAttribute";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.XML.Test.PatcherRemoveAttribute"; }
 	static function getMethodsList()
 	{
-		$a=[
-			"testAdd1",
-		];
-		return \Runtime\Collection::from($a);
+		return new \Runtime\Vector("testAdd1");
 	}
 	static function getMethodInfoByName($field_name)
 	{
-		if ($field_name == "testAdd1")
-			return \Runtime\Dict::from([
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Unit\Test([]),
-				]),
-			]);
+		if ($field_name == "testAdd1") return new \Runtime\Vector(
+			new \Runtime\Unit\Test(new \Runtime\Map())
+		);
 		return null;
 	}
 }

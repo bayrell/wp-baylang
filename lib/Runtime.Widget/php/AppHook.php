@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,61 +17,77 @@
  *  limitations under the License.
  */
 namespace Runtime\Widget;
-class AppHook extends \Runtime\Web\Hooks\AppHook
+
+use Runtime\BaseLayout;
+use Runtime\Hooks\RuntimeHook;
+use Runtime\Web\RenderContainer;
+use Runtime\Web\Hooks\AppHook as WebHook;
+use Runtime\Widget\Assets;
+use Runtime\Widget\CSS;
+use Runtime\Widget\Translate\Translator;
+
+
+class AppHook extends \Runtime\Hooks\RuntimeHook
 {
+	const ASSETS = "runtime.widget::assets";
+	const INIT_WIDGET = "baylang::init_widget";
+	
+	
 	/**
 	 * Register hooks
 	 */
 	function register_hooks()
 	{
-		$this->register(static::COMPONENTS, 10);
+		$this->register(\Runtime\Hooks\RuntimeHook::COMPONENTS, "components", 50);
+		$this->register(static::INIT_WIDGET, "initWidget");
 	}
+	
+	
 	/**
 	 * Components
 	 */
 	function components($params)
 	{
-		$components = \Runtime\Vector::from(["Runtime.Widget.CSS"]);
-		$components->appendItems(\Runtime\rtl::attr($params, "components"));
+		$components = new \Runtime\Vector(
+			"Runtime.Widget.CSS",
+		);
+		$components->appendItems($params->get("components"));
 		$params->set("components", $components);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/**
+	 * Init widget
+	 */
+	function initWidget($params)
 	{
-		return "Runtime.Widget";
+		$widget_class = "BayLang.Constructor.Frontend.Editor.Widget.WidgetComponent";
+		$provider = $params->get("provider");
+		/* Image */
+		$provider->registerWidget(new \Runtime\Map([
+			"name" => "image",
+			"label" => "Image",
+			"component" => "Runtime.Widget.Image",
+			"widget" => $widget_class,
+			"props" => new \Runtime\Map(),
+		]));
+		/* Section */
+		$provider->registerWidget(new \Runtime\Map([
+			"name" => "section",
+			"label" => "Section",
+			"component" => "Runtime.Widget.Section",
+			"widget" => $widget_class,
+			"props" => new \Runtime\Map(),
+		]));
 	}
-	static function getClassName()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.Widget.AppHook";
+		parent::_init();
 	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Hooks.AppHook";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Widget.AppHook"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

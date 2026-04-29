@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,112 +17,85 @@
  *  limitations under the License.
  */
 namespace Runtime\Widget\Seo;
-class SeoModel extends \Runtime\Web\BaseModel
+
+use Runtime\BaseObject;
+use Runtime\BaseModel;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\ObjectType;
+use Runtime\Serializer\StringType;
+use Runtime\Serializer\VectorType;
+use Runtime\Web\Request;
+use Runtime\Widget\Seo\SeoWidget;
+
+
+class SeoModel extends \Runtime\BaseModel
 {
-	public $component;
-	public $widget_name;
-	public $canonical_url;
-	public $description;
-	public $favicon;
-	public $article_published_time;
-	public $article_modified_time;
-	public $robots;
-	public $tags;
+	var $component;
+	var $widget_name;
+	var $canonical_url;
+	var $favicon;
+	var $article_published_time;
+	var $article_modified_time;
+	var $robots;
+	var $tags;
+	
+	
+	/**
+	 * Process frontend data
+	 */
+	static function serialize($rules)
+	{
+		parent::serialize($rules);
+		$rules->addType("article_modified_time", new \Runtime\Serializer\StringType());
+		$rules->addType("article_published_time", new \Runtime\Serializer\StringType());
+		$rules->addType("canonical_url", new \Runtime\Serializer\StringType());
+		$rules->addType("favicon", new \Runtime\Serializer\StringType());
+		$rules->addType("robots", new \Runtime\Serializer\VectorType(new \Runtime\Serializer\StringType()));
+		$rules->addType("tags", new \Runtime\Serializer\VectorType(new \Runtime\Serializer\StringType()));
+	}
+	
+	
 	/**
 	 * Init widget params
 	 */
 	function initParams($params)
 	{
 		parent::initParams($params);
-		if ($params == null)
-		{
-			return ;
-		}
+		if ($params == null) return;
 	}
-	/**
-	 * Process frontend data
-	 */
-	function serialize($serializer, $data)
-	{
-		$serializer->process($this, "article_modified_time", $data);
-		$serializer->process($this, "article_published_time", $data);
-		$serializer->process($this, "canonical_url", $data);
-		$serializer->process($this, "description", $data);
-		$serializer->process($this, "favicon", $data);
-		$serializer->process($this, "robots", $data);
-		$serializer->process($this, "tags", $data);
-		parent::serialize($serializer, $data);
-	}
+	
+	
 	/**
 	 * Set canonical url
 	 */
 	function setCanonicalUrl($canonical_url)
 	{
 		/* Add domain */
-		if ($this->layout->request_host)
+		$request = $this->layout->get("request");
+		if ($request->host)
 		{
-			$canonical_url = "//" . \Runtime\rtl::toStr($this->layout->request_host) . \Runtime\rtl::toStr($canonical_url);
-			if ($this->layout->request_https)
-			{
-				$canonical_url = "https:" . \Runtime\rtl::toStr($canonical_url);
-			}
-			else
-			{
-				$canonical_url = "http:" . \Runtime\rtl::toStr($canonical_url);
-			}
+			$canonical_url = "//" . $request->host . $canonical_url;
+			if ($request->is_https) $canonical_url = "https:" . $canonical_url;
+			else $canonical_url = "http:" . $canonical_url;
 		}
 		$this->canonical_url = $canonical_url;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->component = "Runtime.Widget.Seo.SeoWidget";
 		$this->widget_name = "seo";
 		$this->canonical_url = "";
-		$this->description = "";
 		$this->favicon = "";
 		$this->article_published_time = "";
 		$this->article_modified_time = "";
-		$this->robots = \Runtime\Vector::from(["follow","index"]);
+		$this->robots = new \Runtime\Vector("follow", "index");
 		$this->tags = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget.Seo";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Seo.SeoModel";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.BaseModel";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Widget.Seo.SeoModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

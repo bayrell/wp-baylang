@@ -2,6 +2,7 @@
 	"name": "Runtime.Widget.Tree",
 	"assets":
 	[
+		"Dnd.bay",
 		"TreeItem.bay",
 		"TreeMessage.bay",
 		"TreeModel.bay",
@@ -17,7 +18,8 @@
 	"dest":
 	{
 		"php": "./../../php/Tree",
-		"es6": "./../../es6/Tree"
+		"es6": "./../../es6/Tree",
+		"nodejs": "./../../nodejs/Tree"
 	},
 	"allow":
 	[

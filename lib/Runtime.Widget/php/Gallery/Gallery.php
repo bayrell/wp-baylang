@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,98 +17,62 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget\Gallery;
-class Gallery extends \Runtime\Web\Component
+
+use Runtime\Web\Annotations\Param;
+
+class Gallery extends \Runtime\Component
 {
 	function renderItem($pos)
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
 		
-		/* Text */
-		$this->_t($__v, $this->renderSlot("default", \Runtime\Map::from(["pos"=>$pos,"item"=>$this->model->items->get($pos),"onClick"=>function () use (&$pos)
-		{
-			$this->onClick($pos);
-		}])));
+		$__v->push($this->renderSlot("default", new \Runtime\Map([
+			"pos" => $pos,
+			"item" => $this->model->items->get($pos),
+			"onClick" => function () use (&$pos)
+			{
+				$this->onClick($pos);
+			},
+		])));
 		
 		return $__v;
 	}
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("widget_gallery", $this->class, $componentHash))])));
 		
-		/* Element 'div' */
-		$__v1 = new \Runtime\Vector();
+		/* Element div */
+		$__v1 = $__v0->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("widget_gallery__items", $componentHash))])));
 		
 		for ($i = 0; $i < $this->model->items->count(); $i++)
 		{
-			/* Text */
-			$this->_t($__v1, $this->renderItem($i));
+			$__v1->push($this->renderItem($i));
 		}
+		$__v0->push($this->renderWidget($this->model->dialog));
 		
-		/* Element 'div' */
-		$this->_e($__v0, "div", ["class" => $this->_class_name(["widget_gallery__items"])], $__v1);
-		
-		/* Text */
-		$this->_t($__v0, $this->renderWidget($this->model->dialog));
-		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_gallery", $this->class])], $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
 	/**
- * On click
- */
+	 * On click
+	 */
 	function onClick($pos)
 	{
 		$this->model->dialog->select($pos);
 		$this->model->dialog->show();
 	}
-	static function css($vars)
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_gallery__items.h-9a68{display: flex;align-items: center;justify-content: space-around;flex-wrap: wrap}");
-		return $res;
+		parent::_init();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.Widget.Gallery";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Gallery.Gallery";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".widget_gallery__items.h-9a67{display: flex;align-items: center;justify-content: space-around;flex-wrap: wrap}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.Gallery.Gallery"; }
 }

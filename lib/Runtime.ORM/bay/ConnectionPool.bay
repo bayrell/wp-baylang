@@ -1,0 +1,120 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.ORM;
+
+use Runtime.BaseObject;
+use Runtime.Method;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Provider;
+
+
+class ConnectionPool extends BaseObject
+{
+	Map params = null;
+	string name = "";
+	string class_name = "";
+	var adapter = null;
+	
+	
+	/**
+	 * Returns connection pool by name
+	 */
+	static ConnectionPool get(string name = "default")
+	{
+		Provider provider = @.provider(classof Provider);
+		return provider.get(name);
+	}
+	
+	
+	/**
+	 * Create object
+	 */
+	void constructor(string name, Map params, string class_name)
+	{
+		parent();
+		
+		/* Pool name */
+		this.name = name;
+		
+		/* Init params */
+		this.params = params;
+		this.class_name = class_name;
+	}
+	
+	
+	/**
+	 * Returns connection name
+	 */
+	string getName() => this.name;
+	
+	
+	/**
+	 * Returns database name
+	 */
+	string getDatabaseName() => this.params.get("database");
+	
+	
+	/**
+	 * Returns table name
+	 */
+	string getTableName(string table_name)
+	{
+		string prefix = this.params.get("prefix")
+		return prefix ~ table_name;
+	}
+	
+	
+	/**
+	 * Create new connection
+	 */
+	Connection createConnection() =>
+		rtl::newInstance(
+			this.class_name, [this]
+		);
+	
+	
+	/**
+	 * Connect
+	 */
+	async void connect()
+	{
+		/* Create adapter */
+		Method createAdapter = new Method(
+			this.class_name, "createAdapter"
+		);
+		if (createAdapter.exists())
+		{
+			this.adapter = createAdapter.apply();
+		}
+		
+		/* Connect */
+		await this.adapter.connect(this);
+	}
+	
+	
+	/**
+	 * Returns connection
+	 */
+	async Connection getConnection()
+	{
+		Connection connection = this.createConnection();
+		connection.adapter = this.adapter ? this.adapter.copy() : null;
+		return connection;
+	}
+}

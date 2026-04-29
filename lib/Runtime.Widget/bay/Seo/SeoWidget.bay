@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -27,14 +27,14 @@
 	}
 	
 	<!-- Locale -->
-	<meta property="og:locale" content={{ this.layout.getLocale() }} />
+	<meta property="og:locale" content={{ this.layout.lang }} />
 	
 	<!-- Title and description -->
-	<meta property="og:title" content={{ this.layout.getFullTitle() }} />
-	%if (this.model.description != "")
+	<meta property="og:title" content={{ this.layout.title }} />
+	%if (this.layout.description != "")
 	{
-		<meta property="og:description" content={{ this.model.description }} />
-		<meta name="description" content={{ this.model.description }} />
+		<meta property="og:description" content={{ this.layout.description }} />
+		<meta name="description" content={{ this.layout.description }} />
 	}
 	
 	<!-- Site name -->

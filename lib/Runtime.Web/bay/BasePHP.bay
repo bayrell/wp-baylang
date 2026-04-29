@@ -1,0 +1,374 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Web;
+
+use Runtime.BaseObject;
+use Runtime.BaseProvider;
+use Runtime.Callback;
+use Runtime.Hooks.RuntimeHook;
+use Runtime.Web.BaseLayoutModel;
+use Runtime.Web.BaseRoute;
+use Runtime.Web.Layout;
+use Runtime.Web.RenderContainer;
+use Runtime.Web.Request;
+use Runtime.Web.RouteInfo;
+use Runtime.Web.RouteList;
+use Runtime.Web.Hooks.AppHook;
+
+
+class BasePHP extends BaseProvider
+{
+	/**
+	 * Start app
+	 */
+	async int main()
+	{
+		RenderContainer container = this.createRenderContainer();
+		container.request = this.createRequest();
+		await container.resolve();
+		await this.sendResponse(container);
+	}
+	
+	
+	/**
+	 * Create render container
+	 */
+	RenderContainer createRenderContainer()
+	{
+		RenderContainer container = new RenderContainer();
+		
+		/* Create layout */
+		@.hook(RuntimeHook::CREATE_CONTAINER, {
+			"container": container,
+		});
+		
+		return container;
+	}
+	
+	
+	/**
+	 * Read post
+	 */
+	Map readPost()
+	{
+		Map post = null;
+		
+		#ifcode PHP then
+		
+		$method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : "";
+		$content_type = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : "";
+		if (substr($content_type, 0, strlen('application/json')) == 'application/json')
+		{
+			$json = file_get_contents("php://input");
+			$post = \Runtime\rtl::json_decode($json);
+		}
+		else
+		{
+			if ($method == "POST")
+			{
+				$post = $_POST;
+			}
+		}
+		
+		#endif
+		
+		return post;
+	}
+	
+	
+	/**
+	 * Build files
+	 */
+	void buildFiles(Collection payload, Collection path, var file)
+	{
+		#ifcode PHP then
+		
+		if (is_string($file["name"]))
+		{
+			$item = new \Runtime\File();
+			$item->name = $file["name"];
+			$item->path = $file["tmp_name"];
+			$item->type = $file["type"];
+			$item->size = $file["size"];
+			$payload->set($path->last(), $item);
+		}
+		else if (is_array($file["name"]))
+		{
+			$createItem = function ($index)
+			{
+				if (is_int($first)) return new \Runtime\Vector();
+				return new \Runtime\Map();
+			};
+			foreach ($file["name"] as $index => $value)
+			{
+				if ($payload instanceof \Runtime\Map && !$payload->has($index))
+				{
+					$payload->set($index, $createItem($index));
+				}
+				else if ($payload instanceof \Runtime\Vector && $index >= $payload->count())
+				{
+					$payload->push($createItem($index));
+				}
+				$path->push($index);
+				$this->buildFiles($payload->get($index), $path, [
+					"name" => $file["name"][$index],
+					"size" => $file["size"][$index],
+					"tmp_name" => $file["tmp_name"][$index],
+					"type" => $file["type"][$index],
+				]);
+				$path->pop();
+			}
+		}
+		
+		#endif
+	}
+	
+	
+	/**
+	 * Build post files
+	 */
+	Map buildPostFiles(Dict payload)
+	{
+		#ifcode PHP then
+		if (count($_FILES) == 0) return;
+		
+		foreach ($_FILES as $key => $value)
+		{
+			$this->buildFiles($payload, new \Runtime\Vector($key), $value);
+		}
+		
+		#endif
+	}
+	
+	
+	/**
+	 * Build post data
+	 */
+	void buildPostData(var payload, Collection path, var post)
+	{
+		#ifcode PHP then
+		if (gettype($post) == "array")
+		{
+			if ($path->count() > 0)
+			{
+				$keys = array_keys($post);
+				$first = array_first($keys);
+				
+				$new_item = null;
+				if (is_int($first)) $new_item = new \Runtime\Vector();
+				else $new_item = new \Runtime\Map();
+				
+				if ($payload instanceof \Runtime\Map)
+				{
+					$key = $path->last();
+					if (is_int($key)) $payload->set($key, $new_item);
+					else $payload->set($key, $new_item);
+					$payload = $payload->get($key);
+				}
+				else if ($payload instanceof \Runtime\Vector)
+				{
+					$payload->push($new_item);
+					$payload = $payload->last();
+				}
+			}
+			foreach ($post as $key => $val)
+			{
+				$path->push($key);
+				$this->buildPostData($payload, $path, $val);
+				$path->pop();
+			}
+		}
+		else if ($path->count() > 0)
+		{
+			$key = $path->last();
+			if ($payload instanceof \Runtime\Map) $payload->set($key, $post);
+			else if ($payload instanceof \Runtime\Vector) $payload->push($post);
+		}
+		#endif
+	}
+	
+	
+	/**
+	 * Create request
+	 */
+	Request createRequest()
+	{
+		Request request = new Request();
+		
+		#ifcode PHP then
+		
+		$host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : "";
+		$uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : "";
+		$method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : "";
+		$start_time = isset($_SERVER['REQUEST_TIME_FLOAT']) ? $_SERVER['REQUEST_TIME_FLOAT'] : "";
+		$content_type = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : "";
+		
+		$query = new \Runtime\Map();
+		$payload = new \Runtime\Map();
+		$cookies = new \Runtime\Map();
+		foreach ($_GET as $key => $val) $query->set($key, $val);
+		
+		/* Read POST */
+		$post = $this->readPost();
+		if ($post != null)
+		{
+			if ($post instanceof \Runtime\Map)
+			{
+				$payload = $post;
+			}
+			else
+			{
+				$this->buildPostData($payload, new \Runtime\Vector(), $post);
+			}
+		}
+		
+		/* Build post files */
+		$this->buildPostFiles($payload);
+		
+		/* Read Cookie */
+		foreach ($_COOKIE as $key => $value)
+		{
+			$cookies->set($key, $value);
+		}
+		
+		/* Setup uri */
+		$request->initUri($uri);
+		
+		/* Setup protocol */
+		$request->protocol = "http";
+		if (isset($_SERVER['REQUEST_SCHEME']))
+		{
+			$request->protocol = $_SERVER['REQUEST_SCHEME'];
+		}
+		if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']))
+		{
+			$request->protocol = $_SERVER['HTTP_X_FORWARDED_PROTO'];
+		}
+		
+		$request->is_https = $request->protocol == "https";
+		
+		/* Setup request */
+		$request->host = $host;
+		$request->method = $method;
+		$request->query = $query;
+		$request->payload = $payload;
+		$request->cookies = $cookies;
+		$request->headers = new \Runtime\Web\Headers(new \Runtime\Map($_SERVER));
+		$request->start_time = $start_time;
+		
+		#endif
+		
+		return request;
+	}
+	
+	
+	/**
+	 * Send status code
+	 */
+	void sendStatusCode(int http_code)
+	{
+		#ifcode PHP then
+		http_response_code($http_code);
+		#endif
+	}
+	
+	
+	/**
+	 * Send header
+	 */
+	void sendHeader(string key, string value)
+	{
+		#ifcode PHP then
+		header($key . ":" . $value);
+		#endif
+	}
+	
+	
+	/**
+	 * Send content
+	 */
+	void sendContent(string content)
+	{
+		#ifcode PHP then
+		echo $content;
+		#endif
+	}
+	
+	
+	/**
+	 * Send response
+	 */
+	async void sendResponse(RenderContainer container)
+	{
+		#ifcode PHP then
+		
+		$response = $container->response;
+		
+		if ($response != null)
+		{
+			$this->sendStatusCode($response->http_code);
+			
+			/* Setup cookies */
+			if ($container->cookies != null)
+			{
+				$container->cookies->each(
+					function (Cookie $cookie)
+					{
+						if ($cookie == null) return;
+						if ($cookie->name == "") return;
+						
+						setcookie
+						(
+							$cookie->name,
+							$cookie->value,
+							$cookie->getOptions()->_map
+						);
+					}
+				);
+			}
+			
+			/* Setup headers */
+			if ($response->headers != null)
+			{
+				$response->headers->each(
+					function (string $value, string $key)
+					{
+						$this->sendHeader($key, $value);
+					}
+				);
+			}
+			
+			/* Redirect */
+			if ($response instanceof \Runtime\Web\RedirectResponse)
+			{
+				$this->sendHeader("Location", $response->redirect);
+			}
+			
+			$this->sendContent($response->getContent());
+		}
+		
+		else
+		{
+			$this->sendStatusCode(404);
+			$this->sendContent("404 Response not found");
+		}
+		
+		#endif
+	}
+}

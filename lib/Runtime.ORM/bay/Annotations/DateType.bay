@@ -18,12 +18,11 @@
 
 namespace Runtime.ORM.Annotations;
 
-use Runtime.BaseStruct;
 use Runtime.ORM.Annotations.BaseType;
 use Runtime.ORM.Connection;
 
 
-struct DateType extends BaseType
+class DateType extends BaseType
 {
 	string tz = "UTC";
 }

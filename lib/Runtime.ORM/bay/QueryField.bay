@@ -51,16 +51,10 @@ class QueryField extends BaseObject
 		string alias_name = ""
 	)
 	{
+		parent();
 		table_name = rs::trim(table_name);
 		field_name = rs::trim(field_name);
 		table_name = rs::trim(table_name);
-		
-		if (table_name and field_name)
-		{
-			Provider provider = @.provider(classof Provider);
-			this.annotation = provider.getFieldType(table_name, field_name);
-		}
-		
 		this.alias_name = alias_name;
 		this.field_name = field_name;
 		this.table_name = table_name;

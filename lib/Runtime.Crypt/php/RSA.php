@@ -17,8 +17,21 @@
  *  limitations under the License.
  */
 namespace Runtime\Crypt;
+
+
 class RSA
 {
+	static function getAlgo($algo)
+	{
+		if ($algo == "SHA1") return OPENSSL_ALGO_SHA1;
+		if ($algo == "SHA256") return OPENSSL_ALGO_SHA256;
+		if ($algo == "SHA384") return OPENSSL_ALGO_SHA384;
+		if ($algo == "SHA512") return OPENSSL_ALGO_SHA512;
+		if ($algo == "MD5") return OPENSSL_ALGO_MD5;
+		return 0;
+	}
+	
+	
 	/**
 	 * Sign message by private key
 	 */
@@ -29,6 +42,8 @@ class RSA
 		return $out;
 		return "";
 	}
+	
+	
 	/**
 	 * Sign message by private key
 	 */
@@ -38,6 +53,8 @@ class RSA
 		return @openssl_verify($text, $sign, $pk, static::getAlgo($algo));
 		return "";
 	}
+	
+	
 	/**
 	 * Verify password
 	 */
@@ -49,6 +66,8 @@ class RSA
 		$s = implode("", $r);
 		return base64_encode($s);
 	}
+	
+	
 	/**
 	 * Create password hash
 	 */
@@ -61,7 +80,12 @@ class RSA
 		$s = implode("", $r);
 		return $s;
 	}
-	static function getAlgo($algo)
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
+	{
+		static function getAlgo($algo)
 	{
 		if ($algo == "SHA1") return OPENSSL_ALGO_SHA1;
 		if ($algo == "SHA256") return OPENSSL_ALGO_SHA256;
@@ -70,43 +94,8 @@ class RSA
 		if ($algo == "MD5") return OPENSSL_ALGO_MD5;
 		return 0;
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.Crypt";
 	}
-	static function getClassName()
-	{
-		return "Runtime.Crypt.RSA";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Crypt.RSA"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

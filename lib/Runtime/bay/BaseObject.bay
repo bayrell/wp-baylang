@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,9 +18,7 @@
 
 namespace Runtime;
 
-use Runtime.rtl;
-use Runtime.Map;
-use Runtime.Vector;
+use Runtime.Serializer.ObjectType;
 
 
 class BaseObject
@@ -36,6 +34,14 @@ class BaseObject
 	
 	
 	/**
+	 * Returns new isntance
+	 */
+	static BaseObject newInstance(Collection args = []) =>
+		rtl::newInstance(static::getClassName(), args)
+	;
+	
+	
+	/**
 	 * Init function
 	 */
 	protected void _init()
@@ -44,9 +50,12 @@ class BaseObject
 	
 	
 	/**
-	 * Init struct data
+	 * Serialize object
 	 */
-	protected void _changes(Map changes){}
+	static void serialize(ObjectType rules)
+	{
+		rules.setClassName(static::getClassName());
+	}
 	
 	
 	/**
@@ -56,34 +65,10 @@ class BaseObject
 	{
 		#switch
 		#case ifcode PHP then
-		if (gettype($changes) == "array")
+		
+		if ($changes instanceof \Runtime\Map)
 		{
-			$changes = new \Runtime\Map($changes);
-		}
-		#case ifcode JAVASCRIPT then
-		if (typeof changes == 'object' && !(changes instanceof Runtime.Dict))
-		{
-			changes = new Runtime.Map(ctx, changes);
-		}
-		#endswitch
-		
-		if (changes == null) return;
-		if (changes.keys().count() == 0) return;
-		
-		if (not (changes instanceof Map))
-		{
-			changes = changes.toMap();
-		}
-		
-		this._changes(changes);
-		
-		#switch
-		#case ifcode PHP then
-		
-		if ($changes instanceof \Runtime\Dict) $changes = $changes->_map;
-		if (gettype($changes) == "array")
-		{
-			foreach ($changes as $key => $value)
+			foreach ($changes->_map as $key => $value)
 			{
 				$k = $this->__getKey($key);
 				if (property_exists($this, $k))
@@ -95,13 +80,13 @@ class BaseObject
 		
 		#case ifcode JAVASCRIPT then
 		
-		var _Dict = use("Runtime.Dict");
-		var rtl = use("Runtime.rtl");
-		if (changes instanceof _Dict) changes = changes.toObject();
-		for (var key in changes)
+		if (changes instanceof Map)
 		{
-			var value = changes[key];
-			this[key] = value;
+			for (var key of changes.keys())
+			{
+				var value = changes.get(key);
+				this[key] = value;
+			}
 		}
 		
 		#endswitch

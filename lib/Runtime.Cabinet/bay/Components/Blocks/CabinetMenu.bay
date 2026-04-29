@@ -1,0 +1,240 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+<class name="Runtime.Cabinet.Components.Blocks.CabinetMenu">
+
+<use name="Runtime.Auth.Models.UserData" />
+<use name="Runtime.Cabinet.Models.CabinetSettings" />
+<use name="Runtime.Cabinet.Models.Menu" />
+<use name="Runtime.Cabinet.Providers.CabinetProvider" />
+<use name="Runtime.Widget.Section" component="true" />
+
+<style>
+.cabinet_menu {
+	
+	background-color: var(--color-surface);
+	border-bottom: 1px solid var(--color-border);
+	padding-top: 0 !important;
+	padding-bottom: 0 !important;
+	
+	.section__wrap{
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+	
+	&__list {
+		display: flex;
+		list-style: none;
+		margin: 0;
+		padding: var(--space);
+		justify-content: flex-start;
+		align-items: center;
+	}
+	
+	&__list--menu{
+		flex: 1
+	}
+	
+	&__item {
+		position: relative;
+	}
+	
+	ul, li{
+		padding: 0;
+		margin: 0;
+	}
+	ul{
+		list-style: none;
+	}
+	
+	&__link {
+		display: flex;
+		align-items: center;
+		padding: var(--space-half) var(--space);
+		text-decoration: none;
+		color: var(--color-link);
+		font-size: var(--font-size);
+		transition: background-color 0.2s;
+		cursor: pointer;
+		padding: var(--space);
+		
+		&:hover {
+			background-color: var(--color-default-hover);
+		}
+		
+		&--active {
+			background-color: var(--color-primary);
+			color: var(--color-primary-text);
+		}
+	}
+	
+	&__icon {
+		margin-right: var(--space-half);
+		font-size: 1.2em;
+	}
+	
+	&__submenu {
+		position: absolute;
+		top: 100%;
+		background-color: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--border-radius);
+		box-shadow: var(--shadow-medium);
+		width: max-content;
+		max-width: 250px;
+		z-index: 100;
+		display: none;
+		
+		.cabinet_menu__item:hover & {
+			display: block;
+		}
+		.cabinet_menu__list--menu & {
+			left: 0;
+		}
+		.cabinet_menu__list--profile & {
+			right: 0;
+		}
+	}
+	
+	&__submenu &__link {
+		padding: var(--space-half) var(--space);
+	}
+}
+</style>
+
+<template name="renderItem" args="Menu item">
+	%if (item.isVisible())
+	{
+		<li class="cabinet_menu__item">
+			<a class="cabinet_menu__link" href={{ this.getItemUrl(item) }}>
+				%if (item.icon)
+				{
+					<span class="cabinet_menu__icon">{{ item.icon }}</span>
+				}
+				<span class="cabinet_menu__title">{{ item.title }}</span>
+			</a>
+			
+			%if (item.hasChildren())
+			{
+				<ul class="cabinet_menu__submenu">
+					%for (Menu subitem in item.getChildren())
+					{
+						%render this.renderItem(subitem);
+					}
+				</ul>
+			}
+			
+		</li>
+	}
+</template>
+
+<template>
+	%if (this.isAuth)
+	{
+		<Section class="cabinet_menu">
+			<ul class="cabinet_menu__list cabinet_menu__list--menu">
+				%if (this.cabinet_menu)
+				{
+					%for (Menu item in this.cabinet_menu.getChildren())
+					{
+						%render this.renderItem(item);
+					}
+				}
+			</ul>
+			<ul class="cabinet_menu__list cabinet_menu__list--profile">
+				<li class="cabinet_menu__item">
+					<a class="cabinet_menu__link">
+						<span class="cabinet_menu__title">Profile</span>
+					</a>
+					<ul class="cabinet_menu__submenu">
+					%if (this.user_profile)
+					{
+						%for (Menu item in this.user_profile.getChildren())
+						{
+							%render this.renderItem(item);
+						}
+					}
+					</ul>
+				</li>
+			</ul>
+		</Section>
+	}
+	%else
+	{
+		<div class="cabinet_menu_no_login"></div>
+	}
+</template>
+
+<script>
+
+/* Menu */
+props Menu menu = null;
+props Menu profile = null;
+
+
+/**
+ * Returns cabinet menu
+ */
+computed Menu cabinet_menu()
+{
+	if (this.menu) return this.menu;
+	return this.layout.get("cabinet_menu");
+}
+
+
+/**
+ * Returns user profile menu
+ */
+computed Menu user_profile()
+{
+	if (this.profile) return this.profile;
+	return this.layout.get("cabinet_profile");
+}
+
+
+/**
+ * Get item URL
+ */
+string getItemUrl(Menu item)
+{
+	if (rs::charAt(item.url, 0) == "/") return item.url;
+	string url = this.layout.url(item.url, item.url_params);
+	return url ? url : item.url;
+}
+
+
+/**
+ * Returns is auth
+ */
+computed bool isAuth()
+{
+	CabinetProvider provider = @.provider(
+		classof CabinetProvider
+	);
+	if (!provider) return false;
+	
+	UserData data = provider.settings.getUserData(this.layout);
+	if (!data) return false;
+	
+	return true;
+}
+
+</script>
+
+</class>

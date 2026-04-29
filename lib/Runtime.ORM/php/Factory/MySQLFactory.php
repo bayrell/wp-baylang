@@ -17,86 +17,55 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Factory;
+
+use Runtime\BaseObject;
+use Runtime\BaseProvider;
+use Runtime\Entity\Entity;
+use Runtime\ORM\ConnectionPool;
+use Runtime\ORM\Factory\ConnectionFactory;
+use Runtime\ORM\MySQL\ConnectionMySQL;
+
+
 class MySQLFactory extends \Runtime\ORM\Factory\ConnectionFactory
 {
-	public $__host;
-	public $__login;
-	public $__password;
-	public $__database;
-	public $__prefix;
+	var $name;
+	var $host;
+	var $login;
+	var $password;
+	var $database;
+	var $prefix;
+	
+	
 	/**
 	 * Create connection
 	 */
 	function createConnection()
 	{
-		$conn = new \Runtime\ORM\MySQL\ConnectionMySQL($this->name);
-		$conn->host = $this->host;
-		$conn->login = $this->login;
-		$conn->password = $this->password;
-		$conn->database = $this->database;
-		$conn->prefix = $this->prefix;
-		$conn->connect();
-		return $conn;
+		$params = new \Runtime\Map([
+			"host" => $this->host,
+			"login" => $this->login,
+			"password" => $this->password,
+			"database" => $this->database,
+			"prefix" => $this->prefix,
+		]);
+		$pool = new \Runtime\ORM\ConnectionPool($this->name, $params, "Runtime.ORM.MySQL.ConnectionMySQL");
+		$pool->connect();
+		return $pool;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->__host = "";
-		$this->__login = "";
-		$this->__password = "";
-		$this->__database = "";
-		$this->__prefix = "";
+		$this->name = "default";
+		$this->host = "";
+		$this->login = "";
+		$this->password = "";
+		$this->database = "";
+		$this->prefix = "";
 	}
-	function takeValue($k,$d=null)
-	{
-		if ($k == "host")return $this->__host;
-		else if ($k == "login")return $this->__login;
-		else if ($k == "password")return $this->__password;
-		else if ($k == "database")return $this->__database;
-		else if ($k == "prefix")return $this->__prefix;
-	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.Factory";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Factory.MySQLFactory";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Factory.ConnectionFactory";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		$a[]="host";
-		$a[]="login";
-		$a[]="password";
-		$a[]="database";
-		$a[]="prefix";
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Factory.MySQLFactory"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

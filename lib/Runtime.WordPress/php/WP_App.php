@@ -17,8 +17,29 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress;
-class WP_App extends \Runtime\Web\BaseApp
+
+use Runtime\Web\BasePHP;
+
+class WP_App extends \Runtime\Web\BasePHP
 {
+	/**
+	 * Send status code
+	 */
+	function sendStatusCode($http_code)
+	{
+		status_header($http_code);
+	}
+	
+	
+	/**
+	 * Send header
+	 */
+	function sendHeader($key, $value)
+	{
+		header($key . ":" . $value);
+	}
+	
+	
 	/**
 	 * Read POST
 	 */
@@ -41,43 +62,14 @@ class WP_App extends \Runtime\Web\BaseApp
 		
 		return null;
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.WP_App";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.BaseApp";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.WP_App"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

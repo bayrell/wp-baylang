@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,25 +16,57 @@
  *  limitations under the License.
 -->
 
-<class name="Runtime.Widget.Dialog.PromptDialog"
-	extends="Runtime.Widget.Dialog.Dialog"
->
+<class name="Runtime.Widget.Dialog.PromptDialog" extends="Runtime.Widget.Dialog.Dialog">
 
+<use name="Runtime.Widget.Button" component="true" />
 <use name="Runtime.Widget.Input" component="true" />
 
 <style>
+.dialog__content{
+	.result{
+		margin-top: calc(var(--space) * 0.5);
+	}
+}
 </style>
 
-<template name="renderContent">
-	%if (this.model.content)
+<template name="renderTitle">
+	%if (this.slot("title"))
 	{
-		<div class='widget_dialog__content'>{{ this.model.content }}</div>
+		%render this.renderSlot("title");
 	}
-	<div class='widget_dialog__input'>
-		<Input
-			value={{ this.model.value }}
-			@event:valueChange={{ void (var message){ this.model.setValue(message.value); } }}
-		/>
+	%else
+	{
+		{{ this.model.title }}
+	}
+</template>
+
+<template name="renderContent">
+	<div class="dialog__content">
+		%if (this.slot("content"))
+		{
+			%render this.renderSlot("content");
+		}
+		%else
+		{
+			{{ this.model.content }}
+		}
+		<Input name="value" value={{ this.model.value }}
+			@event:change="this.model.setValue(event.target.value)" />
+		%render this.renderWidget(this.model.result, {
+			"class": "result--center"
+		});
+	</div>
+</template>
+
+<template name="renderFooter">
+	<div class="dialog__footer">
+		<Button @event:click="this.model.hide();">Close</Button>
+		<Button class="button--primary"
+			style={{ this.model.title_button_styles }}
+			@event:click="this.model.confirm();"
+		>
+			{{ this.model.title_button ? this.model.title_button : "Confirm" }}
+		</Button>
 	</div>
 </template>
 

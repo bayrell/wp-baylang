@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,65 +17,29 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
-class Container extends \Runtime\Web\Component
+
+
+class Container extends \Runtime\Component
 {
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("container", $this->class, $componentHash))])));
+		$__v0->push($this->renderSlot("default"));
 		
-		/* Text */
-		$this->_t($__v0, $this->renderSlot("default"));
-		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_container", $this->class])], $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
-	static function css($vars)
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		$res = "";
-		return $res;
+		parent::_init();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Container";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ""; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.Container"; }
 }

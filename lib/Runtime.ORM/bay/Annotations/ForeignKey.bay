@@ -19,14 +19,14 @@
 namespace Runtime.ORM.Annotations;
 
 use Runtime.lib;
-use Runtime.BaseStruct;
+use Runtime.BaseObject;
 use Runtime.ORM.Connection;
 use Runtime.ORM.Query;
 use Runtime.ORM.Relation;
 use Runtime.ORM.RelationArray;
 
 
-struct ForeignKey extends BaseStruct
+class ForeignKey extends BaseObject
 {
 	string name = "";
 	string table_name = "";
@@ -52,8 +52,8 @@ struct ForeignKey extends BaseStruct
 		;
 		
 		Query q = new Query
-			|> .select(this.table_name)
-			|> .where(this.table_name ~ "." ~ this.primary_key, "=", ids)
+			.select(this.table_name)
+			.where(this.table_name ~ "." ~ this.primary_key, "=", ids)
 		;
 		
 		/* Filter */
@@ -85,8 +85,8 @@ struct ForeignKey extends BaseStruct
 		;
 		
 		Query q = new Query
-			|> .select(this.table_name_source)
-			|> .where(this.table_name_source ~ "." ~ this.foreign_key, "=", ids)
+			.select(this.table_name_source)
+			.where(this.table_name_source ~ "." ~ this.foreign_key, "=", ids)
 		;
 		
 		/* Filter */
@@ -113,7 +113,7 @@ struct ForeignKey extends BaseStruct
 	async RelationArray resolveAll(Connection conn)
 	{
 		Query q = new Query
-			|> .select(this.table_name)
+			.select(this.table_name)
 		;
 		
 		/* Filter */

@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,52 +19,67 @@
 namespace Runtime.Web.Hooks;
 
 use Runtime.Entity.Hook;
-use Runtime.Web.Hooks.AppHook as BaseAppHook;
+use Runtime.Hooks.RuntimeHook;
 
 
-class Components extends BaseAppHook
+class Components extends RuntimeHook
 {
-	Collection items = {
+	Vector items = {
 		"components": [],
 		"footer": [],
 		"header": [],
 	};
+	int priority = 100;
+	string strategy = "appendItems";
 	
 	
 	/**
 	 * Hook factory
 	 */
-	static Hook create(Collection items)
+	static Hook hook(Vector items, int priority = 100)
 	{
-		return new Hook(static::getClassName(), {"components": items});
+		return new Hook(static::getClassName(), {"components": items, "priority": priority});
+	}
+	
+	
+	/**
+	 * Prepend item
+	 */
+	static Hook prependItems(Vector items, int priority = 100)
+	{
+		return new Hook(static::getClassName(), {
+			"components": items, "priority": priority, "strategy": "prependItems"
+		});
 	}
 	
 	
 	/**
 	 * Hook factory
 	 */
-	static Hook header(Collection items)
+	static Hook header(Vector items, int priority = 100)
 	{
-		return new Hook(static::getClassName(), {"header": items});
+		return new Hook(static::getClassName(), {"header": items, "priority": priority});
 	}
 	
 	
 	/**
 	 * Hook factory
 	 */
-	static Hook footer(Collection items)
+	static Hook footer(Vector items, int priority = 100)
 	{
-		return new Hook(static::getClassName(), {"footer": items});
+		return new Hook(static::getClassName(), {"footer": items, "priority": priority});
 	}
 	
 	
 	/**
-	 * Setup
+	 * Init params
 	 */
-	void setup(Dict params)
+	void initParams(Dict params)
 	{
 		parent(params);
 		if (params == null) return;
+		if (params.has("priority")) this.priority = params.get("priority");
+		if (params.has("strategy")) this.strategy = params.get("strategy");
 		if (params.has("components")) this.items.set("components", params.get("components"));
 		if (params.has("footer")) this.items.set("footer", params.get("footer"));
 		if (params.has("header")) this.items.set("header", params.get("header"));
@@ -76,11 +91,19 @@ class Components extends BaseAppHook
 	 */
 	void register_hooks()
 	{
-		this.register(static::COMPONENTS);
-		#ifdef BACKEND then
-		this.register(static::RENDER_HEAD);
-		this.register(static::RENDER_FOOTER);
-		#endif
+		this.register(RuntimeHook::COMPONENTS, "components", this.priority);
+		this.register(RuntimeHook::LAYOUT_HEADER, "render_head", this.priority);
+		this.register(RuntimeHook::LAYOUT_FOOTER, "render_footer", this.priority);
+	}
+	
+	
+	/**
+	 * Add action
+	 */
+	void action(Vector arr, Vector items)
+	{
+		if (this.strategy == "appendItems") arr.appendItems(items);
+		else arr.prependItems(items);
 	}
 	
 	
@@ -89,7 +112,7 @@ class Components extends BaseAppHook
 	 */
 	void components(Map params)
 	{
-		params.get("components").appendItems(this.items.get("components"));
+		this.action(params.get("components"), this.items.get("components"));
 	}
 	
 	
@@ -98,7 +121,7 @@ class Components extends BaseAppHook
 	 */
 	void render_head(Map params)
 	{
-		params.get("components").appendItems(this.items.get("header"));
+		this.action(params.get("components"), this.items.get("header"));
 	}
 	
 	
@@ -107,6 +130,6 @@ class Components extends BaseAppHook
 	 */
 	void render_footer(Map params)
 	{
-		params.get("components").appendItems(this.items.get("footer"));
+		this.action(params.get("components"), this.items.get("footer"));
 	}
 }

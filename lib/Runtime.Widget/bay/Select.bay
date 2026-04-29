@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,26 +18,29 @@
 
 <class name="Runtime.Widget.Select" extends="Runtime.Widget.Field">
 
-<use name="Runtime.Web.Messages.ValueChangeMessage" />
+<use name="Runtime.Widget.Messages.ValueChangeMessage" />
 
 
 <style>
-.widget_select, .widget_select:focus{
+.select, .select:focus{
 	width: 100%;
-	font-family: var(--widget-font-family);
-	font-size: var(--widget-font-size);
-	padding: var(--widget-input-padding-y) var(--widget-input-padding-x);
-	background-color: var(--widget-color-default);
-	border-width: var(--widget-border-width);
-	border-color: var(--widget-color-border);
+	font-family: var(--font-family);
+	font-size: var(--font-input-size);
+	padding: calc(var(--space) * 0.75) calc(var(--space) * 1.5);
+	background-color: var(--color-background);
+	border-width: var(--border-width);
+	border-color: var(--color-border);
 	border-style: solid;
-	border-radius: 4px;
+	border-radius: var(--border-radius);
 	box-shadow: none;
 	outline: transparent;
 	line-height: normal;
 	color: inherit;
 	max-width: 100%;
 	min-height: 32px;
+	transition: background-color var(--transition) var(--transition-type),
+		border-color var(--transition) var(--transition-type),
+		color var(--transition) var(--transition-type);
 }
 .widget_select:hover{
 	color: inherit;
@@ -47,7 +50,14 @@
 
 <template name="render">
 	
-	<select name={{ this.name }} class="widget_select" @event:change={{ this.onChange }}>
+	%set Map props = this.getProps();
+	<select
+		name={{ this.name }}
+		class="select"
+		class={{ this.class }}
+		@event:change={{ this.onChange }}
+		...props
+	>
 	
 	%set string value = this.getValue();
 	%set Vector options = this.getOptions();
@@ -82,7 +92,7 @@
 </template>
 
 
-<script type="frontend">
+<script>
 
 props string name = "";
 props string value = "";
@@ -117,7 +127,7 @@ Vector getOptions()
 void onChange(var e)
 {
 	/* Send value change */
-	this.emit("valueChange", new ValueChangeMessage{
+	this.emit(new ValueChangeMessage{
 		"value": e.target.value,
 		"old_value": this.value,
 		"data": this.data,

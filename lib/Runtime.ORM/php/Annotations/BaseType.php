@@ -17,14 +17,41 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Annotations;
-class BaseType extends \Runtime\BaseStruct
+
+use Runtime\ORM\ConnectionInterface as Connection;
+use Runtime\ORM\Annotations\BaseStruct;
+
+
+class BaseType extends \Runtime\ORM\Annotations\BaseStruct
 {
-	public $__default;
-	public $__table_name;
-	public $__class_name;
-	public $__name;
-	public $__comment;
-	public $__nullable;
+	var $default;
+	var $name;
+	var $comment;
+	var $nullable;
+	
+	
+	/**
+	 * Create object
+	 */
+	function __construct($params = null)
+	{
+		parent::__construct();
+		$this->_assign_values($params);
+	}
+	
+	
+	/**
+	 * Returns rule
+	 */
+	function getRule(){ return null; }
+	
+	
+	/**
+	 * Prepare data before save
+	 */
+	function prepare($item, $action){ return $item; }
+	
+	
 	/**
 	 * Process item from database
 	 */
@@ -36,80 +63,32 @@ class BaseType extends \Runtime\BaseStruct
 		}
 		return $item;
 	}
+	
+	
 	/**
 	 * Process item to database
 	 */
-	function toDatabase($conn, $item, $is_update)
+	function toDatabase($conn, $item)
 	{
-		if (!$is_update && $this->name != "" && $this->default !== null && !$item->has($this->name))
+		if ($this->name != "" && !$item->has($this->name))
 		{
-			$item = \Runtime\rtl::setAttr($item, [$this->name], $this->default);
+			if ($this->default) $item->set($this->name, $this->default);
 		}
 		$item = $conn->toDatabase($this, $item, $this->name);
 		return $item;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->__default = null;
-		$this->__table_name = "";
-		$this->__class_name = "";
-		$this->__name = "";
-		$this->__comment = "";
-		$this->__nullable = false;
+		$this->default = null;
+		$this->name = "";
+		$this->comment = "";
+		$this->nullable = false;
 	}
-	function takeValue($k,$d=null)
-	{
-		if ($k == "default")return $this->__default;
-		else if ($k == "table_name")return $this->__table_name;
-		else if ($k == "class_name")return $this->__class_name;
-		else if ($k == "name")return $this->__name;
-		else if ($k == "comment")return $this->__comment;
-		else if ($k == "nullable")return $this->__nullable;
-	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.Annotations";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Annotations.BaseType";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseStruct";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		$a[]="default";
-		$a[]="table_name";
-		$a[]="class_name";
-		$a[]="name";
-		$a[]="comment";
-		$a[]="nullable";
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Annotations.BaseType"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

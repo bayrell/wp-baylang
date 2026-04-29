@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,70 +17,60 @@
  *  limitations under the License.
  */
 namespace Runtime\Web;
+
+use Runtime\BaseObject;
+use Runtime\Web\LayoutModel;
+use Runtime\Web\BasePageModel;
+use Runtime\Web\Middleware;
+use Runtime\Web\RenderContainer;
+use Runtime\Web\RenderResponse;
+use Runtime\Web\RouteInfo;
+use Runtime\Web\RouteList;
+
+
 class BaseRoute extends \Runtime\BaseObject
 {
-	public $action;
+	var $action;
+	
+	
+	/**
+	 * Constructor
+	 */
 	function __construct($params)
 	{
 		parent::__construct();
 		$this->_assign_values($params);
 	}
+	
+	
 	/**
 	 * Returns layout name
 	 */
-	static function getLayoutName()
-	{
-		return "default";
-	}
+	static function getLayoutName(){ return "default"; }
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	static function getMiddleware(){ return new \Runtime\Vector(); }
+	
+	
 	/**
 	 * Returns routes
 	 */
 	static function getRoutes()
 	{
-		return \Runtime\Vector::from([]);
+		return new \Runtime\Vector();
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->action = "";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Web";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.BaseRoute";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.BaseRoute"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

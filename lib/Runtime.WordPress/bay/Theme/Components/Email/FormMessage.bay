@@ -49,16 +49,16 @@
 					<td style="padding: 2px; text-align: left">{{ this.form_name }}</td>
 				</tr>
 			}
-			%if (this.metrika_form_id)
+			%if (this.metrika_id)
 			{
 				<tr>
 					<td style="padding: 2px; text-align: right">Form id:</td>
-					<td style="padding: 2px; text-align: left">{{ this.metrika_form_id }}</td>
+					<td style="padding: 2px; text-align: left">{{ this.ucfirst(this.metrika_id) }}</td>
 				</tr>
 			}
 			%if (this.data)
 			{
-				%set Dict keys = this.data.keys();
+				%set Dict keys = rtl::list(this.data.keys());
 				%for (int i=0; i<keys.count(); i++)
 				{
 					%set string name = keys.get(i);
@@ -79,8 +79,18 @@ props string site_name = "";
 props string form_name = "";
 props string form_title = "";
 props string invoice_id = "";
-props string metrika_form_id = "";
+props string metrika_id = "";
 props Dict data = {};
+
+
+/**
+ * Uppercase first
+ */
+string ucfirst(string name)
+{
+	name = rs::trim(name);
+	return rs::upper(rs::charAt(name, 0)) ~ rs::substr(name, 1);
+}
 
 </script>
 

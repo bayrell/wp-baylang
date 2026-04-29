@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,10 +19,16 @@
 namespace Runtime.Web;
 
 use Runtime.BaseObject;
+use Runtime.SerializeInterface;
+use Runtime.Serializer.BooleanType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
 use Runtime.Web.Cookie;
+use Runtime.Web.Hooks.AppHook;
 
 
-class Request extends BaseObject
+class Request extends BaseObject implements SerializeInterface
 {
 	static const string METHOD_GET = "GET";
 	static const string METHOD_HEAD = "HEAD";
@@ -41,18 +47,49 @@ class Request extends BaseObject
 	public string protocol = "";
 	public bool is_https = false;
 	public Dict<string> query = null;
+	
+	#ifdef BACKEND then
 	public Dict<var> payload = null;
 	public Dict<string> cookies = null;
 	public Dict<string> headers = null;
-	public float start_time = 0;
+	public double start_time = 0;
+	#endif
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("uri", new StringType());
+		rules.addType("full_uri", new StringType());
+		rules.addType("host", new StringType());
+		rules.addType("method", new StringType());
+		rules.addType("protocol", new StringType());
+		rules.addType("is_https", new BooleanType());
+		rules.addType("query", new MapType(new StringType()));
+	}
+	
+	
+	/**
+	 * Assign rules
+	 */
+	void assignRules(ObjectType rules)
+	{
+	}
 	
 	
 	/**
 	 * Returns client ip
 	 */
-	string getClientIp()
+	string getClientIP()
 	{
-		return this.headers.get("REMOTE_ADDR");
+		Map params = @.hook(AppHook::CLIENT_IP, {
+			"headers": this.headers,
+			"client_ip": this.headers.get("REMOTE_ADDR"),
+		})
+		return params.get("client_ip");
 	}
 	
 	
@@ -63,24 +100,31 @@ class Request extends BaseObject
 	{
 		Dict res = rs::parse_url(full_uri);
 		
-		string uri = res["uri"];
-		Dict<string> query = res["query_arr"];
+		string uri = res.get("uri");
+		Dict<string> query = res.get("query_arr");
 		
 		this.full_uri = full_uri;
 		this.uri = uri;
 		this.query = query;
 		
 		if (this.uri == "") this.uri = "/";
-		
+	}
+	
+	
+	/**
+	 * Split prefix
+	 */
+	static string splitPrefix(string uri, string route_prefix = "")
+	{
 		/* Route prefix */
-		string route_prefix = @.env("ROUTE_PREFIX");
 		if (route_prefix == null) route_prefix = "";
 		
 		int route_prefix_sz = rs::strlen(route_prefix);
-		if (route_prefix_sz != 0 and rs::substr(this.uri, 0, route_prefix_sz) == route_prefix)
+		if (route_prefix_sz != 0 and rs::substr(uri, 0, route_prefix_sz) == route_prefix)
 		{
-			this.uri = rs::substr(this.uri, route_prefix_sz);
-			this.full_uri = rs::substr(this.full_uri, route_prefix_sz);
+			uri = rs::substr(uri, route_prefix_sz);
 		}
+		
+		return uri;
 	}
 }

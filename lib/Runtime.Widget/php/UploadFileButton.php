@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,107 +17,59 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
+
+use Runtime\Widget\Messages\ValueChangeMessage;
+
 class UploadFileButton extends \Runtime\Widget\Button
 {
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Text */
-		$this->_t($__v, "    ");
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("upload_file_button", $componentHash))])));
+		$__v0->push(parent::render());
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
+		/* Element input */
+		$__v0->element("input", (new \Runtime\Map(["type" => "file"])));
 		
-		/* Text */
-		$this->_t($__v0, parent::render());
-		
-		/* Text */
-		$this->_t($__v0, "        ");
-		
-		/* Element 'input' */
-		$this->_e($__v0, "input", ["type" => "file"]);
-		
-		/* Text */
-		$this->_t($__v0, "    ");
-		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["upload_file_button"])], $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
 	/**
- * Button click
- */
+	 * Button click
+	 */
 	function onClick($e)
 	{
 		$upload_file = $this->getRef("upload_file");
 		$upload_file->click();
 	}
 	/**
- * File upload change event
- */
+	 * File upload change event
+	 */
 	function onFileUploadChange($e)
 	{
 		$upload_file = $this->getRef("upload_file");
-		$file = \Runtime\rtl::attr($upload_file->files, 0);
+		$file = $upload_file->files[0];
 		if ($file)
 		{
-			$message = new \Runtime\Web\Messages\ValueChangeMessage(\Runtime\Map::from(["name"=>"file","value"=>$file,"data"=>$this->data]));
-			$this->emit("file", $message);
-			if ($this->model)
-			{
-				$this->model->emit($message);
-			}
+			$message = new \Runtime\Widget\Messages\ValueChangeMessage(new \Runtime\Map([
+				"name" => "file",
+				"value" => $file,
+				"data" => $this->data,
+			]));
+			$this->emit($message);
+			if ($this->model) $this->model->emit($message);
 		}
 	}
-	static function components()
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return \Runtime\Vector::from(["Runtime.Widget.Button"]);
+		parent::_init();
 	}
-	static function css($vars)
-	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".upload_file_button.h-a4c7 input{display: none}");
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.UploadFileButton";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Button";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".upload_file_button.h-a4c6 input{display: none}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.UploadFileButton"; }
 }

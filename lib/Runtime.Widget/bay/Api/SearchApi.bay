@@ -1,0 +1,343 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.Api;
+
+use Runtime.Exceptions.ApiError;
+use Runtime.Exceptions.FieldException;
+use Runtime.Exceptions.ItemNotFound;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.Serializer.BaseType;
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.MapType;
+use Runtime.ORM.Connection;
+use Runtime.ORM.Query;
+use Runtime.ORM.QueryField;
+use Runtime.ORM.QueryResult;
+use Runtime.ORM.Record;
+use Runtime.ORM.Relation;
+use Runtime.Web.ApiRequest;
+use Runtime.Web.ApiResult;
+use Runtime.Web.BaseApi;
+use Runtime.Widget.Api.Rules.BaseRule;
+
+
+class SearchApi extends BaseApi
+{
+	string action = "";
+	string connection_name = "";
+	Connection connection = null;
+	Relation relation = null;
+	QueryResult items = null;
+	Map primary_key = null;
+	Map foreign_key = {};
+	
+	
+	/**
+	 * Returns record name
+	 */
+	static string getRecordName() => "";
+	
+	
+	/**
+	 * Constructor
+	 */
+	void constructor(Map params = null)
+	{
+		parent(params);
+		this.relation = new Relation(static::getRecordName());
+	}
+	
+	
+	/**
+	 * Returns save rules
+	 */
+	Vector<BaseRule> rules() => [];
+	
+	
+	/**
+	 * Returns serialize rules for pk
+	 */
+	MapType getPrimaryRules() => this.relation.getPrimaryRules();
+	
+	
+	/**
+	 * Returns item fields
+	 */
+	Vector getItemFields(string action) => [];
+	
+	
+	/**
+	 * Convert item
+	 */
+	Map convertItem(Map item) => item;
+	
+	
+	/**
+	 * Filter primary key
+	 */
+	Map getPrimaryKey(Map pk)
+	{
+		Vector errors = [];
+		
+		/* Get primary key rule */
+		MapType rule = this.getPrimaryRules();
+		if (not rule)
+		{
+			throw new ApiError(new RuntimeException("Primary rule not found"));
+		}
+		
+		/* Filter primary key */
+		pk = rule.filter(pk, errors, null);
+		
+		/* Check errors */
+		if (errors.count() > 0)
+		{
+			TypeError::addFieldErrors(errors, "pk");
+			throw new ApiError(new FieldException(TypeError::getMap(errors)));
+		}
+		return pk;
+	}
+	
+	
+	/**
+	 * Set primary key
+	 */
+	void setPrimaryKey(Map pk)
+	{
+		if (not (pk instanceof Map))
+		{
+			throw new ApiError(new RuntimeException("Primary key not found"));
+		}
+		
+		this.primary_key = this.getPrimaryKey(pk);
+	}
+	
+	
+	/**
+	 * Set foreign key
+	 */
+	void setForeignKey(Map foreign_key)
+	{
+		this.foreign_key = foreign_key ? foreign_key : {};
+	}
+	
+	
+	/**
+	 * Returns max limit
+	 */
+	int getMaxLimit() => 100;
+	
+	
+	/**
+	 * Returns limit
+	 */
+	int getLimit()
+	{
+		int limit = rtl::toInt(this.data.get("limit", 10));
+		if (not rtl::isInteger(limit) or limit < 0) limit = 0;
+		
+		int max_limit = this.getMaxLimit();
+		if (limit > max_limit and max_limit >= 0) limit = max_limit;
+		
+		return limit;
+	}
+	
+	
+	/**
+	 * Returns page
+	 */
+	int getPage()
+	{
+		int page = rtl::toInt(this.data.get("page", 0));
+		if (not rtl::isInteger(page)) page = 0;
+		return page;
+	}
+	
+	
+	/**
+	 * Build query
+	 */
+	async void buildQuery(Query q)
+	{
+		if (this.isItem())
+		{
+			q.limit(1);
+		}
+	}
+	
+	
+	/**
+	 * Before search
+	 */
+	async void onSearchBefore()
+	{
+		Vector rules = this.rules();
+		for (int i=0; i<rules.count(); i++)
+		{
+			BaseRule rule = rules.get(i);
+			await rule.onSearchBefore(this);
+		}
+	}
+	
+	
+	/**
+	 * After search
+	 */
+	async void onSearchAfter()
+	{
+		Vector rules = this.rules();
+		for (int i=0; i<rules.count(); i++)
+		{
+			BaseRule rule = rules.get(i);
+			await rule.onSearchAfter(this);
+		}
+	}
+	
+	
+	/**
+	 * Search items
+	 */
+	async void search()
+	{
+		/* Create query */
+		Query q = this.relation.select();
+		q.limit(this.getLimit());
+		q.page(this.getPage());
+		q.calcFoundRows();
+		
+		/* Build fields */
+		Vector fields = this.getItemFields("search")
+			.map(QueryField (var field){
+				if (rtl::isString(field))
+				{
+					field = QueryField::fromString(field)
+					if (field.table_name == "")
+					{
+						field.table_name = q._table_name;
+					}
+				}
+				return field;
+			});
+		q.fields(fields);
+		
+		/* Build query */
+		await this.buildQuery(q);
+		
+		/* Search before */
+		await this.onSearchBefore();
+		
+		/* Search */
+		this.items = await this.relation.fetchAll(q);
+		
+		/* Search after */
+		await this.onSearchAfter();
+	}
+	
+	
+	/**
+	 * Set result
+	 */
+	void setResult()
+	{
+		if (this.isSearch() and this.items)
+		{
+			this.result.data.set("items", this.items.map(Map (Map data){
+				data = this.convertItem(data);
+				return data.intersect(this.getItemFields("convert"));
+			}));
+			this.result.data.set("count", this.items.getCount());
+			this.result.data.set("limit", this.items.getLimit());
+			this.result.data.set("page", this.items.getPage());
+			this.result.data.set("pages", this.items.getPages());
+		}
+		else if (this.isItem() and this.items)
+		{
+			Map data = this.items.get(0);
+			if (not data)
+			{
+				throw new ApiError(new ItemNotFound("Item"));
+			}
+			data = this.convertItem(data);
+			data = data.intersect(this.getItemFields("convert"));
+			this.result.data.set("item", data);
+		}
+	}
+	
+	
+	/**
+	 * Returns data rules
+	 */
+	void getDataRules(MapType rules)
+	{
+		if (this.action == "search")
+		{
+			rules.addType("page", new IntegerType{ "default": 0 });
+			rules.addType("limit", new IntegerType{ "default": 10 });
+		}
+	}
+	
+	
+	/**
+	 * Returns action
+	 */
+	bool isItem() => this.action == "item";
+	bool isSearch() => this.action == "search";
+	
+	
+	/**
+	 * Action search
+	 */
+	async void actionSearch()
+	{
+		this.setAction("search");
+		
+		/* Filter data */
+		this.filterData();
+		
+		/* Set foreign key */
+		this.setForeignKey(this.data.get("foreign_key"));
+		
+		/* Search */
+		await this.search();
+		this.setResult();
+		
+		this.success();
+	}
+	
+	
+	/**
+	 * Action item
+	 */
+	async void actionItem()
+	{
+		this.setAction("item");
+		
+		/* Filter data */
+		this.filterData();
+		
+		/* Set foreign key */
+		this.setForeignKey(this.data.get("foreign_key"));
+		
+		/* Search */
+		await this.search();
+		this.setResult();
+		
+		this.success();
+	}
+}

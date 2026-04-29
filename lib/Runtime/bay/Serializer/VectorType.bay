@@ -1,0 +1,112 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Serializer;
+
+use Runtime.BaseObject;
+use Runtime.SerializeInterface;
+use Runtime.Serializer.BaseType;
+use Runtime.Serializer.TypeError;
+
+
+class VectorType extends BaseObject implements BaseType
+{
+	Vector<BaseType> fields = [];
+	
+	
+	/**
+	 * Create object
+	 */
+	void constructor(BaseType fields)
+	{
+		parent();
+		if (fields implements BaseType) this.fields = [fields];
+		else if (fields instanceof Vector) this.fields = fields;
+	}
+	
+	
+	/**
+	 * Walk item
+	 */
+	void walk(Vector value, Vector errors, fn f)
+	{
+		Vector new_value = [];
+		for (int i=0; i<value.count(); i++)
+		{
+			Vector item_errors = [];
+			var new_item = value.get(i);
+			for (int j=0; j<this.fields.count(); j++)
+			{
+				BaseType field = this.fields.get(j);
+				if (field implements BaseType)
+				{
+					new_item = f(field, new_item, item_errors, i);
+				}
+			}
+			new_value.push(new_item);
+			TypeError::addFieldErrors(item_errors, i);
+			errors.appendItems(item_errors);
+		}
+		return new_value;
+	}
+	
+	
+	/**
+	 * Filter value
+	 */
+	Vector filter(
+		Vector value, Vector errors, Vector old_value = null, SerializeInterface prev = null
+	)
+	{
+		if (value === null) return null;
+		if (not(value instanceof Vector)) return null;
+		
+		Vector new_value = this.walk(
+			value, errors,
+			var (BaseType field, var new_item, Vector item_errors, var i) use (old_value, prev)
+			{
+				return field.filter(
+					new_item, item_errors, old_value ? old_value.get(i) : null, prev
+				);
+			}
+		);
+		
+		return new_value;
+	}
+	
+	
+	/**
+	 * Returns data
+	 */
+	Vector encode(Vector value)
+	{
+		if (value === null) return null;
+		if (not(value instanceof Vector)) return null;
+		
+		Vector errors = [];
+		Vector new_value = this.walk(
+			value, errors,
+			var (BaseType field, var new_item, Vector item_errors, var i)
+			{
+				return field.encode(new_item);
+			}
+		);
+		
+		return new_value;
+	}
+}

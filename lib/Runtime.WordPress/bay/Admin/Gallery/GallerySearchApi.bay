@@ -19,9 +19,9 @@
 namespace Runtime.WordPress.Admin.Gallery;
 
 use Runtime.Web.Annotations.ApiMethod;
-use Runtime.Widget.Crud.CrudService;
-use Runtime.Widget.Crud.SearchApi;
-use Runtime.WordPress.Admin.Gallery.GalleryCrudService;
+use Runtime.Widget.Api.SearchApi;
+use Runtime.WordPress.Admin.AdminMiddleware;
+use Runtime.WordPress.Database.Gallery;
 
 
 class GallerySearchApi extends SearchApi
@@ -29,19 +29,28 @@ class GallerySearchApi extends SearchApi
 	/**
 	 * Returns api name
 	 */
-	pure string getApiName() => "admin.wordpress.gallery.search";
+	pure string getApiName() => "admin.wordpress.gallery";
 	
 	
 	/**
-	 * Returns service
+	 * Returns record name
 	 */
-	CrudService createService() => new GalleryCrudService();
+	pure string getRecordName() => classof Gallery;
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	Vector<Middleware> getMiddleware() =>
+	[
+		new AdminMiddleware(),
+	];
 	
 	
 	/**
 	 * Returns item fields
 	 */
-	Collection getItemFields() =>
+	Collection getItemFields(string action) =>
 	[
 		"id",
 		"api_name",
@@ -51,7 +60,7 @@ class GallerySearchApi extends SearchApi
 	/**
 	 * Returns image sizes
 	 */
-	@ApiMethod
+	@ApiMethod{ "name": "image_sizes" }
 	async void actionImageSizes()
 	{
 		Collection image_sizes;
@@ -72,7 +81,7 @@ class GallerySearchApi extends SearchApi
 	/**
 	 * Action search
 	 */
-	@ApiMethod
+	@ApiMethod{ "name": "search" }
 	async void actionSearch()
 	{
 		await parent();

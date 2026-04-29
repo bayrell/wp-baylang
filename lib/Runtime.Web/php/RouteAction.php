@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,17 +17,29 @@
  *  limitations under the License.
  */
 namespace Runtime\Web;
+
+use Runtime\Method;
+use Runtime\Serializer\ObjectType;
+use Runtime\Entity\Factory;
+use Runtime\Web\BaseRoute;
+use Runtime\Web\RouteInfo;
+use Runtime\Web\RenderContainer;
+
+
 class RouteAction extends \Runtime\Web\RouteInfo
 {
-	public $action;
+	var $action;
+	
+	
 	/**
 	 * Process frontend data
 	 */
-	function serialize($serializer, $data)
+	static function serialize($rules)
 	{
-		$serializer->process($this, "action", $data);
-		parent::serialize($serializer, $data);
+		parent::serialize($rules);
 	}
+	
+	
 	/**
 	 * Copy route
 	 */
@@ -37,68 +49,53 @@ class RouteAction extends \Runtime\Web\RouteInfo
 		$route->action = $this->action;
 		return $route;
 	}
+	
+	
+	/**
+	 * Compile
+	 */
+	function compile()
+	{
+		parent::compile();
+		if (\Runtime\rtl::methodExists($this->route_class, $this->action))
+		{
+			$this->action = new \Runtime\Method($this->route_class, $this->action);
+		}
+		else
+		{
+			$this->action = new \Runtime\Entity\Factory($this->route_class, new \Runtime\Map(["action" => $this->action]));
+		}
+	}
+	
+	
 	/**
 	 * Render route
 	 */
 	function render($container)
 	{
-		if (\Runtime\rtl::isCallable($this->action))
-		{
-			$f = $this->action;
-			\Runtime\rtl::apply($f, \Runtime\Vector::from([$container]));
-		}
+		$action = null;
+		/* Get action */
+		if ($this->action instanceof \Runtime\Method) $action = $this->action;
 		else if ($this->action instanceof \Runtime\Entity\Factory)
 		{
-			$container->base_route = $this->action->factory();
-			$action = new \Runtime\Callback($container->base_route, $container->base_route->action);
-			if ($action->exists())
-			{
-				\Runtime\rtl::apply($action, \Runtime\Vector::from([$container]));
-			}
+			$base_route = $this->action->createInstance();
+			$action = new \Runtime\Method($base_route, $base_route->action);
+		}
+		/* Apply action */
+		if ($action && $action->exists())
+		{
+			$action->apply(new \Runtime\Vector($container));
 		}
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->action = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Web";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.RouteAction";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.RouteInfo";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.RouteAction"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

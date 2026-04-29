@@ -17,6 +17,14 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Factory;
+
+use Runtime\BaseObject;
+use Runtime\BaseProvider;
+use Runtime\Entity\Entity;
+use Runtime\ORM\Connection;
+use Runtime\ORM\Provider;
+
+
 class ConnectionFactory extends \Runtime\Entity\Entity
 {
 	/**
@@ -26,6 +34,8 @@ class ConnectionFactory extends \Runtime\Entity\Entity
 	{
 		return null;
 	}
+	
+	
 	/**
 	 * Register connections
 	 */
@@ -34,48 +44,16 @@ class ConnectionFactory extends \Runtime\Entity\Entity
 		/* Create connection */
 		$conn = $this->createConnection();
 		/* Add connection */
-		$provider->addConnection($conn);
+		$provider->add($conn);
 	}
-	/* ======================= Class Init Functions ======================= */
-	function takeValue($k,$d=null)
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
+		parent::_init();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.Factory";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Factory.ConnectionFactory";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Entity.Entity";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Factory.ConnectionFactory"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

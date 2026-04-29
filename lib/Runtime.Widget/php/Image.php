@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,86 +17,64 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
-class Image extends \Runtime\Web\Component
+
+
+class Image extends \Runtime\Component
 {
-	public $src;
+	function renderNoImage()
+	{
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("image__no_image", $componentHash))])));
+		$__v0->push("No image");
+		
+		return $__v;
+	}
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
 		if ($this->src)
 		{
-			/* Element 'img' */
-			$this->_e($__v, "img", ["src" => $this->layout->assets($this->src),"class" => $this->_class_name(["widget_image", $this->class])]);
+			/* Element img */
+			$__v->element("img", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("image", $this->class, $componentHash)), "src" => $this->layout->assets($this->src)])));
 		}
 		else
 		{
-			/* Element 'div' */
-			$__v0 = new \Runtime\Vector();
-			
-			/* Element 'div' */
-			$__v1 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v1, "No image");
-			
-			/* Element 'div' */
-			$this->_e($__v0, "div", ["class" => $this->_class_name(["widget_image__no_image"])], $__v1);
-			
-			/* Element 'div' */
-			$this->_e($__v, "div", ["class" => $this->_class_name(["widget_image", $this->class])], $__v0);
+			/* Element div */
+			$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("image", $this->class, $componentHash))])));
+			$__v0->push($this->renderNoImage());
 		}
 		
-		return $this->_flatten($__v);
+		return $__v;
 	}
-	static function css($vars)
+	var $src;
+	/**
+	 * Returns widget params
+	 */
+	static function widgetParams()
 	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_image.h-3405{display: inline-block}.widget_image__no_image.h-3405{display: flex;align-items: center;justify-content: center;font-size: 20px;text-transform: uppercase;width: 270px;height: 70px}");
-		return $res;
+		return new \Runtime\Vector(
+			new \Runtime\Map([
+				"type" => "param",
+				"name" => "src",
+				"label" => "Source",
+				"component" => "BayLang.Constructor.Frontend.Components.SelectImageButton",
+			]),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->src = "";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Image";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".image.h-3404{display: inline-block}.image__no_image.h-3404{display: flex;align-items: center;justify-content: center;font-size: 20px;text-transform: uppercase;width: 270px;height: 70px}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.Image"; }
 }

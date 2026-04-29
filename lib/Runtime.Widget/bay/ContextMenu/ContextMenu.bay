@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,39 +20,37 @@
 
 
 <style>
-.widget_context_menu{
+.context_menu{
 	display: none;
 	position: absolute;
 	z-index: 99;
-	background-color: var(--widget-color-default);
-	border: var(--widget-border-width) var(--widget-color-border) solid;
+	background-color: var(--color-background);
+	border: var(--border-width) var(--color-border) solid;
 	border-bottom-width: 0;
 }
-.widget_context_menu--open{
+.context_menu--open{
 	display: block;
 }
-.widget_context_menu__item{
-	padding: var(--widget-button-padding-y) var(--widget-button-padding-y);
-	border-bottom: var(--widget-border-width) var(--widget-color-border) solid;
+.context_menu__item{
+	padding: calc(var(--space) * 0.75) var(--space);
+	border-bottom: var(--border-width) var(--color-border) solid;
 	cursor: pointer;
 	user-select: none;
+	&:hover{
+		background-color: var(--color-hover);
+	}
 }
-.widget_context_menu__item.hidden{
+.context_menu__item.hidden{
 	display: none;
 }
 </style>
 
 
 <template name="renderItem" args="Dict item">
-	<div class="widget_context_menu__item"
+	<div class="context_menu__item"
 		class={{ item.get("hidden") == true ? "hidden" : "" }}
 		@key={{ item.get("key") }}
-		@event:click={{
-			void () use (item) {
-				this.model.onClickItem(item);
-				this.emit("clickItem", [item]);
-			}
-		}}
+		@event:click="event.stopPropagation(); this.onClickItem(item)"
 	>
 		{{ item.get("label") }}
 	</div>
@@ -62,8 +60,8 @@
 <template name="render">
 
 	%set Map props = this.getProps();
-	<div class="widget_context_menu" @ref="widget"
-		class={{ this.model.is_open ? "widget_context_menu--open" : "widget_context_menu--hide" }}
+	<div class="context_menu" @ref="widget"
+		class={{ this.model.is_open ? "context_menu--open" : "context_menu--hide" }}
 		...props
 	>
 		%for (int i=0; i<this.model.items.count(); i++)
@@ -91,8 +89,17 @@ Map getProps()
 	styles.push("left: " ~ this.model.x ~ "px;");
 	styles.push("top: " ~ this.model.y  ~ "px;");
 	return {
-		"style": styles.join(";"),
+		"style": rs::join(";", styles),
 	};
+}
+
+
+/**
+ * Click item
+ */
+void onClickItem(Map item)
+{
+	this.model.onClickItem(item);
 }
 
 </script>

@@ -17,29 +17,71 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin\FormSettings;
-class FormSearchApi extends \Runtime\Widget\Crud\SearchApi
+
+use Runtime\ORM\Query;
+use Runtime\Web\ApiRequest;
+use Runtime\Web\ApiResult;
+use Runtime\Web\Annotations\ApiMethod;
+use Runtime\Widget\Api\SearchApi;
+use Runtime\WordPress\Admin\AdminMiddleware;
+use Runtime\WordPress\Database\Form;
+
+
+class FormSearchApi extends \Runtime\Widget\Api\SearchApi
 {
 	/**
 	 * Returns api name
 	 */
-	static function getApiName()
-	{
-		return "admin.wordpress.forms.settings.search";
-	}
+	static function getApiName(){ return "admin.wordpress.forms.settings"; }
+	
+	
 	/**
-	 * Returns service
+	 * Returns record name
 	 */
-	function createService()
+	static function getRecordName(){ return "Runtime.WordPress.Database.Form"; }
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	function getMiddleware()
 	{
-		return new \Runtime\WordPress\Admin\FormSettings\FormCrudService();
+		return new \Runtime\Vector(
+			new \Runtime\WordPress\Admin\AdminMiddleware(),
+		);
 	}
+	
+	
+	/**
+	 * Returns save rules
+	 */
+	function rules(){ return new \Runtime\Vector(); }
+	
+	
 	/**
 	 * Returns item fields
 	 */
-	function getItemFields()
+	function getItemFields($action)
 	{
-		return \Runtime\Vector::from(["id","name","api_name","settings","email_to"]);
+		return new \Runtime\Vector(
+			"id",
+			"name",
+			"api_name",
+			"settings",
+			"email_to",
+		);
 	}
+	
+	
+	/**
+	 * Build query
+	 */
+	function buildQuery($q)
+	{
+		$q->orderBy("name", "asc");
+	}
+	
+	
 	/**
 	 * Action search
 	 */
@@ -47,51 +89,23 @@ class FormSearchApi extends \Runtime\Widget\Crud\SearchApi
 	{
 		parent::actionSearch();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Admin.FormSettings";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.FormSettings.FormSearchApi";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Crud.SearchApi";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.FormSettings.FormSearchApi"; }
 	static function getMethodsList()
 	{
-		$a=[
-			"actionSearch",
-		];
-		return \Runtime\Collection::from($a);
+		return new \Runtime\Vector("actionSearch");
 	}
 	static function getMethodInfoByName($field_name)
 	{
-		if ($field_name == "actionSearch")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
+		if ($field_name == "actionSearch") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod(new \Runtime\Map(["name" => "search"]))
+		);
 		return null;
 	}
 }

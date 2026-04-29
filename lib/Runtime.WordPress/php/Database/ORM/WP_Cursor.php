@@ -17,14 +17,21 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Database\ORM;
+
+use Runtime\ORM\MySQL\CursorMySQL;
+use Runtime\ORM\MySQL\SQLBuilder;
+
+
 class WP_Cursor extends \Runtime\ORM\MySQL\CursorMySQL
 {
-	public $num_rows;
-	public $rows_affected;
-	public $insert_id;
-	public $last_result;
-	public $last_result_pos;
-	public $last_result_sz;
+	var $num_rows;
+	var $rows_affected;
+	var $insert_id;
+	var $last_result;
+	var $last_result_pos;
+	var $last_result_sz;
+	
+	
 	/**
 	 * Execute sql query
 	 */
@@ -54,6 +61,8 @@ class WP_Cursor extends \Runtime\ORM\MySQL\CursorMySQL
 		$this->last_result_pos = 0;
 		return $this;
 	}
+	
+	
 	/**
 	 * Fetch next row
 	 */
@@ -63,79 +72,43 @@ class WP_Cursor extends \Runtime\ORM\MySQL\CursorMySQL
 		
 		$item = $this->last_result[ $this->last_result_pos ];
 		$this->last_result_pos = $this->last_result_pos + 1;
-		$item = \Runtime\Map::from($item);
+		$item = \Runtime\Map::create($item);
 		
 		return $item;
 		return null;
 	}
+	
+	
 	/**
 	 * Returns affected rows
 	 */
-	function affectedRows()
-	{
-		return $this->rows_affected;
-	}
+	function affectedRows(){ return $this->rows_affected; }
+	
+	
 	/**
 	 * Insert id
 	 */
-	function lastInsertId()
-	{
-		return $this->insert_id;
-	}
+	function lastInsertId(){ return $this->insert_id; }
+	
+	
 	/**
 	 * Close cursor
 	 */
-	function close()
-	{
-		return $this;
-	}
-	/* ======================= Class Init Functions ======================= */
+	function close(){ return $this; }
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->num_rows = 0;
 		$this->rows_affected = 0;
 		$this->insert_id = 0;
-		$this->last_result = \Runtime\Vector::from([]);
+		$this->last_result = new \Runtime\Vector();
 		$this->last_result_pos = 0;
 		$this->last_result_sz = 0;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Database.ORM";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Database.ORM.WP_Cursor";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.MySQL.CursorMySQL";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Database.ORM.WP_Cursor"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

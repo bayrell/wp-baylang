@@ -17,56 +17,23 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Annotations;
+
+use Runtime\ORM\Annotations\BaseType;
+use Runtime\ORM\Connection;
+
+
 class DateType extends \Runtime\ORM\Annotations\BaseType
 {
-	public $__tz;
-	/* ======================= Class Init Functions ======================= */
+	var $tz;
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->__tz = "UTC";
+		$this->tz = "UTC";
 	}
-	function takeValue($k,$d=null)
-	{
-		if ($k == "tz")return $this->__tz;
-	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.Annotations";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Annotations.DateType";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Annotations.BaseType";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		$a[]="tz";
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Annotations.DateType"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

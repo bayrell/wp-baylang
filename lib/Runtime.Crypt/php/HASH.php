@@ -17,6 +17,8 @@
  *  limitations under the License.
  */
 namespace Runtime\Crypt;
+
+
 class HASH
 {
 	/**
@@ -27,6 +29,8 @@ class HASH
 		return md5($s);
 		return "";
 	}
+	
+	
 	/**
 	 * Create hash string
 	 */
@@ -35,6 +39,8 @@ class HASH
 		return hash_hmac($algo, $text, $key, true);
 		return "";
 	}
+	
+	
 	/**
 	 * Verify hash string
 	 */
@@ -44,43 +50,13 @@ class HASH
 		return hash_equals($sign, $hash);
 		return "";
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.Crypt";
 	}
-	static function getClassName()
-	{
-		return "Runtime.Crypt.HASH";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Crypt.HASH"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

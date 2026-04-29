@@ -18,10 +18,10 @@
 
 namespace Runtime.ORM.Annotations;
 
-use Runtime.BaseStruct;
+use Runtime.ORM.Annotations.BaseStruct;
 
 
-struct AutoIncrement extends BaseStruct
+class AutoIncrement extends BaseStruct
 {
     string name = "";
 }

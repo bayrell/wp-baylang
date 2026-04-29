@@ -17,99 +17,65 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin\Components;
-class ImageRule extends \Runtime\Widget\Crud\Rules\CrudRule
+
+use Runtime\lib;
+use Runtime\BaseStruct;
+use Runtime\ORM\Connection;
+use Runtime\ORM\Record;
+use Runtime\Widget\Api\SaveApi;
+use Runtime\Widget\Api\SearchApi;
+use Runtime\Widget\Api\Rules\BaseRule;
+use Runtime\WordPress\WP_Helper;
+use Runtime\WordPress\Theme\Components\ImageType;
+
+
+class ImageRule extends \Runtime\Widget\Api\Rules\BaseRule
 {
-	public $__name;
-	public $__key;
+	var $name;
+	var $key;
+	
+	
 	/**
 	 * Save item
 	 */
-	function onSaveBefore($service)
+	function onSaveBefore($api)
 	{
-		if (!$service->data->has($this->name))
-		{
-			return ;
-		}
+		if (!$api->update_data->has($this->name)) return;
 		/* Get image id */
-		$image = $service->data->get($this->name);
-		$image_id = $image->get("id");
+		$image = $api->update_data->get($this->name);
+		$image_id = $image->id;
 		/* Set image id */
-		$service->data->set($this->key, $image_id);
+		$api->item->set($this->key, $image_id);
 	}
+	
+	
 	/**
 	 * Search after
 	 */
-	function onSearchAfter($service)
+	function onSearchAfter($api)
 	{
-		$items = $service->items;
-		$images = $service->items->map(function ($item)
-		{
-			return $item->get($this->key);
-		})->filter(function ($id)
-		{
-			return $id > 0;
-		});
+		$items = $api->items;
+		$images = $api->items->map(function ($item){ return $item->get($this->key); })->filter(function ($id){ return $id > 0; });
 		/* Load images */
-		$connection = $service->getConnection();
-		$result = \Runtime\WordPress\WP_Helper::loadImages($connection, $images);
+		$result = \Runtime\WordPress\WP_Helper::loadImages($images);
 		/* Map items */
-		for ($i = 0; $i < $service->items->count(); $i++)
+		for ($i = 0; $i < $api->items->count(); $i++)
 		{
-			$item = $service->items->get($i);
+			$item = $api->items->get($i);
 			$image_id = $item->get($this->key);
 			$item->set($this->name, $result->get($image_id));
 		}
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->__name = "";
-		$this->__key = "";
+		$this->name = "";
+		$this->key = "";
 	}
-	function takeValue($k,$d=null)
-	{
-		if ($k == "name")return $this->__name;
-		else if ($k == "key")return $this->__key;
-	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Admin.Components";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.Components.ImageRule";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Crud.Rules.CrudRule";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		$a[]="name";
-		$a[]="key";
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.Components.ImageRule"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

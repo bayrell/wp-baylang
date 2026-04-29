@@ -17,38 +17,40 @@
  *  limitations under the License.
 */
 namespace Runtime\WordPress\Admin\Components;
-class CKEditor extends \Runtime\Web\Component
+
+use Runtime\Web\Messages\ValueChangeMessage;
+
+class CKEditor extends \Runtime\Component
 {
-	public $name;
-	public $value;
-	public $change_timer;
-	public $old_value;
-	public $instance;
-	public $is_instance_created;
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("widget_ckeditor", $componentHash))])));
 		
-		/* Element 'textarea' */
-		$this->_e($__v0, "textarea", ["style" => "display: none;","name" => $this->name]);
+		/* Element textarea */
+		$__v0->element("textarea", (new \Runtime\Map(["style" => "display: none;", "name" => $this->name])));
 		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_ckeditor"])], $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
+	var $name;
+	var $value;
+	var $change_timer;
+	var $old_value;
+	var $instance;
+	var $is_instance_created;
 	/**
- * Component mounted
- */
+	 * Component mounted
+	 */
 	function onMounted()
 	{
 	}
 	/**
- * On code changed
- */
+	 * On code changed
+	 */
 	function onContentChange()
 	{
 		$this->change_timer = null;
@@ -56,24 +58,23 @@ class CKEditor extends \Runtime\Web\Component
 		$this->old_value = $value;
 		$this->value = $value;
 		/* Send value change */
-		$this->emit("valueChange", new \Runtime\Web\Messages\ValueChangeMessage(\Runtime\Map::from(["value"=>$value,"old_value"=>$this->value,"data"=>$this->data])));
+		$this->emit("valueChange", new \Runtime\Web\Messages\ValueChangeMessage(new \Runtime\Map([
+			"value" => $value,
+			"old_value" => $this->value,
+			"data" => $this->data,
+		])));
 	}
 	/**
- * On updated
- */
+	 * On updated
+	 */
 	function onUpdated()
 	{
 		if ($this->is_instance_created && $this->old_value != $this->value)
 		{
 		}
 	}
-	static function css($vars)
-	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_ckeditor.h-1d99{min-height: 430px}.widget_ckeditor.h-1d99 *{box-sizing: content-box !important}");
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -84,42 +85,7 @@ class CKEditor extends \Runtime\Web\Component
 		$this->instance = null;
 		$this->is_instance_created = false;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Admin.Components";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.Components.CKEditor";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".widget_ckeditor.h-1d98{min-height: 430px}.widget_ckeditor.h-1d98 *{box-sizing: content-box !important}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.WordPress.Admin.Components.CKEditor"; }
 }

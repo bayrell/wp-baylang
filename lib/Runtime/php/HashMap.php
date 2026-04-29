@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,13 +17,22 @@
  *  limitations under the License.
  */
 namespace Runtime;
+
+
 class HashMap
 {
-	public $_map;
+	var $_map;
+	
+	
+	/**
+	 * Constructor
+	 */
 	function __construct()
 	{
 		$this->_map = new \SplObjectStorage();
 	}
+	
+	
 	/**
 	 * Set value size_to position
 	 * @param Key key - position
@@ -35,6 +44,8 @@ class HashMap
 		$this->_map->attach($key, $value);
 		return $this;
 	}
+	
+	
 	/**
 	 * Returns value from position
 	 * @param string key
@@ -46,6 +57,8 @@ class HashMap
 		return $this->_map[$key];
 		return $this;
 	}
+	
+	
 	/**
 	 * Return true if key exists
 	 * @param string key
@@ -56,6 +69,8 @@ class HashMap
 		if (!$this->_map->has($key)) return false;
 		return true;
 	}
+	
+	
 	/**
 	 * Remove value from position
 	 * @param string key
@@ -66,47 +81,13 @@ class HashMap
 		$this->_map->detach($key);
 		return $this;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
-		$this->_map = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime";
-	}
-	static function getClassName()
-	{
-		return "Runtime.HashMap";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.HashMap"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

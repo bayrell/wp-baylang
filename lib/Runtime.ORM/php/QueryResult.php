@@ -17,103 +17,53 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM;
+
+use Runtime\ORM\Query;
+
 class QueryResult extends \Runtime\Vector
 {
-	public $q;
-	public $conn;
-	public $rows;
-	function __construct()
-	{
-		parent::__construct();
-	}
+	var $q;
+	var $rows;
+	
+	
 	/**
 	 * Returns pages
 	 */
-	function getPages()
-	{
-		return ($this->q) ? ($this->q->getPages($this->rows)) : (0);
-	}
+	function getPages(){ return $this->q ? $this->q->getPages($this->rows) : 0; }
+	
+	
 	/**
 	 * Returns page
 	 */
-	function getPage()
-	{
-		return ($this->q) ? ($this->q->getPage()) : (0);
-	}
+	function getPage(){ return $this->q ? $this->q->getPage() : 0; }
+	
+	
 	/**
-	 * Returns relation by index
+	 * Returns count
 	 */
-	function getRelation($index)
-	{
-		$class_name = $this->q->getRelationName();
-		$item = $this->get($index);
-		return \Runtime\ORM\Relation::newInstance($class_name, $item);
-	}
+	function getCount(){ return $this->rows; }
+	
+	
 	/**
-	 * Convert to Vector
+	 * Returns limit
 	 */
-	function toDict($fields=null)
-	{
-		return $this->map(function ($item) use (&$fields)
-		{
-			return ($fields == null) ? ($item->toDict()) : ($item->intersect($fields));
-		})->toVector();
-	}
+	function getLimit(){ return $this->q ? $this->q->_limit : 1; }
+	
+	
 	/**
-	 * Transform item to Relation
+	 * Intersect
 	 */
-	function toRelation()
-	{
-		$class_name = $this->q->getRelationName();
-		return $this->map(function ($item) use (&$class_name)
-		{
-			return \Runtime\ORM\Relation::newInstance($class_name, $item);
-		})->toVector();
-	}
-	/* ======================= Class Init Functions ======================= */
+	function intersect($fields){ return $this->map(function ($item) use (&$fields){ return $item->intersect($fields); }); }
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->q = null;
-		$this->conn = null;
 		$this->rows = 0;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.QueryResult";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Vector";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.QueryResult"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

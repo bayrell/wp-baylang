@@ -19,7 +19,7 @@
 namespace Runtime.WordPress.Database;
 
 use Runtime.re;
-use Runtime.BaseStruct;
+use Runtime.BaseObject;
 use Runtime.DateTime;
 use Runtime.ORM.DatabaseSchema;
 use Runtime.ORM.Relation;
@@ -45,7 +45,7 @@ class Schema extends DatabaseSchema
 	 * Forms settings
 	 */
 	@Table{ "name": "forms" }
-	pure memorize Collection<BaseStruct> forms() =>
+	pure memorize Collection<BaseObject> forms() =>
 	[
 		/* Fields */
 		new BigIntType{"name": "id"},
@@ -65,7 +65,7 @@ class Schema extends DatabaseSchema
 	 * Forms data
 	 */
 	@Table{ "name": "forms_data" }
-	pure memorize Collection<BaseStruct> forms_data() =>
+	pure memorize Collection<BaseObject> forms_data() =>
 	[
 		/* Fields */
 		new BigIntType{"name": "id"},
@@ -90,7 +90,7 @@ class Schema extends DatabaseSchema
 	 * Forms ip
 	 */
 	@Table{ "name": "forms_ip" }
-	pure memorize Collection<BaseStruct> forms_ip() =>
+	pure memorize Collection<BaseObject> forms_ip() =>
 	[
 		/* Fields */
 		new StringType{"name": "ip"},
@@ -106,7 +106,7 @@ class Schema extends DatabaseSchema
 	 * Mail settings
 	 */
 	@Table{ "name": "mail_settings" }
-	pure memorize Collection<BaseStruct> mail_settings() =>
+	pure memorize Collection<BaseObject> mail_settings() =>
 	[
 		/* Fields */
 		new BigIntType{"name": "id"},
@@ -129,7 +129,7 @@ class Schema extends DatabaseSchema
 	 * Mail log
 	 */
 	@Table{ "name": "mail_delivery" }
-	pure memorize Collection<BaseStruct> mail_delivery() =>
+	pure memorize Collection<BaseObject> mail_delivery() =>
 	[
 		/* Fields */
 		new BigIntType{"name": "id"},

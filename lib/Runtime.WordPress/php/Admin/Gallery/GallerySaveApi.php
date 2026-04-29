@@ -17,29 +17,64 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin\Gallery;
-class GallerySaveApi extends \Runtime\Widget\Crud\SaveApi
+
+use Runtime\Serializer\IntegerType;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\Required;
+use Runtime\Serializer\StringType;
+use Runtime\Web\Annotations\ApiMethod;
+use Runtime\Widget\Api\SaveApi;
+use Runtime\WordPress\Admin\AdminMiddleware;
+use Runtime\WordPress\Database\Gallery;
+
+
+class GallerySaveApi extends \Runtime\Widget\Api\SaveApi
 {
 	/**
 	 * Returns api name
 	 */
-	static function getApiName()
-	{
-		return "admin.wordpress.gallery.save";
-	}
+	static function getApiName(){ return "admin.wordpress.gallery"; }
+	
+	
 	/**
-	 * Returns service
+	 * Returns record name
 	 */
-	function createService()
+	static function getRecordName(){ return "Runtime.WordPress.Database.Gallery"; }
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	function getMiddleware()
 	{
-		return new \Runtime\WordPress\Admin\Gallery\GalleryCrudService();
+		return new \Runtime\Vector(
+			new \Runtime\WordPress\Admin\AdminMiddleware(),
+		);
 	}
+	
+	
+	/**
+	 * Returns item rules
+	 */
+	function getItemRules($rules)
+	{
+		$rules->addType("api_name", new \Runtime\Serializer\StringType());
+		$rules->addType("api_name", new \Runtime\Serializer\Required());
+	}
+	
+	
 	/**
 	 * Returns item fields
 	 */
-	function getItemFields()
+	function getItemFields($action)
 	{
-		return \Runtime\Vector::from(["id","api_name"]);
+		return new \Runtime\Vector(
+			"id",
+			"api_name",
+		);
 	}
+	
+	
 	/**
 	 * Action save
 	 */
@@ -47,6 +82,8 @@ class GallerySaveApi extends \Runtime\Widget\Crud\SaveApi
 	{
 		parent::actionSave();
 	}
+	
+	
 	/**
 	 * Action delete
 	 */
@@ -54,59 +91,26 @@ class GallerySaveApi extends \Runtime\Widget\Crud\SaveApi
 	{
 		parent::actionDelete();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Admin.Gallery";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.Gallery.GallerySaveApi";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Crud.SaveApi";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.Gallery.GallerySaveApi"; }
 	static function getMethodsList()
 	{
-		$a=[
-			"actionSave",
-			"actionDelete",
-		];
-		return \Runtime\Collection::from($a);
+		return new \Runtime\Vector("actionSave", "actionDelete");
 	}
 	static function getMethodInfoByName($field_name)
 	{
-		if ($field_name == "actionSave")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
-		if ($field_name == "actionDelete")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
+		if ($field_name == "actionSave") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod(new \Runtime\Map(["name" => "save"]))
+		);
+		if ($field_name == "actionDelete") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod(new \Runtime\Map(["name" => "delete"]))
+		);
 		return null;
 	}
 }

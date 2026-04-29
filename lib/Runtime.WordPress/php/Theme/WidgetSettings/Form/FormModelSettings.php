@@ -17,73 +17,80 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Theme\WidgetSettings\Form;
+
+use Runtime\lib;
+use Runtime\BaseObject;
+use Runtime\Web\ApiResult;
+use Runtime\Web\BaseModel;
+use Runtime\Web\RenderContainer;
+use Runtime\Widget\ButtonModel;
+use BayLang\Constructor\Frontend\Editor\Parameters\Parameter;
+use BayLang\Constructor\Frontend\Editor\Parameters\ParameterComponent;
+use BayLang\Constructor\Frontend\Editor\Parameters\ParameterDictModel;
+use BayLang\Constructor\Frontend\Editor\Parameters\ParameterFactoryModel;
+use BayLang\Constructor\Frontend\Editor\Parameters\ParameterModel;
+use BayLang\Constructor\WidgetPage\ParameterFactory;
+use BayLang\Constructor\WidgetPage\WidgetSettingsInterface;
+
+
 class FormModelSettings extends \Runtime\BaseObject implements \BayLang\Constructor\WidgetPage\WidgetSettingsInterface
 {
-	public $options;
+	var $options;
+	
+	
 	/**
 	 * Returns widget name
 	 */
-	function getWidgetName()
-	{
-		return "";
-	}
+	function getWidgetName(){ return ""; }
+	
+	
 	/**
 	 * Returns alias name
 	 */
-	function getAliasName()
-	{
-		return "WP_FormModel";
-	}
+	function getAliasName(){ return "WP_FormModel"; }
+	
+	
 	/**
 	 * Returns component name
 	 */
-	function getComponentName()
-	{
-		return "";
-	}
+	function getComponentName(){ return ""; }
+	
+	
 	/**
 	 * Returns model name
 	 */
-	function getModelName()
-	{
-		return "Runtime.WordPress.Theme.Components.Form.FormModel";
-	}
+	function getModelName(){ return "Runtime.WordPress.Theme.Components.Form.FormModel"; }
+	
+	
 	/**
 	 * Returns selector name
 	 */
-	function getSelectorName()
-	{
-		return "form";
-	}
+	function getSelectorName(){ return "form"; }
+	
+	
 	/**
 	 * Returns group name
 	 */
-	function getGroupName()
-	{
-		return "widget";
-	}
+	function getGroupName(){ return "widget"; }
+	
+	
 	/**
 	 * Returns true if model
 	 */
-	function isModel()
-	{
-		return true;
-	}
+	function isModel(){ return true; }
+	
+	
 	/**
 	 * Returns true if is widget settings
 	 */
 	function checkWidget($widget)
 	{
-		if (!$widget->isComponent())
-		{
-			return false;
-		}
-		if ($widget->model_class_name != $this->getModelName())
-		{
-			return false;
-		}
+		if (!$widget->isComponent()) return false;
+		if ($widget->model_class_name != $this->getModelName()) return false;
 		return true;
 	}
+	
+	
 	/**
 	 * Can insert widget
 	 */
@@ -91,6 +98,8 @@ class FormModelSettings extends \Runtime\BaseObject implements \BayLang\Construc
 	{
 		return false;
 	}
+	
+	
 	/**
 	 * On change
 	 */
@@ -149,30 +158,40 @@ class FormModelSettings extends \Runtime\BaseObject implements \BayLang\Construc
 		}
 		return false;
 	}
+	
+	
 	/**
 	 * Load form name options
 	 */
 	function loadOptions($runtime, $widget)
 	{
-		if ($this->options)
-		{
-			return ;
-		}
-		$data = \BayLang\Constructor\WidgetPage\ParameterFactory::copy($runtime, \Runtime\Map::from(["api_name"=>"admin.wordpress.forms.settings.search","method_name"=>"actionSearch","data"=>\Runtime\Map::from(["limit"=>"1000"])]));
+		if ($this->options) return;
+		$data = \BayLang\Constructor\WidgetPage\ParameterFactory::copy($runtime, new \Runtime\Map([
+			"api_name" => "admin.wordpress.forms.settings.search",
+			"method_name" => "actionSearch",
+			"data" => new \Runtime\Map([
+				"limit" => "1000",
+			]),
+		]));
 		$result = $widget->page_model->layout->callApi($data);
 		if ($result->isSuccess())
 		{
 			$result_data = \BayLang\Constructor\WidgetPage\ParameterFactory::restore($runtime, $result->data);
 			$this->options = $result_data->get("items")->map(function ($item)
 			{
-				return \Runtime\Map::from(["key"=>$item->get("api_name"),"value"=>$item->get("name")]);
+				return new \Runtime\Map([
+					"key" => $item->get("api_name"),
+					"value" => $item->get("name"),
+				]);
 			});
 		}
 		else
 		{
-			$this->options = \Runtime\Vector::from([]);
+			$this->options = new \Runtime\Vector();
 		}
 	}
+	
+	
 	/**
 	 * Setup widget
 	 */
@@ -183,10 +202,7 @@ class FormModelSettings extends \Runtime\BaseObject implements \BayLang\Construc
 		/* Add options to widget */
 		if ($this->options)
 		{
-			$form_name_param = $widget->params->findItem(function ($param)
-			{
-				return $param->name == "form_name";
-			});
+			$form_name_param = $widget->params->findItem(function ($param){ return $param->name == "form_name"; });
 			if ($form_name_param)
 			{
 				$options = \BayLang\Constructor\WidgetPage\ParameterFactory::copy($runtime, $this->options);
@@ -194,65 +210,109 @@ class FormModelSettings extends \Runtime\BaseObject implements \BayLang\Construc
 			}
 		}
 	}
+	
+	
 	/**
 	 * Returns params
 	 */
 	function getParams()
 	{
-		return \Runtime\Vector::from([new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", \Runtime\Map::from(["name"=>"form_name","label"=>"Form name","component"=>"Runtime.Widget.Select","default"=>"","props"=>\Runtime\Map::from(["options"=>\Runtime\Vector::from([])])])),new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", \Runtime\Map::from(["name"=>"styles","label"=>"Form styles","component"=>"Runtime.Widget.Tag","default"=>\Runtime\Vector::from([])])),new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", \Runtime\Map::from(["name"=>"form_title","label"=>"Email title","component"=>"Runtime.Widget.Input","default"=>""])),new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", \Runtime\Map::from(["name"=>"form_content","label"=>"Form content","component"=>"Runtime.Widget.TextEditable"])),new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", \Runtime\Map::from(["name"=>"metrika_form_id","label"=>"Form id","component"=>"Runtime.Widget.Input"])),new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", \Runtime\Map::from(["name"=>"metrika_event","label"=>"Metrika event","component"=>"Runtime.Widget.Input","default"=>""])),new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", \Runtime\Map::from(["name"=>"redirect_url","label"=>"Redirect URL","component"=>"Runtime.Widget.Input"])),new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", \Runtime\Map::from(["name"=>"form_show_label","path"=>\Runtime\Vector::from(["field_settings","show_label"]),"label"=>"Form show label","component"=>"Runtime.Widget.Select","default"=>"true","props"=>\Runtime\Map::from(["options"=>\Runtime\Vector::from([\Runtime\Map::from(["key"=>"false","value"=>"False"]),\Runtime\Map::from(["key"=>"true","value"=>"True"])])])]))]);
+		return new \Runtime\Vector(
+			new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", new \Runtime\Map([
+				"name" => "form_name",
+				"label" => "Form name",
+				"component" => "Runtime.Widget.Select",
+				"default" => "",
+				"props" => new \Runtime\Map([
+					"options" => new \Runtime\Vector(
+					),
+				]),
+			])),
+			new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", new \Runtime\Map([
+				"name" => "styles",
+				"label" => "Form styles",
+				"component" => "Runtime.Widget.Tag",
+				"default" => new \Runtime\Vector(),
+			])),
+			new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", new \Runtime\Map([
+				"name" => "form_title",
+				"label" => "Email title",
+				"component" => "Runtime.Widget.Input",
+				"default" => "",
+			])),
+			new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", new \Runtime\Map([
+				"name" => "form_content",
+				"label" => "Form content",
+				"component" => "Runtime.Widget.TextEditable",
+			])),
+			new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", new \Runtime\Map([
+				"name" => "metrika_form_id",
+				"label" => "Form id",
+				"component" => "Runtime.Widget.Input",
+			])),
+			new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", new \Runtime\Map([
+				"name" => "metrika_event",
+				"label" => "Metrika event",
+				"component" => "Runtime.Widget.Input",
+				"default" => "",
+			])),
+			new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterModel", new \Runtime\Map([
+				"name" => "redirect_url",
+				"label" => "Redirect URL",
+				"component" => "Runtime.Widget.Input",
+			])),
+			new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterDictModel", new \Runtime\Map([
+				"name" => "form_show_label",
+				"path" => new \Runtime\Vector("field_settings", "show_label"),
+				"label" => "Form show label",
+				"component" => "Runtime.Widget.Select",
+				"default" => "true",
+				"props" => new \Runtime\Map([
+					"options" => new \Runtime\Vector(
+						new \Runtime\Map(["key" => "false", "value" => "False"]),
+						new \Runtime\Map(["key" => "true", "value" => "True"]),
+					),
+				]),
+			])),
+		);
 	}
+	
+	
 	/**
 	 * Returns default template
 	 */
 	function getDefaultTemplate()
 	{
-		return \Runtime\Map::from(["default"=>function ()
-		{
-			return \Runtime\Map::from(["modules"=>\Runtime\Vector::from(["Runtime.Entity.Factory"]),"model"=>\Runtime\rs::join("\n", \Runtime\Vector::from(["this.form = this.addWidget(classof WP_FormModel, {","\t'widget_name': 'form',","\t'form_name': 'default',","\t'submit_button':","\t{","\t\t'text': 'Отправить заявку',","\t},","});"]))]);
-		}]);
+		return new \Runtime\Map([
+			"default" => function ()
+			{
+				return new \Runtime\Map([
+					"modules" => new \Runtime\Vector(
+						"Runtime.Entity.Factory",
+					),
+					"model" => \Runtime\rs::join("\n", new \Runtime\Vector(
+						"this.form = this.addWidget(classof WP_FormModel, {",
+						"\t'widget_name': 'form',",
+						"\t'form_name': 'default',",
+						"\t'submit_button':",
+						"\t{",
+						"\t\t'text': 'Отправить заявку',",
+						"\t},",
+						"});",
+					)),
+				]);
+			},
+		]);
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->options = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Theme.WidgetSettings.Form";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Theme.WidgetSettings.Form.FormModelSettings"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

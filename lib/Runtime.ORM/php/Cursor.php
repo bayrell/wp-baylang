@@ -17,78 +17,120 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM;
+
+use Runtime\BaseObject;
+use Runtime\Math;
+use Runtime\ORM\Connection;
+use Runtime\ORM\Query;
+use Runtime\ORM\QueryField;
+use Runtime\ORM\QueryResult;
+use Runtime\ORM\Record;
+use Runtime\ORM\Relation;
+
+
 class Cursor extends \Runtime\BaseObject
 {
-	public $conn;
-	public $q;
-	function __construct($conn=null)
+	var $conn;
+	var $q;
+	var $adapter;
+	
+	
+	/**
+	 * Constructor
+	 */
+	function __construct($conn = null)
 	{
 		parent::__construct();
 		$this->conn = $conn;
 	}
+	
+	
 	/**
 	 * Get connection
 	 */
-	function getConnection()
-	{
-		return $this->conn;
-	}
+	function getConnection(){ return $this->conn; }
+	
+	
 	/**
 	 * Set connection
 	 */
 	function setConnection($connection)
 	{
 		$this->conn = $connection;
+		$this->adapter = $connection->adapter;
 	}
+	
+	
 	/**
 	 * Returns found rows
 	 */
 	function foundRows()
 	{
-		return 0;
+		if ($this->found_rows >= 0) return $this->found_rows;
+		if (!$this->q)
+		{
+			return 0;
+		}
+		if (!$this->q->_calc_found_rows)
+		{
+			return 0;
+		}
+		$q = $this->q->copy()->clearFields()->addRawField("count(1) as c")->limit(-1)->start(-1)->clearOrder();
+		$res = $this->conn->fetchVar($q, "c");
+		$this->found_rows = $res;
+		return $res;
 	}
+	
+	
 	/**
 	 * Returns affected rows
 	 */
 	function affectedRows()
 	{
-		return 0;
+		return $this->adapter->affectedRows();
 	}
+	
+	
 	/**
 	 * Returns last insert id
 	 */
 	function lastInsertId()
 	{
-		return 0;
+		return $this->adapter->lastInsertId();
 	}
+	
+	
 	/**
 	 * Returns pages
 	 */
 	function getPages()
 	{
 		$rows = $this->foundRows();
-		return ($this->q) ? ($this->q->getPages($rows)) : (0);
+		return $this->q ? $this->q->getPages($rows) : 0;
 	}
+	
+	
 	/**
 	 * Returns page
 	 */
-	function getPage()
-	{
-		return ($this->q) ? ($this->q->getPage()) : (0);
-	}
+	function getPage(){ return $this->q ? $this->q->getPage() : 0; }
+	
+	
 	/**
 	 * Close query
 	 */
 	function close()
 	{
+		$this->adapter->close();
 	}
+	
+	
 	/**
 	 * Fetch next row
 	 */
-	function fetchMap()
-	{
-		return null;
-	}
+	function fetchMap(){ return $this->adapter->fetchMap(); }
+	
+	
 	/**
 	 * Convert item
 	 */
@@ -97,7 +139,7 @@ class Cursor extends \Runtime\BaseObject
 		$fields = $this->q->_fields;
 		for ($i = 0; $i < $fields->count(); $i++)
 		{
-			$field = \Runtime\rtl::attr($fields, $i);
+			$field = $fields[$i];
 			if ($field instanceof \Runtime\ORM\QueryField && $field->annotation)
 			{
 				$item = $field->annotation->fromDatabase($this->conn, $item);
@@ -105,32 +147,20 @@ class Cursor extends \Runtime\BaseObject
 		}
 		return $item;
 	}
+	
+	
 	/**
 	 * Fetch next row
 	 */
 	function fetch()
 	{
 		$row = $this->fetchMap();
-		if (!$row)
-		{
-			return null;
-		}
+		if (!$row) return null;
 		$row = $this->convertItem($row);
 		return $row;
 	}
-	/**
-	 * Fetch next row
-	 */
-	function fetchRelation()
-	{
-		$row = $this->fetch();
-		if (!$row)
-		{
-			return null;
-		}
-		$class_name = $this->q->getRelationName();
-		return \Runtime\ORM\Relation::newInstance($class_name, $row);
-	}
+	
+	
 	/**
 	 * Fetch all rows
 	 */
@@ -139,10 +169,7 @@ class Cursor extends \Runtime\BaseObject
 		$table_name = $this->q->_table_name;
 		$items = new \Runtime\ORM\QueryResult();
 		/* Copy settings */
-		$items->conn = $this->conn;
-		$items->q = ($this->q) ? ($this->q->copy()) : (null);
-		/* Get rows */
-		$items->rows = $this->foundRows();
+		$items->q = $this->q ? $this->q->copy() : null;
 		/* Get items */
 		while (true)
 		{
@@ -151,10 +178,14 @@ class Cursor extends \Runtime\BaseObject
 			{
 				break;
 			}
-			$items->append($row);
+			$items->push($row);
 		}
+		/* Get rows */
+		$items->rows = $this->foundRows();
 		return $items;
 	}
+	
+	
 	/**
 	 * Fetch variable
 	 */
@@ -163,53 +194,21 @@ class Cursor extends \Runtime\BaseObject
 		$row = $this->fetchMap();
 		if ($row)
 		{
-			return \Runtime\rtl::attr($row, $var_name);
+			return $row->get($var_name);
 		}
 		return null;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->conn = null;
 		$this->q = null;
+		$this->adapter = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Cursor";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Cursor"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

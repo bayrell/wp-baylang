@@ -3,15 +3,15 @@
 	"assets":
 	[
 		"Components/Button/ButtonForm.bay",
-		"Components/Button/ButtonFormModel.bay",
 		"Components/Form/Form.bay",
 		"Components/Form/FormDialog.bay",
 		"Components/Form/FormDialogModel.bay",
 		"Components/Form/FormModel.bay",
 		"Components/Gallery/Gallery.bay",
 		"Components/Gallery/GalleryModel.bay",
-		"AssetHook.bay",
-		"Metrika.bay",
+		"Components/ImageType.bay",
+		"Hooks/AssetHook.bay",
+		"Hooks/Metrika.bay",
 		"ModuleDescription.bay"
 	],
 	"modules":

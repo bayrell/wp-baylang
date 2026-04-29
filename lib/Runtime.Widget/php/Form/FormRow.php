@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,128 +17,52 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget\Form;
-class FormRow extends \Runtime\Web\Component
+
+use Runtime\Widget\ResultModel;
+
+class FormRow extends \Runtime\Component
 {
-	public $styles;
-	public $error;
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("form_row", $componentHash))])));
 		
-		if ($this->checkSlot("label"))
+		/* Element div */
+		$__v1 = $__v0->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("form_row__label", $componentHash))])));
+		$__v1->push($this->label);
+		
+		/* Element div */
+		$__v2 = $__v0->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("form_row__content", $componentHash))])));
+		$__v2->push($this->renderSlot("default", new \Runtime\Vector($this->name, $this->field)));
+		
+		if ($this->result)
 		{
-			/* Element 'div' */
-			$__v1 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v1, $this->renderSlot("label"));
-			
-			/* Element 'div' */
-			$this->_e($__v0, "div", ["class" => $this->_class_name(["form_row__label"])], $__v1);
+			$__v0->push($this->renderWidget($this->result, new \Runtime\Map([
+				"class" => "result--field",
+			])));
 		}
 		
-		if ($this->checkSlot("content"))
-		{
-			/* Element 'div' */
-			$__v1 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v1, $this->renderSlot("content"));
-			
-			/* Element 'div' */
-			$this->_e($__v0, "div", ["class" => $this->_class_name(["form_row__content"])], $__v1);
-		}
-		
-		if ($this->checkSlot("result"))
-		{
-			/* Element 'div' */
-			$__v1 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v1, $this->renderSlot("result"));
-			
-			/* Element 'div' */
-			$this->_e($__v0, "div", ["class" => $this->_class_name(["form_row__result"])], $__v1);
-		}
-		
-		if ($this->error->count() > 0)
-		{
-			/* Element 'div' */
-			$__v1 = new \Runtime\Vector();
-			
-			for ($i = 0; $i < $this->error->count(); $i++)
-			{
-				/* Element 'div' */
-				$__v2 = new \Runtime\Vector();
-				
-				/* Text */
-				$this->_t($__v2, $this->_escape($this->error->get($i)));
-				
-				/* Element 'div' */
-				$this->_e($__v1, "div", [], $__v2);
-			}
-			
-			/* Element 'div' */
-			$this->_e($__v0, "div", ["class" => $this->_class_name(["form_row__error"])], $__v1);
-		}
-		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["form_row", $this->class, static::mergeStyles("form_row", $this->styles)])], $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
-	static function css($vars)
-	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".form_row.h-df7b{margin-bottom: 10px}.form_row:last-child.h-df7b{margin-bottom: 0px}.form_row__label.h-df7b{margin-bottom: 5px}.form_row--flex.h-df7b{display: flex;align-items: center}.form_row--flex__label.h-df7b,.form_row--flex__content.h-df7b{width: 50%}.form_row__error.h-df7b{color: var(--widget-color-danger);margin-top: var(--widget-space)}.form_row__error--hide.h-df7b{display: none}");
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
+	var $field;
+	var $name;
+	var $label;
+	var $result;
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->styles = \Runtime\Vector::from([]);
-		$this->error = \Runtime\Vector::from([]);
+		$this->field = null;
+		$this->name = "";
+		$this->label = "";
+		$this->result = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget.Form";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Form.FormRow";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".form_row.h-df7a{margin-bottom: calc(var(--space) * 2)}.form_row.h-df7a:last-child{margin-bottom: calc(var(--space) * 2)}.form_row__label.h-df7a{display: block;font-weight: bold;margin-bottom: calc(var(--space) * 0.5)}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.Form.FormRow"; }
 }

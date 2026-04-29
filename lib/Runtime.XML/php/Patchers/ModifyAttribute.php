@@ -17,6 +17,11 @@
  *  limitations under the License.
  */
 namespace Runtime\XML\Patchers;
+
+use Runtime\XML\BasePatcher;
+use Runtime\XML\XML;
+
+
 class ModifyAttribute extends \Runtime\XML\BasePatcher
 {
 	/**
@@ -24,8 +29,16 @@ class ModifyAttribute extends \Runtime\XML\BasePatcher
 	 */
 	function types()
 	{
-		return \Runtime\Vector::from(["edit_attr","edit_attribute","attr_edit","attribute_edit","editAttribute"]);
+		return new \Runtime\Vector(
+			"edit_attr",
+			"edit_attribute",
+			"attr_edit",
+			"attribute_edit",
+			"editAttribute",
+		);
 	}
+	
+	
 	/**
 	 * Patch XML with operation
 	 */
@@ -34,25 +47,16 @@ class ModifyAttribute extends \Runtime\XML\BasePatcher
 		$path = $operation->get("path")->get(0);
 		$name = $operation->get("name")->get(0);
 		$value = $operation->get("value")->get(0);
-		if (!$path)
-		{
-			return ;
-		}
-		if (!$name)
-		{
-			return ;
-		}
-		if (!$value)
-		{
-			return ;
-		}
+		if (!$path) return;
+		if (!$name) return;
+		if (!$value) return;
 		$path_value = $path->value();
 		$name_value = $name->value();
 		$value_value = $value->value();
 		$items = $xml->xpath($path_value);
 		for ($i = 0; $i < $items->count(); $i++)
 		{
-			$item = \Runtime\rtl::attr($items, $i);
+			$item = $items[$i];
 			if ($item->attr($name_value) !== null)
 			{
 				$item->removeAttribute($name_value);
@@ -60,43 +64,14 @@ class ModifyAttribute extends \Runtime\XML\BasePatcher
 			}
 		}
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.XML.Patchers";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.XML.Patchers.ModifyAttribute";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.XML.BasePatcher";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.XML.Patchers.ModifyAttribute"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

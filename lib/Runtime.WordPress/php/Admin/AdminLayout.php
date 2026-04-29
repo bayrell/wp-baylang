@@ -17,109 +17,56 @@
  *  limitations under the License.
 */
 namespace Runtime\WordPress\Admin;
-class AdminLayout extends \Runtime\Web\DefaultLayout
+
+use Runtime\Hooks\RuntimeHook;
+
+class AdminLayout extends \Runtime\DefaultLayout
 {
 	function renderTitle()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
 		
-		/* Text */
-		$this->_t($__v, "    ");
-		
-		/* Element 'h1' */
-		$__v0 = new \Runtime\Vector();
-		
-		/* Text */
-		$this->_t($__v0, $this->_escape($this->layout->title));
-		
-		/* Element 'h1' */
-		$this->_e($__v, "h1", ["class" => $this->_class_name(["wp-heading-inline"])], $__v0);
+		/* Element h1 */
+		$__v0 = $__v->element("h1", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("wp-heading-inline", $componentHash))])));
+		$__v0->push($this->layout->title);
 		
 		return $__v;
 	}
 	function renderApp()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
 		
-		/* Text */
-		$this->_t($__v, $this->renderCSS());
+		$__v->push($this->renderStyle());
 		
-		/* Text */
-		$this->_t($__v, parent::renderApp());
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("root_container", $componentHash))])));
+		$__v0->push($this->render());
+		$__v->push($this->renderMountApp());
 		
 		return $__v;
 	}
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Text */
-		$this->_t($__v, "    ");
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("default_layout wrap wp_admin_layout", $componentHash))])));
+		$__v0->push($this->renderTitle());
+		$__v0->push($this->renderCurrentPage());
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
-		
-		/* Text */
-		$this->_t($__v0, $this->renderTitle());
-		
-		/* Text */
-		$this->_t($__v0, $this->renderCurrentPage());
-		
-		/* Text */
-		$this->_t($__v0, "    ");
-		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["default_layout wrap"])], $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
-	static function components()
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return \Runtime\Vector::from(["Runtime.Web.DefaultLayout"]);
+		parent::_init();
 	}
-	static function css($vars)
-	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".wp-heading-inline.h-3f87{padding: 0;margin-bottom: 14px}");
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Admin";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.AdminLayout";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.DefaultLayout";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".wp-heading-inline.h-3f86{padding: 0;margin-bottom: 14px}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.WordPress.Admin.AdminLayout"; }
 }

@@ -17,56 +17,21 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Annotations;
-class AutoIncrement extends \Runtime\BaseStruct
+
+use Runtime\ORM\Annotations\BaseStruct;
+
+class AutoIncrement extends \Runtime\ORM\Annotations\BaseStruct
 {
-	public $__name;
-	/* ======================= Class Init Functions ======================= */
+	var $name;
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->__name = "";
+		$this->name = "";
 	}
-	function takeValue($k,$d=null)
-	{
-		if ($k == "name")return $this->__name;
-	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.Annotations";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Annotations.AutoIncrement";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseStruct";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		$a[]="name";
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Annotations.AutoIncrement"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

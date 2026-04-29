@@ -1,0 +1,147 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Auth.Models;
+
+use Runtime.BaseLayout;
+use Runtime.BaseObject;
+use Runtime.SerializeInterface;
+use Runtime.Entity.Factory;
+use Runtime.Entity.Provider;
+use Runtime.Auth.Api.LoginApi;
+use Runtime.Auth.Api.LogoutApi;
+use Runtime.Auth.Components.LoginPage.LoginPageModel;
+use Runtime.Auth.Components.LogoutPage.LogoutPageModel;
+use Runtime.Auth.Database.User;
+use Runtime.Auth.Models.UserData;
+use Runtime.Web.BaseLayoutModel;
+use Runtime.Web.RouteInfo;
+use Runtime.Web.RouteModel;
+
+
+class UserSettings extends BaseObject implements SerializeInterface
+{
+	/**
+	 * Returns api name
+	 */
+	string getApiName() => "app:auth";
+	
+	
+	/**
+	 * Returns token name
+	 */
+	string getTokenName() => "auth";
+	
+	
+	/**
+	 * Returns url name
+	 */
+	string getUrlName() => "auth";
+	
+	
+	/**
+	 * Returns token expires
+	 */
+	string getTokenExpires() => 30 * 24 * 60 * 60;
+	
+	
+	/**
+	 * Get layout
+	 */
+	string getLayout() => "default";
+	
+	
+	/**
+	 * Returns main page
+	 */
+	string getMainPage(BaseLayoutModel layout) => "";
+	
+	
+	/**
+	 * Returns login page
+	 */
+	string getLoginPage() => classof LoginPageModel;
+	
+	
+	/**
+	 * Returns logout page
+	 */
+	string getLogoutPage() => classof LogoutPageModel;
+	
+	
+	/**
+	 * Returns login api
+	 */
+	string getLoginApi() => classof LoginApi;
+	
+	
+	/**
+	 * Returns logout api
+	 */
+	string getLogoutApi() => classof LogoutApi;
+	
+	
+	/**
+	 * Returns model params
+	 */
+	Map getModelParams() =>
+	{
+		"user_settings": this,
+	};
+	
+	
+	/**
+	 * Returns login route
+	 */
+	RouteInfo getLoginRoute() => new RouteModel
+	{
+		"uri": "/{lang}/login",
+		"name": this.getUrlName() ~ ":login",
+		"model": this.getLoginPage(),
+		"model_params": this.getModelParams(),
+	};
+	
+	
+	/**
+	 * Returns logout route
+	 */
+	RouteInfo getLogoutRoute() => new RouteModel
+	{
+		"uri": "/{lang}/logout",
+		"name": this.getUrlName() ~ ":logout",
+		"model": this.getLogoutPage(),
+		"model_params": this.getModelParams(),
+	};
+	
+	
+	/**
+	 * Returns user data
+	 */
+	UserData getUserData(BaseLayout layout) =>
+		layout.get(this.getTokenName());
+	
+	
+	#ifdef BACKEND then
+	
+	/**
+	 * Returns user record name
+	 */
+	string getRecordName() => classof User;
+	
+	#endif
+}

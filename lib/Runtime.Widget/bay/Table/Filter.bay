@@ -1,0 +1,160 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.Table.Filter">
+
+<use name="Runtime.Widget.Button" component="true" />
+
+<style lang="scss">
+.table_filter {
+	
+	margin-bottom: calc(2 * var(--space));
+	
+	&__header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: calc(var(--space) * 2);
+		border-bottom: 1px solid var(--color-border);
+		padding-bottom: var(--space);
+	}
+
+	&__title {
+		font-size: var(--font-size-h4);
+		font-weight: 600;
+		color: var(--color-heading-text);
+	}
+
+	&__row {
+		display: flex;
+		align-items: center;
+		margin-bottom: var(--space);
+	}
+
+	&__label {
+		min-width: 120px;
+		margin-right: var(--space);
+		color: var(--color-text-secondary);
+	}
+
+	&__component {
+		flex: 1;
+	}
+
+	&__search {
+		margin-top: calc(var(--space) * 2);
+		text-align: left;
+	}
+}
+</style>
+
+<template>
+	<div class="table_filter">
+		<!-- Filter Header -->
+		<div class="table_filter__header">
+			<div class="table_filter__title">
+				{{ this.translate("filter") }}
+			</div>
+		</div>
+
+		<!-- Filter Fields -->
+		%for (int i=0; i<this.model.fields.count(); i++)
+		{
+			%set Map field = this.model.fields.get(i);
+			%set string name = field.get("name");
+			%set string label = field.get("label", name);
+			%set string component = field.get("component");
+			%set Map props = field.get("props");
+			%if (not props){ %set props = {}; }
+			<div class="table_filter__row">
+				<div class="table_filter__label">{{ label }}</div>
+				<div class="table_filter__component">
+					<{component}
+						name={{ name }}
+						value={{ this.model.getValue(name) }}
+						@event:valueChange="this.model.setValue(name, event.value)"
+						...props ...this.getAttrs(field) />
+				</div>
+			</div>
+		}
+
+		<!-- Search Button -->
+		<div class="table_filter__search">
+			<Button
+				class="button--primary"
+				@event:click="this.onSearchClick()"
+			>
+				{{ this.translate("search") }}
+			</Button>
+		</div>
+	</div>
+</template>
+
+<script>
+/* Translate method */
+string translate(string key)
+{
+	/* You can use layout translations here */
+	/* For now, returning simple fallback */
+	if (key == "filter") return "Filter";
+	if (key == "search") return "Search";
+	return key;
+}
+
+/* Search button click handler */
+void onSearchClick()
+{
+	this.model.applyFilter();
+}
+
+/**
+ * Returns attrs
+ */
+Map getAttrs(Map field)
+{
+	Map attrs = {};
+	
+	string component = field.get("component");
+	if (component == "Runtime.Widget.Input")
+	{
+		attrs.set("onKeydown", this.onKeyDown(field));
+	}
+	
+	return attrs;
+}
+
+
+/**
+ * Keydown
+ */
+void onKeyDown(Map field)
+{
+	return void (var event)
+	{
+		if (event.keyCode == 13)
+		{
+			string field_name = field.get("name");
+			this.model.setValue(field_name, event.target.value);
+			this.model.applyFilter();
+		}
+	}
+}
+
+</script>
+
+</class>

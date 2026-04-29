@@ -50,7 +50,7 @@ class XML
 		libxml_use_internal_errors($old_value);
 		
 		$res->xml = $xml;
-		$res->errors = $errors->toCollection();
+		$res->errors = $errors;
 		
 		#endif
 		
@@ -98,7 +98,7 @@ class XML
 	Vector<XML> get(string name)
 	{
 		#ifcode PHP then
-		$res = [];
+		$res = new \Runtime\Vector();
 		
 		if ($this->xml != null)
 		{
@@ -107,14 +107,37 @@ class XML
 			{
 				$item = static::newInstance();
 				$item->xml = $xml[$i];
-				$res[] = $item;
+				$res->push($item);
 			}
 		}
 		
-		return \Runtime\Vector::from($res);
+		return $res;
 		#endif
 		
 		return new Vector();
+	}
+	
+	
+	/**
+	 * Returns content
+	 */
+	string getContent(string name, int pos = 0)
+	{
+		XML item = this.get(name).get(pos);
+		return item ? item.value() : "";
+	}
+	
+	
+	/**
+	 * Set content
+	 */
+	void setContent(string name, string value, int pos = 0)
+	{
+		XML item = this.get(name).get(pos);
+		if (item)
+		{
+			item.setValue(value);
+		}
 	}
 	
 	
@@ -464,8 +487,8 @@ class XML
 	 */
 	string toString(Dict params = null)
 	{
-		bool indent = params['indent'] |> default bool true;
-		bool wrap = params['wrap'] |> default bool false;
+		bool indent = params.get('indent');
+		bool wrap = params.get('wrap');
 		string xml_str = '';
 		
 		#ifcode PHP then

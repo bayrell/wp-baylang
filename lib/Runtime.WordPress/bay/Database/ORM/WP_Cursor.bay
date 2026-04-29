@@ -53,7 +53,7 @@ class WP_Cursor extends CursorMySQL
 		
 		if ($wpdb->last_error != '')
 		{
-			throw new \Runtime\ORM\Exceptions\OrmException($ctx, $wpdb->last_error);
+			throw new \Runtime\ORM\Exceptions\OrmException($wpdb->last_error);
 		}
 		
 		$this->num_rows = $wpdb->num_rows;
@@ -80,7 +80,7 @@ class WP_Cursor extends CursorMySQL
 		
 		$item = $this->last_result[ $this->last_result_pos ];
 		$this->last_result_pos = $this->last_result_pos + 1;
-		$item = \Runtime\Map::from($item);
+		$item = \Runtime\Map::create($item);
 		
 		return $item;
 		#endif

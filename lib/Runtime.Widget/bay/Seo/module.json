@@ -16,7 +16,8 @@
 	"dest":
 	{
 		"php": "./../../php/Seo",
-		"es6": "./../../es6/Seo"
+		"es6": "./../../es6/Seo",
+		"nodejs": "./../../nodejs/Seo"
 	},
 	"allow":
 	[

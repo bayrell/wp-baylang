@@ -25,7 +25,7 @@ use Runtime.ORM.Factory.ConnectionFactory;
 use Runtime.ORM.SQLite.ConnectionSQLite;
 
 
-struct SQLiteFactory extends ConnectionFactory
+class SQLiteFactory extends ConnectionFactory
 {
 	string path = "";
 	
@@ -33,7 +33,7 @@ struct SQLiteFactory extends ConnectionFactory
 	/**
 	 * Create connection
 	 */
-	ConnectionSQLite createConnection()
+	async ConnectionSQLite createConnection()
 	{
 		ConnectionSQLite conn = new ConnectionSQLite(this.name);
 		conn.database = this.path;

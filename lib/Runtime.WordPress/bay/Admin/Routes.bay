@@ -28,7 +28,7 @@ class Routes extends BaseRoute
 	/**
 	 * Returns layout name
 	 */
-	static string getLayoutName() => "default";
+	static string getLayoutName() => "admin";
     
     
     /**
@@ -52,9 +52,9 @@ class Routes extends BaseRoute
 			},
 			new RouteModel
 			{
-				"uri": "admin.php?page=baylang-settings&action=migrations",
+				"uri": "admin.php?page=baylang-migrations",
 				"name": "admin:database:migrations",
-				"model": "Runtime.WordPress.Admin.Settings.MigrationPageModel",
+				"model": "Runtime.WordPress.Admin.Migrations.MigrationPageModel",
 			},
 			new RouteModel
 			{
@@ -131,6 +131,12 @@ class Routes extends BaseRoute
 				"uri": "admin.php?page=baylang-robots-txt",
 				"name": "admin:robots:txt",
 				"model": "Runtime.WordPress.Admin.Robots.RobotsPageModel",
+			},
+			new RouteModel
+			{
+				"uri": "admin.php?page=baylang-cabinet-users",
+				"name": "admin:cabinet:users",
+				"model": "Runtime.WordPress.Admin.Cabinet.Users.UserModel",
 			},
 		];
 	}

@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 <class name="Runtime.Widget.Tab.Tab">
 
+<use name="Runtime.Widget.Tab.TabsModel" />
 
 <style>
 .tabs__item{
@@ -31,20 +32,36 @@
 
 
 <template>
-	%if (this.model.canShow(this.key))
-	{
-		<div class="tabs__item" class={{ this.model.isActive(this.key) ? "tabs__item--active" : "" }}
-			data-tab={{ this.key }}
-		>
+	%set TabsModel model = this.getParent().model;
+	<div class="tabs__item"
+		class={{ model.isActive(this.name) ? "tabs__item--active" : "" }}
+		data-tab={{ this.name }}
+	>
+		%if (this.canShow)
+		{
 			%render this.renderSlot("default");
-		</div>
-	}
+		}
+	</div>
 </template>
 
 
 <script>
 
-props string key = "";
+props string name = "";
+props string title = "";
+props string href = "";
+
+
+/**
+ * Returns true if tab can show
+ */
+computed bool canShow()
+{
+	if (this.href == "") return true;
+	TabsModel model = this.getParent().model;
+	if (model.isActive(this.name)) return true;
+	return false;
+}
 
 </script>
 

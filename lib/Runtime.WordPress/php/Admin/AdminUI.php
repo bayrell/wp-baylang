@@ -17,66 +17,28 @@
  *  limitations under the License.
 */
 namespace Runtime\WordPress\Admin;
+
+
 class AdminUI extends \Runtime\Web\CoreUI
 {
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Text */
-		$this->_t($__v, static::renderCSS());
+		$__v->push(static::renderCSS());
+		$__v->push(static::renderApp());
 		
-		/* Text */
-		$this->_t($__v, static::renderApp());
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
-	static function components()
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return \Runtime\Vector::from(["Runtime.Web.CoreUI"]);
+		parent::_init();
 	}
-	static function css($vars)
-	{
-		$res = "";
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Admin";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.AdminUI";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.CoreUI";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ""; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.WordPress.Admin.AdminUI"; }
 }

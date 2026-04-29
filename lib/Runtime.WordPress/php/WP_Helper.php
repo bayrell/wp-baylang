@@ -17,12 +17,33 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress;
+
+use Runtime\BaseLayout;
+use Runtime\Component;
+use Runtime\RenderContainer;
+use Runtime\VirtualDom;
+use Runtime\Providers\RenderContent;
+use Runtime\DateTime;
+use Runtime\RawString;
+use Runtime\Exceptions\ItemNotFound;
+use Runtime\ORM\Connection;
+use Runtime\ORM\Query;
+use Runtime\ORM\QueryResult;
+use Runtime\Web\BaseApp;
+use Runtime\Web\Response;
+use Runtime\Web\RouteInfo;
+use Runtime\Web\RouteList;
+use Runtime\Web\RouteProvider;
+use Runtime\WordPress\Admin\AdminUI;
+use Runtime\WordPress\Theme\Components\ImageType;
+
+
 class WP_Helper
 {
 	/**
 	 * Returns option by name
 	 */
-	static function get_option($name, $value="")
+	static function get_option($name, $value = "")
 	{
 		if (!is_multisite())
 		{
@@ -30,6 +51,8 @@ class WP_Helper
 		}
 		return \get_blog_option(null, $name, $value);
 	}
+	
+	
 	/**
 	 * Update option by name
 	 */
@@ -50,13 +73,19 @@ class WP_Helper
 			}
 		}
 	}
+	
+	
 	/**
 	 * Returns app version
 	 */
 	static function getAppVersion($version)
 	{
-		return $version . \Runtime\rtl::toStr("_") . \Runtime\rtl::toStr(static::get_option("app_js_vesion"));
+		$js_version = static::get_option("app_js_vesion");
+		if ($js_version) return $version . "_" . $js_version;
+		return $version;
 	}
+	
+	
 	/**
 	 * Setup app version
 	 */
@@ -64,6 +93,8 @@ class WP_Helper
 	{
 		static::update_option("app_js_vesion", $timestamp);
 	}
+	
+	
 	/**
 	 * Check wp nonce
 	 */
@@ -81,14 +112,28 @@ class WP_Helper
 		}
 		return true;
 	}
+	
+	
+	/**
+	 * Returns true if user is admin
+	 */
+	static function isAdmin()
+	{
+		return current_user_can("edit_pages");
+		return false;
+	}
+	
+	
 	/**
 	 * Load images
 	 */
-	static function loadImages($connection, $images)
+	static function loadImages($images, $connection = null)
 	{
-		$result = \Runtime\Map::from([]);
+		$result = new \Runtime\Map();
+		/* Get connection */
+		if (!$connection) $connection = \Runtime\ORM\Connection::get();
 		/* Get images metadata */
-		$q = (new \Runtime\ORM\Query())->select()->from("postmeta")->addRawField("*")->where("meta_key", "=", \Runtime\Vector::from(["_wp_attachment_metadata","_wp_attached_file"]))->where("post_id", "=", $images);
+		$q = (new \Runtime\ORM\Query())->select()->from("postmeta")->addRawField("*")->where("meta_key", "=", new \Runtime\Vector("_wp_attachment_metadata", "_wp_attached_file"))->where("post_id", "=", $images);
 		$images_metadata = $connection->fetchAll($q);
 		/* Get post */
 		$q = (new \Runtime\ORM\Query())->select()->from("posts")->addRawField("*")->where("ID", "=", $images);
@@ -102,28 +147,25 @@ class WP_Helper
 			$image = null;
 			/* Get post */
 			$post_time = "";
-			$post = $posts->findItem(\Runtime\lib::equalAttr("ID", $image_id));
+			$post = $posts->find(function ($row) use (&$image_id){ return $row->get("ID") == $image_id; });
 			if ($post)
 			{
-				$d = \Runtime\DateTime::fromString(\Runtime\rtl::attr($post, "post_modified_gmt"));
+				$d = \Runtime\DateTime::fromString($post->get("post_modified_gmt"));
 				$post_time = $d->timestamp();
 			}
 			/* Load metadata */
-			$obj_file = $images_metadata->findItem(function ($item) use (&$image_id)
+			$obj_file = $images_metadata->find(function ($item) use (&$image_id)
 			{
-				return \Runtime\rtl::attr($item, "meta_key") == "_wp_attached_file" && \Runtime\rtl::attr($item, "post_id") == $image_id;
+				return $item->get("meta_key") == "_wp_attached_file" && $item->get("post_id") == $image_id;
 			});
-			$obj_metadata = $images_metadata->findItem(function ($item) use (&$image_id)
+			$obj_metadata = $images_metadata->find(function ($item) use (&$image_id)
 			{
-				return \Runtime\rtl::attr($item, "meta_key") == "_wp_attachment_metadata" && \Runtime\rtl::attr($item, "post_id") == $image_id;
+				return $item->get("meta_key") == "_wp_attachment_metadata" && $item->get("post_id") == $image_id;
 			});
-			if (!($obj_file && $obj_metadata))
-			{
-				continue;
-			}
+			if (!($obj_file && $obj_metadata)) continue;
 			$obj_metadata = $obj_metadata->get("meta_value");
 			$obj_file = $obj_file->get("meta_value");
-			$image_url_after = "?_=" . \Runtime\rtl::toStr($post_time);
+			$image_url_after = "?_=" . $post_time;
 			$obj_metadata = @unserialize($obj_metadata);
 			if ($obj_metadata)
 			{
@@ -133,7 +175,7 @@ class WP_Helper
 				
 				foreach ($sizes as $key => &$size)
 				{
-					$size = \Runtime\Dict::from([
+					$size = \Runtime\Map::create([
 						"size" => $key,
 						"file" => $image_dir_name . "/" .
 							basename($size["file"]) . $image_url_after,
@@ -143,24 +185,22 @@ class WP_Helper
 					]);
 				}
 				
-				$sizes = \Runtime\Dict::from($sizes);
-				$image = \Runtime\Dict::from([
-					"id" => $image_id,
-					"width" => $obj_metadata["width"],
-					"height" => $obj_metadata["height"],
-					"file" => $image_dir_name . "/" .
-						basename($obj_metadata["file"]) . $image_url_after,
-					"sizes" => $sizes,
-				]);
+				$sizes = \Runtime\Map::create($sizes);
+				$image = new ImageType();
+				$image->id = $image_id;
+				$image->width = $obj_metadata["width"];
+				$image->height = $obj_metadata["height"];
+				$image->file = $image_dir_name . "/" .
+					basename($obj_metadata["file"]) . $image_url_after;
+				$image->sizes = $sizes;
 			}
-			if (!$image)
-			{
-				continue;
-			}
+			if (!$image) continue;
 			$result->set($image_id, $image);
 		}
 		return $result;
 	}
+	
+	
 	/**
 	 * Apply backend function
 	 */
@@ -171,6 +211,8 @@ class WP_Helper
 		
 		return call_user_func_array($name, $args);
 	}
+	
+	
 	/**
 	 * Apply backend function
 	 */
@@ -186,97 +228,89 @@ class WP_Helper
 		
 		return $content;
 	}
+	
+	
 	/**
-	 * Call wp admin route
+	 * Render app
 	 */
-	static function wp_admin_route($route_name, $route_before=null)
+	static function renderApp()
 	{
-		$content = "";
-		/* Create render container */
-		$app = \Runtime\rtl::getContext()->getApp();
+		/* Create container and layout */
+		$app = \Runtime\rtl::getContext()->provider("app");
 		$container = $app->createRenderContainer();
 		/* Create request */
 		$container->request = $app->createRequest();
-		/* Setup route */
-		$routes = \Runtime\rtl::getContext()->provider("Runtime.Web.RouteList");
-		$route = $routes->routes_list->findItem(\Runtime\lib::equalAttr("name", $route_name));
-		$container->route = $route;
-		/* Create layout */
-		$layout_name = $container->getLayoutName();
-		$container->createLayout($layout_name);
-		/* Call route before */
-		if ($route_before)
-		{
-			\Runtime\rtl::apply($route_before, \Runtime\Vector::from([$container]));
-		}
-		/* Resolve route */
-		$container->resolveRoute();
-		/* Return container */
+		/* Resolve container */
+		$container->resolve();
+		/* Returns container */
 		return $container;
 	}
-	/**
-	 * Render
-	 */
-	static function wp_render($container)
-	{
-		$content = "";
-		if ($container->response instanceof \Runtime\Web\Response)
-		{
-			$content = $container->response->getContent(false);
-		}
-		else
-		{
-			$content = "<p>404 Response not found</p>";
-		}
-		return $content;
-	}
+	
+	
 	/**
 	 * Render page
 	 */
-	static function wp_render_page($route_name, $route_before=null)
+	static function renderPage($route_name, $params = null)
 	{
-		$container = static::wp_admin_route($route_name, $route_before);
-		$content = static::wp_render($container);
+		/* Create container and layout */
+		$app = \Runtime\rtl::getContext()->provider("app");
+		$container = $app->createRenderContainer();
+		/* Create request */
+		$container->request = $app->createRequest();
+		/* Find route */
+		$routes = \Runtime\rtl::getContext()->provider("Runtime.Web.RouteProvider");
+		$container->route = $routes->getRoute($route_name);
+		/* Set matches */
+		if ($container->route && $params) $container->route->matches = $params;
+		/* Resolve route */
+		$container->resolveRoute();
+		/* Returns container */
+		return $container;
+	}
+	
+	
+	/**
+	 * Render page model
+	 */
+	static function renderPageModel($class_name, $layout_name = "default")
+	{
+		/* Create container and layout */
+		$app = \Runtime\rtl::getContext()->provider("app");
+		$container = $app->createRenderContainer();
+		/* Create request */
+		$container->request = $app->createRequest();
+		/* Create layout */
+		$layout = $container->createLayout($layout_name);
+		/* Render page */
+		$container->renderPageModel($class_name);
+		/* Returns container */
+		return $container;
+	}
+	
+	
+	/**
+	 * Render container
+	 */
+	static function render($container)
+	{
 		do_action("admin_render_page");
-		echo $content;
+		
+		if ($container->route == null)
+		{
+			echo "<p>Page not found</p>";
+		}
+		else
+		{
+			echo $container->renderApp();
+		}
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress";
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.WP_Helper";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.WP_Helper"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

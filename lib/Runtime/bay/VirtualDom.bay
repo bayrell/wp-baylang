@@ -1,0 +1,167 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime;
+
+use Runtime.BaseObject;
+use Runtime.BaseModel;
+use Runtime.Component;
+use Runtime.Providers.RenderContent;
+
+
+class VirtualDom extends BaseObject
+{
+	Component component = null;
+	Map attrs = {};
+	Map slots = {};
+	Vector items = [];
+	bool is_raw = false;
+	bool is_render = false;
+	bool is_component = false;
+	string name = "";
+	
+	
+	/**
+	 * Constructor
+	 */
+	void constructor(Component component = null)
+	{
+		parent();
+		this.component = component;
+	}
+	
+	
+	/**
+	 * Returns true if tag_name is component
+	 */
+	static bool isComponent(string tag_name)
+	{
+		if (tag_name == "") return false;
+		string first = rs::substr(tag_name, 0, 1);
+		return rs::upper(first) == first;
+	}
+	
+	
+	/**
+	 * Set name
+	 */
+	void setName(string name)
+	{
+		this.name = name;
+		this.is_component = static::isComponent(name);
+	}
+	
+	
+	/**
+	 * Set attrs
+	 */
+	void setAttrs(Map attrs)
+	{
+		if (attrs) this.attrs = attrs;
+	}
+	
+	
+	/**
+	 * Add element
+	 */
+	VirtualDom element(var name, Dict attrs = null)
+	{
+		VirtualDom item = static::newInstance([this.component]);
+		item.setName(name);
+		item.setAttrs(attrs);
+		if (name == "script" or name == "style") item.is_raw = true;
+		this.push(item);
+		return item;
+	}
+	
+	
+	/**
+	 * Push content
+	 */
+	void push(var content)
+	{
+		#ifcode JAVASCRIPT then
+		if (Array.isArray(content))
+		{
+			this.items.appendItems(content);
+			return;
+		}
+		#endif
+		if (rtl::isString(content) and content == "") return;
+		if (not(content instanceof VirtualDom) and not rtl::isString(content))
+		{
+			content = rtl::toStr(content);
+		}
+		if (this.items.count() > 0 and rtl::isString(content))
+		{
+			string item = this.items.last();
+			if (rtl::isString(item))
+			{
+				this.items.set(this.items.count() - 1, item ~ content);
+				return;
+			}
+		}
+		this.items.push(content);
+	}
+	
+	
+	/**
+	 * Add slot
+	 */
+	void slot(string slot_name, fn content)
+	{
+		this.slots.set(slot_name, content);
+	}
+	
+	
+	/**
+	 * Render vdom to string
+	 */
+	string render()
+	{
+		Vector content = [];
+		RenderContent provider = new RenderContent;
+		provider.components = @.provider("render").components;
+		provider.render(this, content);
+		return rs::join("", content);
+	}
+	
+	
+	/**
+	 * Raw string
+	 */
+	static VirtualDom raw(string content)
+	{
+		VirtualDom vdom = new VirtualDom();
+		vdom.is_raw = true;
+		vdom.push(content);
+		return vdom;
+	}
+	
+	
+	/**
+	 * Render model
+	 */
+	static VirtualDom renderModel(BaseModel model)
+	{
+		VirtualDom vdom = new VirtualDom();
+		vdom.setName(model.component);
+		vdom.attrs = { "model": model, "layout": model.layout };
+		return vdom;
+	}
+}

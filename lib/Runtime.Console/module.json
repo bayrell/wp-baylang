@@ -1,0 +1,17 @@
+{
+	"name": "Runtime.Console",
+	"assets":
+	[
+	],
+	"src": "./bay",
+	"dest":
+	{
+		"php": "./php",
+		"es6": "./es6",
+		"nodejs": "./nodejs"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

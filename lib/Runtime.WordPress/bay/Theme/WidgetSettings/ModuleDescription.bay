@@ -23,7 +23,7 @@ use Runtime.WordPress.Theme.WidgetSettings.WidgetManager;
 use BayLang.Constructor.WidgetPage.WidgetManagerAnnotation;
 
 
-static class ModuleDescription
+class ModuleDescription
 {
 	/**
 	 * Returns module name

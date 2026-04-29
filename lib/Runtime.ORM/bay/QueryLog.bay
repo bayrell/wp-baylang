@@ -21,6 +21,6 @@ namespace Runtime.ORM;
 use Runtime.ORM.Query;
 
 
-class QueryLog extends Vector<Query>
+class QueryLog extends Vector<Map>
 {
 }

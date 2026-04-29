@@ -1,0 +1,169 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime;
+
+use Runtime.BaseLayout;
+use Runtime.BaseObject;
+use Runtime.BaseModel;
+use Runtime.Component;
+use Runtime.Serializer;
+use Runtime.VirtualDom;
+use Runtime.Hooks.RuntimeHook;
+use Runtime.Providers.RenderContent;
+
+
+class RenderContainer extends BaseObject
+{
+	BaseModel layout = null;
+	
+	
+	/**
+	 * Create layout
+	 */
+	BaseModel createLayout(string layout_name)
+	{
+		string class_name = "Runtime.BaseLayout";
+		
+		/* Get layout params */
+		Dict params = @.hook(RuntimeHook::LAYOUT_NAME, {
+			"class_name": class_name,
+			"layout_name": layout_name,
+		});
+		
+		this.layout = rtl::newInstance(params.get("class_name"), [params]);
+		this.layout.name = layout_name;
+		
+		/* Call create layout */
+		@.hook(RuntimeHook::CREATE_LAYOUT, {
+			"container": this,
+		});
+		
+		return this.layout;
+	}
+	
+	
+	/**
+	 * Change layout
+	 */
+	void changeLayout(string layout_name)
+	{
+		if (this.layout and this.layout.name == layout_name) return;
+		
+		/* Save old layout */
+		BaseLayout old_layout = this.layout;
+		
+		/* Create new layout */
+		this.createLayout(layout_name);
+		
+		/* Restore layout */
+		this.layout.restore(old_layout);
+		
+		/* Call create layout */
+		@.hook(RuntimeHook::CHANGE_LAYOUT, {
+			"container": this,
+		});
+	}
+	
+	
+	/**
+	 * Resolve container
+	 */
+	async void resolve()
+	{
+	}
+	
+	
+	/**
+	 * Render page model
+	 */
+	async void renderPageModel(string model_name, Dict params = null)
+	{
+		/* Set page model */
+		this.layout.setPageModel(model_name, params);
+		
+		/* Action index */
+		BaseModel page_model = this.layout.getPageModel();
+		if (page_model)
+		{
+			await page_model.loadData(this);
+			if (page_model == this.layout.getPageModel()) page_model.buildTitle(this);
+		}
+	}
+	
+	
+	/**
+	 * Load data
+	 */
+	async void loadData()
+	{
+		await this.layout.loadData();
+	}
+	
+	
+	/**
+	 * Returns data
+	 */
+	Dict getData()
+	{
+		Map layout_data = rtl::serialize(this.layout);
+		Map data = {
+			"modules": @.modules,
+			"class": this.layout::getClassName(),
+			"layout": layout_data,
+			"environments": {
+				"CLOUD_ENV": @.env("CLOUD_ENV"),
+				"DEBUG": @.env("DEBUG"),
+				"LOCALE": @.env("LOCALE"),
+				"TZ": @.env("TZ"),
+				"TZ_OFFSET": @.env("TZ_OFFSET"),
+				"ROUTE_PREFIX": @.env("ROUTE_PREFIX"),
+			},
+		};
+		Map res = @.hook(RuntimeHook::CREATE_CONTAINER_DATA, {
+			"container": this,
+			"data": data,
+		});
+		return res.get("data");
+	}
+	
+	
+	/**
+	 * Render app
+	 */
+	string renderApp()
+	{
+		Component component = rtl::newInstance(this.layout.component);
+		component.container = this;
+		component.layout = this.layout;
+		VirtualDom vdom = component.renderApp();
+		return vdom.render();
+	}
+	
+	
+	/**
+	 * Render layout
+	 */
+	string render()
+	{
+		VirtualDom vdom = new VirtualDom();
+		vdom.setName(this.layout.component);
+		vdom.setAttrs({"layout": this.layout});
+		return vdom.render();
+	}
+}

@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,103 +17,147 @@
  *  limitations under the License.
  */
 namespace Runtime\Web;
+
+use Runtime\BaseObject;
+use Runtime\Exceptions\ApiError;
+use Runtime\Exceptions\FieldException;
+use Runtime\Exceptions\RuntimeException;
+use Runtime\Serializer\BaseType;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\TypeError;
+use Runtime\Web\ApiRequest;
+use Runtime\Web\ApiResult;
+use Runtime\Web\Middleware;
+
+
 class BaseApi extends \Runtime\BaseObject
 {
-	public $action;
-	public $post_data;
-	public $layout;
-	public $result;
+	var $action;
+	var $request;
+	var $result;
+	var $data;
+	var $storage;
+	
+	
+	/**
+	 * Create object
+	 */
+	function __construct($params = null)
+	{
+		parent::__construct();
+		$this->initParams($params);
+	}
+	
+	
+	/**
+	 * Setup api
+	 */
+	function initParams($params){}
+	
+	
 	/**
 	 * Returns api name
 	 */
-	static function getApiName()
-	{
-		return "";
-	}
+	static function getApiName(){ return ""; }
+	
+	
 	/**
-	 * Init api
+	 * Returns data rules
 	 */
-	function init()
-	{
-	}
+	function getDataRules($rules){}
+	
+	
 	/**
-	 * Before route
+	 * Returns middleware
 	 */
-	function onActionBefore()
-	{
-	}
+	function getMiddleware(){ return new \Runtime\Vector(); }
+	
+	
 	/**
-	 * After route
+	 * Set action
 	 */
-	function onActionAfter()
+	function setAction($action)
 	{
+		$this->action = $action;
 	}
+	
+	
+	/**
+	 * Set request
+	 */
+	function setRequest($request)
+	{
+		$this->request = $request;
+		$this->storage = $request->storage;
+	}
+	
+	
+	/**
+	 * Filter rules
+	 */
+	function filter($data, $rules, $error = new \Runtime\Vector())
+	{
+		$data = $rules->filter($data, $error);
+		if ($error->count() > 0)
+		{
+			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\FieldException(new \Runtime\Map([
+				"error" => \Runtime\Serializer\TypeError::getMap($error),
+			])));
+		}
+		return $data;
+	}
+	
+	
+	/**
+	 * Filter data
+	 */
+	function filterData()
+	{
+		$errors = new \Runtime\Vector();
+		$rules = new \Runtime\Serializer\MapType();
+		$this->getDataRules($rules);
+		$this->data = $this->filter($this->request->data, $rules, $errors);
+	}
+	
+	
 	/**
 	 * Set success
 	 */
-	function success($data=null)
+	function success($data = null)
 	{
-		$this->result->success($data);
+		return $this->result->success($data);
 	}
+	
+	
 	/**
 	 * Setup exception
 	 */
 	function exception($e)
 	{
-		$this->result->exception($e);
+		return $this->result->exception($e);
 	}
+	
+	
 	/**
 	 * Setup fail
 	 */
-	function fail($data=null)
+	function fail($data = null)
 	{
-		$this->result->fail($data);
+		return $this->result->fail($data);
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->action = "";
-		$this->post_data = null;
-		$this->layout = null;
-		$this->result = null;
+		$this->request = null;
+		$this->result = new \Runtime\Web\ApiResult();
+		$this->data = null;
+		$this->storage = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Web";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.BaseApi";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.BaseApi"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

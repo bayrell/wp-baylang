@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,146 +17,55 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
-class Button extends \Runtime\Web\Component
+
+
+class Button extends \Runtime\Component
 {
-	public $class;
-	public $type;
-	public $target;
-	public $content;
-	public $href;
-	public $styles;
 	function render()
 	{
-		$__v = new \Runtime\Vector();
-		$data = $this->getData();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		if ($data->get("href") == null)
+		if ($this->href == null)
 		{
-			/* Element 'button' */
-			$__v0 = new \Runtime\Vector();
-			$content = $data->get("content");
-			
-			if ($content)
-			{
-				/* Text */
-				$this->_t($__v0, $this->_escape($content));
-			}
-			else
-			{
-				/* Text */
-				$this->_t($__v0, $this->renderSlot("default"));
-			}
-			
-			/* Element 'button' */
-			$this->_e($__v, "button", ["type" => $this->type,"class" => $this->_class_name(["widget_button", static::mergeStyles("widget_button", $data->get("styles")), $this->renderListClass(), $this->class])], $__v0);
+			/* Element button */
+			$__v0 = $__v->element("button", (new \Runtime\Map(["type" => $this->type, "class" => \Runtime\rs::className(new \Runtime\Vector("button", \Runtime\rs::mergeStyles("button", $this->styles), $this->class, $componentHash))])));
+			$__v0->push($this->renderSlot("default"));
 		}
 		else
 		{
-			/* Element 'a' */
-			$__v0 = new \Runtime\Vector();
-			
-			/* Element 'button' */
-			$__v1 = new \Runtime\Vector();
-			$content = $data->get("content");
-			
-			if ($content)
-			{
-				/* Text */
-				$this->_t($__v1, $this->_escape($content));
-			}
-			else
-			{
-				/* Text */
-				$this->_t($__v1, $this->renderSlot("default"));
-			}
-			
-			/* Element 'button' */
-			$this->_e($__v0, "button", ["type" => $this->type,"class" => $this->_class_name(["widget_button", static::mergeStyles("widget_button", $data->get("styles")), $this->renderListClass()])], $__v1);
-			
-			/* Element 'a' */
-			$this->_e($__v, "a", ["href" => $data->get("href"),"target" => $data->get("target"),"class" => $this->_class_name(["nolink", $this->class, "widget_button__link"])], $__v0);
+			/* Element a */
+			$__v1 = $__v->element("a", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("button", $this->class, \Runtime\rs::mergeStyles("button", $this->styles), $componentHash)), "href" => $this->href, "target" => $this->target])));
+			$__v1->push($this->renderSlot("default"));
 		}
 		
-		return $this->_flatten($__v);
+		return $__v;
 	}
+	var $type;
+	var $target;
+	var $content;
+	var $href;
+	var $styles;
 	/**
- * Returns props
- */
-	function getData()
-	{
-		if ($this->model)
-		{
-			$props = $this->model->getProps($this->data);
-			$props->set("styles", $this->styles->concat($this->model->styles)->removeDuplicates());
-			return $props;
-		}
-		return \Runtime\Map::from(["content"=>$this->content,"href"=>$this->href,"styles"=>$this->styles,"target"=>$this->target]);
-	}
-	/**
- * Button click
- */
+	 * Button click
+	 */
 	function onClick($e)
 	{
 		$e->stopPropagation();
-		$data = $this->getData();
-		if ($this->model && $data->get("href") == null)
-		{
-			$this->model->onClick($this->data);
-		}
 	}
-	static function css($vars)
-	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_button.h-8dd7{color: var(--widget-color-text);font-family: var(--widget-font-family);font-size: var(--widget-font-size);line-height: var(--widget-line-height);background-color: var(--widget-color-default);border: var(--widget-border-width) var(--widget-color-border) solid;padding: var(--widget-button-padding-y) var(--widget-button-padding-x);outline: 0;cursor: pointer;border-radius: 4px}.widget_button.h-8dd7:active{box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25)}.widget_button--bold.h-8dd7{font-weight: bold}.widget_button--small.h-8dd7{padding: var(--widget-button-padding-small-y) var(--widget-button-padding-small-x);line-height: 1.2em}.widget_button--large.h-8dd7{padding: var(--widget-button-padding-large-y) var(--widget-button-padding-large-x)}.widget_button--primary.h-8dd7{color: var(--widget-color-primary-text);background-color: var(--widget-color-primary);border-color: var(--widget-color-primary)}.widget_button--danger.h-8dd7{color: var(--widget-color-danger-text);background-color: var(--widget-color-danger);border-color: var(--widget-color-danger)}.widget_button--success.h-8dd7{color: var(--widget-color-success-text);background-color: var(--widget-color-success);border-color: var(--widget-color-success)}.widget_button--stretch.h-8dd7{width: 100%}");
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->class = "";
 		$this->type = "button";
 		$this->target = "_self";
 		$this->content = "";
 		$this->href = null;
-		$this->styles = \Runtime\Vector::from([]);
+		$this->styles = new \Runtime\Vector();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Button";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".button{display: inline-flex;align-items: center;justify-content: center;color: var(--color-text);font-weight: 500;font-family: var(--font-family);font-size: var(--font-input-size);line-height: var(--line-height);text-decoration: none;background-color: var(--color-background);border: var(--border-width) var(--color-border) solid;padding: calc(var(--space) * 0.75) calc(var(--space) * 1.5);outline: none;cursor: pointer;border-radius: var(--border-radius);transition: background-color var(--transition) var(--transition-type),\n\t\tborder-color var(--transition) var(--transition-type),\n\t\tcolor var(--transition) var(--transition-type)}.button:active{box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.25);outline: none}.button--small{padding: calc(var(--space) * 0.5) calc(var(--space) * 1);line-height: 1.2em}.button--large{padding: calc(var(--space) * 1) calc(var(--space) * 2)}.button--primary{color: var(--color-primary-text);background-color: var(--color-primary);border-color: var(--color-primary-border)}.button--primary:hover{background-color: var(--color-primary-hover)}.button--secondary{color: var(--color-secondary-text);background-color: var(--color-secondary);border-color: var(--color-secondary-border)}.button--secondary:hover{background-color: var(--color-secondary-hover)}.button--outline{background-color: transparent;color: var(--color-text);border-color: var(--color-border)}.button--outline:hover{background-color: var(--color-surface)}.button--danger{color: var(--color-danger-text);background-color: var(--color-danger);border-color: var(--color-danger-border)}.button--danger:hover{background-color: var(--color-danger-hover)}.button--success{color: var(--color-success-text);background-color: var(--color-success);border-color: var(--color-success-border)}.button--success:hover{background-color: var(--color-success-hover)}.button--info{color: var(--color-info-text);background-color: var(--color-info);border-color: var(--color-info-border)}.button--info:hover{background-color: var(--color-info-hover)}.button--warning{background-color: var(--color-warning);border-color: var(--color-warning-border)}.button--warning:hover{background-color: var(--color-warning-hover)}.button--stretch{width: 100%}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.Button"; }
 }

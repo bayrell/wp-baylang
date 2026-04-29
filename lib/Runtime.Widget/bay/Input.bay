@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,26 +18,30 @@
 
 <class name="Runtime.Widget.Input" extends="Runtime.Widget.Field">
 
-<use name="Runtime.Web.Messages.ValueChangeMessage" />
+<use name="Runtime.Widget.Messages.ValueChangeMessage" />
 
 
 <style>
-.widget_input{
+.input{
 	width: 100%;
-	font-family: var(--widget-font-family);
-	font-size: var(--widget-font-size);
-	padding: var(--widget-input-padding-y) var(--widget-input-padding-x);
-	background-color: var(--widget-color-default);
-	border-width: var(--widget-border-width);
-	border-color: var(--widget-color-border);
+	font-family: var(--font-family);
+	font-size: var(--font-input-size);
+	padding: calc(var(--space) * 0.75) calc(var(--space) * 1.5);
+	background-color: var(--color-background);
+	border-width: var(--border-width);
+	border-color: var(--color-border);
 	border-style: solid;
-	border-radius: 4px;
+	border-radius: var(--border-radius);
 	box-shadow: none;
+	color: var(--color-text);
 	outline: transparent;
 	line-height: normal;
 	min-height: 32px;
+	transition: background-color var(--transition) var(--transition-type),
+		border-color var(--transition) var(--transition-type),
+		color var(--transition) var(--transition-type);
 }
-.widget_input:focus{
+.input:focus{
 	outline: transparent;
 }
 </style>
@@ -46,7 +50,8 @@
 <template>
 	%set Map props = this.getProps();
 	<input
-		class="widget_input"
+		class="input"
+		class={{ this.class }}
 		type={{ this.type }}
 		name={{ this.name }}
 		value={{ this.getValue() }}
@@ -82,18 +87,6 @@ string getValue()
 
 
 /**
- * Returns input props
- */
-Map getProps()
-{
-	if (this.readonly) return {
-		"readonly": true,
-	};
-	return {};
-}
-
-
-/**
  * KeyDown event
  */
 void onKeyDown(var e)
@@ -119,7 +112,7 @@ void onChange(var e)
 	var input = this.getRef("input");
 	
 	/* Send value change */
-	this.emit("valueChange", new ValueChangeMessage{
+	this.emit(new ValueChangeMessage{
 		"value": input.value,
 		"old_value": this.value,
 		"data": this.data,

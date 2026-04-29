@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 <class name="Runtime.Widget.Tree.TreeWidget">
 
 <use name="Runtime.Math" />
+<use name="Runtime.Widget.Tree.Dnd" />
 <use name="Runtime.Widget.Tree.TreeItem" />
 <use name="Runtime.Widget.Tree.TreeMessage" />
 
@@ -26,13 +27,16 @@
 <style>
 .tree_widget{
 	position: relative;
-	height: 100%;
 }
 .tree_widget__items > .tree_widget__items{
 	padding-left: 10px;
 }
 .tree_widget__items.hide{
 	display: none;
+}
+.tree_widget__item_icon{
+	display: inline-block;
+	padding: 5px;
 }
 .tree_widget__item_label{
 	display: inline-block;
@@ -41,8 +45,8 @@
 	user-select: none;
 }
 .tree_widget__item.selected > .tree_widget__item_label{
-	background-color: var(--widget-color-primary);
-	color: var(--widget-color-primary-text);
+	background-color: var(--color-primary);
+	color: var(--color-primary-text);
 }
 .tree_widget__box{
 	position: absolute;
@@ -62,7 +66,7 @@
 
 
 <template name="renderBox">
-	%if (this.drag_dest_box != null and this.is_drag)
+	%if (this.drag_dest_box)
 	{
 		<div class="tree_widget__box" class={{ "tree_widget__box--" ~ this.drag_dest_kind }}
 			style={{ this.drag_dest_box }}
@@ -73,14 +77,26 @@
 
 <template name="renderItemLabel" args="TreeItem item, Collection<int> path">
 	<span class="tree_widget__item_label"
-		@event:mousedown={{
-			void (var e) use (item, path) { this.onMouseDownItem(e, item, path); }
-		}}
+		@event:mousedown="this.onMouseDownItem(event, path);"
+		@event:contextmenu="this.onContextMenuItem(event, path);"
 	>{{ item.label }}</span>
 </template>
 
 
 <template name="renderItemContent" args="TreeItem item, Collection<int> path">
+	%if (this.model.has_icons)
+	{
+		%if (item.icon_svg)
+		{
+			<span class="tree_widget__item_icon" @raw={{ item.icon_svg }} />
+		}
+		%else
+		{
+			<span class="tree_widget__item_icon">
+				<img src={{ item.icon_path }} />
+			</span>
+		}
+	}
 	%render this.renderItemLabel(item, path);
 </template>
 
@@ -89,12 +105,7 @@
 	<div class="tree_widget__item" data-path={{ rs::join(".", path) }}
 		class={{ item == this.model.selected_item ? "selected" : "" }}
 		@key={{ "item." ~ rs::join(".", path) ~ "-" ~ item.key }}
-		@event:contextmenu={{
-			void (var e) use (item, path) { this.onContextMenuItem(e, item, path); }
-		}}
-		@event:mousemove={{
-			void (var e) use (item) { this.onMouseMoveItem(e, item); }
-		}}
+		@event:mousemove="this.onMouseMoveItem(event, path);"
 	>
 		%render this.renderItemContent(item, path);
 	</div>
@@ -112,7 +123,7 @@
 		>
 			%for (int i=0; i<item.items.count(); i++)
 			{
-				%render this.renderItem(item.items.get(i), path.pushIm(i));
+				%render this.renderItem(item.items.get(i), path.concat([i]));
 			}
 		</div>
 	}
@@ -121,21 +132,17 @@
 
 <template>
 	<div class="tree_widget" @ref="widget"
-		@event:contextmenu={{
-			void (var e) { this.onContextMenuItem(e, null, null); }
-		}}
-		@event:mousedown={{
-			void (var e) { this.onMouseDown(e, null, null); }
-		}}
-		@event:mouseup={{ void (var e){ this.onMouseUp(e); } }}
-		@event:mousemove={{ void (var e){ this.onMouseMove(e); } }}
+		@event:contextmenu="this.onContextMenuItem(event);"
+		@event:mousedown="this.onMouseDown(event);"
+		@event:mouseup="this.onMouseUp(event);"
+		@event:mousemove="this.onMouseMove(event);"
 	>
 		%render this.renderBox();
 		<div class="tree_widget__content" @ref="content">
 			%render this.renderItems(this.model.root, []);
 		</div>
 	</div>
-	%if (this.model.context_menu and this.model.render_context_menu)
+	%if (this.model.context_menu and this.model.context_menu_render)
 	{
 		%render this.renderWidget(this.model.context_menu);
 	}
@@ -144,198 +151,23 @@
 
 <script>
 
-bool is_drag = false;
-var drag_elem = null;
-Dict drag_start_point = null;
-string drag_dest_box = null;
-var drag_dest_elem = null;
-var drag_dest_item = null;
-var drag_dest_kind = null;
-
-
 /**
- * Returns src elem
+ * Returns dest box
  */
-Collection<int> getSrc()
+computed string drag_dest_box()
 {
-	if (not this.drag_elem) return null;
-	string src_elem_path = this.drag_elem.getAttribute("data-path");
-	Collection<string> src_elem = src_elem_path ? rs::split(".", src_elem_path) : [];
-	return src_elem.map(int (string s) => (int)s);
+	if (this.model.dnd and this.model.dnd.is_drag) return this.model.dnd.drag_dest_box;
+	return "";
 }
 
 
 /**
- * Returns dest elem
+ * Returns drag dest kind
  */
-Collection<int> getDest()
+computed string drag_dest_kind()
 {
-	if (not this.drag_dest_elem) return null;
-	string dest_elem_path = this.drag_dest_elem.getAttribute("data-path");
-	Collection<string> dest_elem = dest_elem_path ? rs::split(".", dest_elem_path) : [];
-	return dest_elem.map(int (string s) => (int)s);
-}
-
-
-/**
- * Find drag elem
- */
-var findDragElem(var elem)
-{
-	if (elem.classList.contains("tree_widget__item_label")) return elem.parentElement;
-	return elem;
-}
-
-
-/**
- * Find elem by path
- */
-var findElemByPath(var path)
-{
-	string path = ".tree_widget__item[data-path='" ~ path ~ "']";
-	return document.querySelector(path);
-}
-
-
-/**
- * Returns true if elem inside drag_elem
- */
-void checkInside(var elem)
-{
-	if (not this.drag_elem) return false;
-	if (elem == this.drag_elem) return false;
-	
-	string drag_elem_path = this.drag_elem.getAttribute("data-path");
-	string elem_path = elem.getAttribute("data-path");
-	
-	if (drag_elem_path == elem_path) return true;
-	if (rs::substr(elem_path, 0, rs::strlen(drag_elem_path) + 1) == drag_elem_path ~ ".") return true;
-	return false;
-}
-
-
-/**
- * Start Drag & Drop
- */
-void startDrag(var e)
-{
-	if (not this.model.dnd) return false;
-	if (this.is_drag != false) return false;
-	if (this.drag_start_point == null) return false;
-	if (Math::abs(e.layerY - this.drag_start_point.get("y")) > 5) return false;
-	this.is_drag = true;
-	return true;
-}
-
-
-/**
- * Stop drag & drop
- */
-void stopDrag()
-{
-	/* Do drag & drop */
-	if (this.drag_dest_box and this.drag_elem and this.drag_dest_elem)
-	{
-		this.model.dragElement(this.getSrc(), this.getDest(), this.drag_dest_kind);
-	}
-	
-	this.is_drag = false;
-	this.drag_dest_box = null;
-	this.drag_dest_elem = null;
-	this.drag_dest_item = null;
-	this.drag_dest_kind = null;
-	this.drag_elem = null;
-	this.drag_start_point = null;
-}
-
-
-/**
- * Set drag & drop dest element
- */
-void setDragDestElement(var elem, Dict item, string kind)
-{
-	if (not this.is_drag) return;
-	if (this.checkInside(elem)) return;
-	if (kind == "into" and this.drag_elem == elem) kind = "before";
-	if (kind == "into" and item != null and not item.canDragInside()) kind = "after";
-	if (this.drag_dest_elem == elem and this.drag_dest_kind == kind) return;
-	
-	/* Setup box */
-	if (this.drag_elem == elem)
-	{
-		this.drag_dest_box = null;
-		return;
-	}
-	
-	/* Setup dest element */
-	this.drag_dest_elem = elem;
-	this.drag_dest_item = item;
-	
-	/* Get elem path */
-	Collection src_path = this.getSrc();
-	Collection dest_path = this.getDest();
-	if (dest_path == null)
-	{
-		this.drag_dest_box = null;
-		return;
-	}
-	
-	/* Can drag */
-	bool can_drag = this.model.canDrag(src_path, dest_path, kind);
-	if (not can_drag)
-	{
-		if (kind == "into")
-		{
-			kind = "after";
-			can_drag = this.model.canDrag(src_path, dest_path, kind);
-			if (not can_drag)
-			{
-				this.drag_dest_box = null;
-				return;
-			}
-		}
-	}
-	
-	/* Setup dest values */
-	this.drag_dest_kind = kind;
-	this.drag_dest_box = this.getBoxStyles(elem, kind);
-}
-
-
-/**
- * Returns box styles by element
- */
-Dict getBoxStyles(var elem, string kind = "")
-{
-	int left, top, width, height;
-	
-	left = elem.offsetLeft;
-	top = elem.offsetTop;
-	width = elem.clientWidth - 1;
-	height = elem.clientHeight - 1;
-	
-	if (kind == "before") return rs::join(";", [
-		"left: " ~ left ~ "px",
-		"top: " ~ top ~ "px",
-		"width: " ~ width ~ "px",
-		"height: 1px",
-	]);
-	
-	if (kind == "after") return rs::join(";", [
-		"left: " ~ left ~ "px",
-		"top: " ~ (top + height) ~ "px",
-		"width: " ~ width ~ "px",
-		"height: 1px",
-	]);
-	
-	if (kind == "into") return rs::join(";", [
-		"left: " ~ left ~ "px",
-		"top: " ~ top ~ "px",
-		"width: " ~ width ~ "px",
-		"height: " ~ height ~ "px",
-	]);
-	
-	return null;
+	if (this.model.dnd and this.model.dnd.is_drag) return this.model.dnd.drag_dest_kind;
+	return "";
 }
 
 
@@ -345,7 +177,7 @@ Dict getBoxStyles(var elem, string kind = "")
 void showContextMenu(var e)
 {
 	int x, y;
-	if (this.model.render_context_menu)
+	if (this.model.context_menu_render)
 	{
 		x = e.layerX;
 		y = e.layerY;
@@ -360,24 +192,44 @@ void showContextMenu(var e)
 
 
 /**
+ * Mount component
+ */
+void mounted()
+{
+	window.addEventListener("mousemove", this.onMouseMove);
+	window.addEventListener("mouseup", this.onMouseUp);
+	if (this.model.dnd)
+	{
+		this.model.dnd.component = this;
+	}
+}
+
+
+/**
+ * Unmounted
+ */
+void unmounted()
+{
+	window.removeEventListener("mousemove", this.onMouseMove);
+	window.removeEventListener("mouseup", this.onMouseUp);
+}
+
+
+/**
  * Mouse context menu item click
  */
-void onContextMenuItem(var e, TreeItem item, Collection<int> path)
+void onContextMenuItem(var e, Vector path)
 {
 	/* Send message context menu */
-	this.model.emit(
+	this.model.listener.emit(
 		new TreeMessage
 		{
 			"name": "contextMenu",
 			"path": path,
-			"item": item,
+			"item": this.model.root.get(path),
 			"event": e,
 		}
 	);
-	if (item)
-	{
-		item.onContextMenu(this.model);
-	}
 	
 	/* Select item */
 	if (this.model.autoselect)
@@ -385,12 +237,12 @@ void onContextMenuItem(var e, TreeItem item, Collection<int> path)
 		this.model.selectItem(path);
 		
 		/* Send event */
-		this.model.emit(
+		this.model.listener.emit(
 			new TreeMessage
 			{
 				"kind": "context_menu",
 				"name": "selectItem",
-				"path": this.model.selected_path,
+				"path": path,
 				"item": this.model.selected_item
 			}
 		);
@@ -411,7 +263,7 @@ void onContextMenuItem(var e, TreeItem item, Collection<int> path)
 /**
  * Mouse down
  */
-void onMouseDownItem(var e, TreeItem item, Collection<int> path)
+void onMouseDownItem(var e, Vector path)
 {
 	if (e.button != 0) return;
 	
@@ -428,30 +280,19 @@ void onMouseDownItem(var e, TreeItem item, Collection<int> path)
 	}
 	
 	/* Send event */
-	this.model.emit(
+	this.model.listener.emit(
 		new TreeMessage
 		{
 			"kind": "click",
 			"name": "selectItem",
-			"path": this.model.selected_path,
-			"item": this.model.selected_item,
+			"path": path,
+			"item": this.model.root.get(path),
 			"event": e,
 		}
 	);
-	if (item)
-	{
-		item.onClick(this.model);
-	}
 	
 	/* Set start drag item */
-	if (this.model.dnd)
-	{
-		this.drag_elem = this.findDragElem(e.currentTarget);
-		this.drag_start_point = {
-			"x": e.layerX,
-			"y": e.layerY,
-		};
-	}
+	if (this.model.dnd) this.model.dnd.onMouseDownItem(e, path);
 	
 	e.preventDefault();
 	e.stopPropagation();
@@ -476,35 +317,16 @@ void onMouseDown(var e)
  */
 void onMouseUp(var e)
 {
-	this.stopDrag();
+	if (this.model.dnd) this.model.dnd.stopDrag();
 }
 
 
 /**
  * Mouse move item
  */
-void onMouseMoveItem(var e, Dict item)
+void onMouseMoveItem(var e, Vector path)
 {
-	if (this.drag_elem == null) return;
-	
-	/* Try to start drag & drop */
-	if (not this.is_drag) this.startDrag(e);
-	if (not this.is_drag) return;
-	
-	/* Drag & Drop started */
-	var target = e.currentTarget;
-	int top = target.offsetTop;
-	int bottom = target.offsetTop + target.clientHeight;
-	int center = (top + bottom) / 2;
-	
-	string kind = "before";
-	if (e.layerY >= center)
-	{
-		kind = "into";
-	}
-	
-	this.setDragDestElement(target, item, kind);
-	e.preventDefault();
+	if (this.model.dnd) this.model.dnd.onMouseMoveItem(e, path);
 }
 
 
@@ -513,20 +335,7 @@ void onMouseMoveItem(var e, Dict item)
  */
 void onMouseMove(var e)
 {
-	if (this.drag_elem == null) return;
-	
-	/* Try to start drag & drop */
-	if (not this.is_drag) this.startDrag(e);
-	if (not this.is_drag) return;
-	
-	/* Outside of tree contents */
-	var tree_content = this.getRef("content");
-	if (e.layerY > tree_content.clientHeight)
-	{
-		this.setDragDestElement(tree_content, null, "after");
-		e.preventDefault();
-		return false;
-	}
+	if (this.model.dnd) this.model.dnd.onMouseMove(e);
 }
 
 </script>

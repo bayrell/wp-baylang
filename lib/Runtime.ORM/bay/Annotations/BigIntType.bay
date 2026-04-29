@@ -18,28 +18,34 @@
 
 namespace Runtime.ORM.Annotations;
 
-use Runtime.BaseStruct;
+use Runtime.Serializer.IntegerType;
 use Runtime.ORM.Annotations.BaseType;
 use Runtime.ORM.Connection;
 
 
-struct BigIntType extends BaseType
+class BigIntType extends BaseType
 {
+	/**
+	 * Returns schema
+	 */
+	BaseType getRule() => new IntegerType();
+	
+	
 	/**
 	 * Process item from database
 	 */
-	async var fromDatabase(Connection conn, Dict item)
+	async var fromDatabase(Connection conn, Map item)
 	{
 		if (item.has(this.name))
 		{
-			var value = item[this.name];
+			var value = item.get(this.name);
 			if (value === null and this.nullable)
 			{
-				item <= { this.name } <= null;
+				item.set(this.name, null);
 			}
 			else
 			{
-				item <= { this.name } <= (int)value;
+				item.set(this.name, rtl::toInt(value));
 			}
 		}
 		return item;

@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 
 namespace Runtime.Unit.Commands;
 
-use Runtime.io;
 use Runtime.Console.BaseCommand;
 use Runtime.Unit.TestProvider;
 use Runtime.UnitAnnotations.UnitTest;
@@ -49,13 +48,13 @@ class TestRun extends BaseCommand
 		if (test_name == null)
 		{
 			/* List all tests */
-			io::print("List of all tests:");
+			rtl::print("List of all tests:");
 			TestProvider tests = @.provider(classof TestProvider);
 			
 			for (int i=0; i<tests.count(); i++)
 			{
 				UnitTest test = tests.get(i);
-				io::print( (i + 1) ~ ") " ~ io::color("yellow", test.name) );
+				rtl::print( (i + 1) ~ ") " ~ rtl::color("yellow", test.name) );
 			}
 		}
 		else
@@ -66,11 +65,11 @@ class TestRun extends BaseCommand
 			
 			if (error_code == 1)
 			{
-				io::print( io::color("green", "OK") );
+				rtl::print( rtl::color("green", "OK") );
 			}
 			else
 			{
-				io::print( io::color("red", "Fail") );
+				rtl::print( rtl::color("red", "Fail") );
 			}
 		}
 		

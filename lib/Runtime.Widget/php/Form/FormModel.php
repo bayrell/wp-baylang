@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,448 +17,168 @@
  *  limitations under the License.
  */
 namespace Runtime\Widget\Form;
-class FormModel extends \Runtime\Web\BaseModel
+
+use Runtime\ApiResult;
+use Runtime\BaseModel;
+use Runtime\Method;
+use Runtime\Message;
+use Runtime\Serializer\BaseType;
+use Runtime\Serializer\ObjectType;
+use Runtime\Widget\ResultModel;
+use Runtime\Widget\Form\FieldErrors;
+use Runtime\Widget\Form\Form;
+use Runtime\Widget\Form\FormMessage;
+
+
+class FormModel extends \Runtime\BaseModel
 {
-	public $component;
-	public $widget_name;
-	public $form_title;
-	public $form_content;
-	public $styles;
-	public $foreign_key;
-	public $post_data;
-	public $fields;
-	public $fields_error;
-	public $field_settings;
-	public $row_number;
-	public $pk;
-	public $item;
-	public $primary_key;
-	public $storage;
-	public $bottom_buttons;
-	public $load;
-	public $result;
-	public $show_result;
+	var $component;
+	var $data_object;
+	var $pk;
+	var $item;
+	var $fields;
+	var $field_errors;
+	var $result;
+	var $primary_rules;
+	var $item_rules;
+	
+	
 	/**
-	 * Create data storage
+	 * Serialize object
 	 */
-	function createDataStorage()
+	static function serialize($rules)
 	{
-		return null;
+		parent::serialize($rules);
+		$rules->addType("pk", $rules->params ? $rules->params->get("primary_rules") : null);
+		$rules->addType("item", $rules->params ? $rules->params->get("item_rules") : null);
+		$rules->addType("result", new \Runtime\Serializer\ObjectType(new \Runtime\Map(["class_name" => "Runtime.Widget.ResultModel"])));
+		$rules->setup->add(function ($model, $rules)
+		{
+			$model->primary_rules = $rules->params ? $rules->params->get("primary_rules") : null;
+			$model->item_rules = $rules->params ? $rules->params->get("item_rules") : null;
+		});
 	}
+	
+	
 	/**
-	 * Set data storage
-	 */
-	function setDataStorage($storage)
-	{
-		$this->storage = $storage;
-	}
-	/**
-	 * Init widget params
+	 * Init params
 	 */
 	function initParams($params)
 	{
 		parent::initParams($params);
-		if ($params == null)
-		{
-			return ;
-		}
-		if ($params->has("field_settings"))
-		{
-			$this->field_settings = $params->get("field_settings");
-		}
-		if ($params->has("foreign_key"))
-		{
-			$this->foreign_key = $params->get("foreign_key");
-		}
-		if ($params->has("form_content"))
-		{
-			$this->form_content = $params->get("form_content");
-		}
-		if ($params->has("form_title"))
-		{
-			$this->form_title = $params->get("form_title");
-		}
-		if ($params->has("post_data"))
-		{
-			$this->post_data = $params->get("post_data");
-		}
-		if ($params->has("show_result"))
-		{
-			$this->show_result = $params->get("show_result");
-		}
-		if ($params->has("styles"))
-		{
-			$this->styles = $params->get("styles");
-		}
-		/* Setup params */
-		if ($params->has("fields"))
-		{
-			$this->fields = \Runtime\Vector::from([]);
-			$this->addFields($params->get("fields"));
-		}
-		/* Setup storage */
-		if ($params->has("storage"))
-		{
-			$storage = $params->get("storage");
-			if ($storage instanceof \Runtime\Entity\Factory)
-			{
-				$this->storage = $storage->factory();
-			}
-			else if (\Runtime\rtl::isString($storage))
-			{
-				$this->storage = \Runtime\rtl::newInstance($storage, \Runtime\Vector::from([$this]));
-			}
-			else
-			{
-				$this->storage = $storage;
-			}
-		}
-		if ($this->storage == null)
-		{
-			$this->storage = $this->createDataStorage($params);
-		}
-		/* Setup storage form */
-		if ($this->storage != null)
-		{
-			$this->storage->setForm($this);
-		}
-		/* Setup primary key */
-		if ($params->has("pk"))
-		{
-			$this->pk = $params->get("pk");
-		}
-		if ($params->has("primary_key"))
-		{
-			$this->primary_key = $params->get("primary_key");
-		}
+		if ($params->has("data_object")) $this->data_object = $params->get("data_object");
+		if ($params->has("fields")) $this->fields = $params->get("fields");
 	}
+	
+	
 	/**
-	 * Init widget settings
+	 * Init widget
 	 */
 	function initWidget($params)
 	{
 		parent::initWidget($params);
-		/* Load result */
-		$this->load = $this->addWidget("Runtime.Widget.WidgetResultModel", \Runtime\Map::from(["widget_name"=>"load"]));
-		/* Result */
-		$this->result = $this->addWidget("Runtime.Widget.WidgetResultModel", \Runtime\Map::from(["widget_name"=>"result","styles"=>\Runtime\Vector::from(["margin_top"])]));
-		/* Buttons */
-		$this->bottom_buttons = $this->addWidget("Runtime.Widget.RowButtonsModel", \Runtime\Map::from(["widget_name"=>"bottom_buttons","styles"=>\Runtime\Vector::from(["bottom_buttons","center"])]));
+		$this->field_errors = $this->createWidget("Runtime.Widget.Form.FieldErrors", new \Runtime\Map([
+			"error_name" => "fields",
+		]));
+		$this->result = $this->createWidget("Runtime.Widget.ResultModel");
 	}
+	
+	
 	/**
-	 * Add field
+	 * Set wait message
 	 */
-	function addField($field)
+	function setWaitMessage()
 	{
-		/* Create model */
-		if ($field->has("model"))
+		$this->result->setWaitMessage();
+	}
+	
+	
+	/**
+	 * Set api result
+	 */
+	function setApiResult($result)
+	{
+		$this->result->setApiResult($result);
+		$this->field_errors->setApiResult($result);
+	}
+	
+	
+	/**
+	 * Returns result
+	 */
+	function getResult($name)
+	{
+		return $this->field_errors->get($name);
+	}
+	
+	
+	/**
+	 * Set item value
+	 */
+	function setValue($name, $value)
+	{
+		$this->item->set($name, $value);
+		$this->listener->emit(new \Runtime\Widget\Form\FormMessage(new \Runtime\Map([
+			"name" => "setValue",
+			"key" => $name,
+			"value" => $value,
+		])));
+	}
+	
+	
+	/**
+	 * Set primary key
+	 */
+	function setPrimaryKey($item)
+	{
+		if ($this->primary_rules)
 		{
-			$model = $field->get("model");
-			if ($model instanceof \Runtime\Web\ModelFactory)
-			{
-				$instance = $model->factory($this);
-				$field->set("model", $instance);
-			}
+			$primary_key = $this->primary_rules->keys();
+			$this->pk = $this->primary_rules->filter($item->intersect($primary_key), new \Runtime\Vector());
 		}
-		/* Add field */
-		$this->fields->append($field);
-		/* Add component */
-		if ($field->has("component"))
+		else
 		{
-			$this->layout->addComponent($field->get("component"));
+			$this->pk = null;
 		}
 	}
+	
+	
 	/**
-	 * Add fields
+	 * Set item
 	 */
-	function addFields($fields)
+	function setItem($item)
 	{
-		for ($i = 0; $i < $fields->count(); $i++)
-		{
-			$this->addField($fields->get($i));
-		}
+		$this->item = $this->item_rules ? $this->item_rules->filter($item, new \Runtime\Vector()) : $item;
 	}
-	/**
-	 * Get field
-	 */
-	function getField($field_name)
-	{
-		return $this->fields->findItem(\Runtime\lib::equalAttr("name", $field_name));
-	}
-	/**
-	 * Remove field
-	 */
-	function removeField($field_name)
-	{
-		$this->fields = $this->fields->filter(function ($field) use (&$field_name)
-		{
-			return $field->get("name") != $field_name;
-		});
-	}
-	/**
-	 * Returns field result
-	 */
-	function getFieldResult($field_name)
-	{
-		if ($this->fields_error->has($field_name))
-		{
-			return $this->fields_error->get($field_name);
-		}
-		return \Runtime\Vector::from([]);
-	}
+	
+	
 	/**
 	 * Clear form
 	 */
 	function clear()
 	{
 		$this->pk = null;
-		$this->row_number = -1;
-		$this->clearError();
-		$this->clearItem();
-	}
-	/**
-	 * Clear form error
-	 */
-	function clearError()
-	{
-		$this->fields_error = \Runtime\Map::from([]);
+		$this->item = $this->data_object ? \Runtime\rtl::newInstance($this->data_object) : new \Runtime\Map();
+		$this->field_errors->clear();
 		$this->result->clear();
 	}
-	/**
-	 * Clear form
-	 */
-	function clearItem()
-	{
-		$this->item = \Runtime\Map::from([]);
-		for ($i = 0; $i < $this->fields->count(); $i++)
-		{
-			$field = $this->fields->get($i);
-			$field_name = $field->get("name");
-			$default_value = $field->get("default", "");
-			$this->item->set($field_name, \Runtime\Serializer::copy($default_value));
-		}
-	}
-	/**
-	 * Field changed event
-	 */
-	function onFieldChange($field_name, $value)
-	{
-		$old_value = $this->item->get($field_name);
-		$this->item->set($field_name, $value);
-		$this->emitAsync(new \Runtime\Widget\Form\FormMessage(\Runtime\Map::from(["name"=>"field_change","field_name"=>$field_name,"old_value"=>$old_value,"value"=>$value])));
-	}
-	/**
-	 * Returns item value
-	 */
-	function getItemValue($field_name)
-	{
-		return $this->item->get($field_name);
-	}
-	/**
-	 * Returns primary key
-	 */
-	function getPrimaryKey($item)
-	{
-		return $item->intersect($this->primary_key);
-	}
-	/**
-	 * Set item
-	 */
-	function setItem($item)
-	{
-		if ($item == null)
-		{
-			$this->pk = null;
-			$this->item = \Runtime\Map::from([]);
-		}
-		else
-		{
-			$this->pk = $this->getPrimaryKey($item);
-			$this->item = $item;
-		}
-	}
-	/**
-	 * Set row number
-	 */
-	function setRowNumber($row_number)
-	{
-		$this->row_number = $row_number;
-	}
-	/**
-	 * Process frontend data
-	 */
-	function serialize($serializer, $data)
-	{
-		$serializer->process($this, "pk", $data);
-		$serializer->process($this, "item", $data);
-		$serializer->process($this, "load", $data);
-		parent::serialize($serializer, $data);
-	}
-	/**
-	 * Set api result
-	 */
-	function setApiResult($res, $action)
-	{
-		if ($res == null)
-		{
-			return ;
-		}
-		/* Set data */
-		if ($res->data->has("item") && $res->data->has("item") != null)
-		{
-			$this->item = $res->data->get("item");
-		}
-		if ($res->data->has("pk") && $res->data->get("pk") != null)
-		{
-			$this->pk = $res->data->get("pk");
-		}
-		if ($res->data->has("fields"))
-		{
-			$this->fields_error = $res->data->get("fields");
-		}
-		/* Load */
-		if ($action == "load")
-		{
-			$this->load->setApiResult($res);
-		}
-		/* Submit */
-		if ($action == "submit")
-		{
-			$this->result->setApiResult($res);
-		}
-	}
-	/**
-	 * Returns post item
-	 */
-	function getPostItem()
-	{
-		return \Runtime\Serializer::copy($this->item);
-	}
-	/**
-	 * Merge post data
-	 */
-	function mergePostData($post_data, $action)
-	{
-		if ($this->foreign_key)
-		{
-			$post_data->set("foreign_key", $this->foreign_key);
-			if ($post_data->has("item"))
-			{
-				$item = $post_data->get("item");
-				$keys = $this->foreign_key->keys();
-				for ($i = 0; $i < $keys->count(); $i++)
-				{
-					$key = $keys->get($i);
-					$item->set($key, $this->foreign_key->get($key));
-				}
-			}
-		}
-		if ($this->post_data)
-		{
-			$post_data = $post_data->concat($this->post_data);
-		}
-		return $post_data;
-	}
-	/**
-	 * Load form data
-	 */
-	function loadData($container)
-	{
-		parent::loadData($container);
-		$this->loadForm();
-	}
-	/**
-	 * Load form
-	 */
-	function loadForm()
-	{
-		if (!$this->pk)
-		{
-			return ;
-		}
-		if (!$this->storage)
-		{
-			return ;
-		}
-		/* Load data */
-		$res = $this->storage->load();
-		$this->setApiResult($res, "load");
-	}
-	/**
-	 * Submit form
-	 */
-	function submit()
-	{
-		if (!$this->storage)
-		{
-			return null;
-		}
-		$this->result->setWaitMessage();
-		$res = $this->storage->submit();
-		$this->setApiResult($res, "submit");
-		$this->emitAsync(new \Runtime\Widget\Form\FormMessage(\Runtime\Map::from(["name"=>"submit","result"=>$res])));
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->component = "Runtime.Widget.Form.Form";
-		$this->widget_name = "form";
-		$this->form_title = "";
-		$this->form_content = "";
-		$this->styles = \Runtime\Vector::from([]);
-		$this->foreign_key = null;
-		$this->post_data = null;
-		$this->fields = \Runtime\Vector::from([]);
-		$this->fields_error = \Runtime\Map::from([]);
-		$this->field_settings = \Runtime\Map::from([]);
-		$this->row_number = -1;
+		$this->data_object = "";
 		$this->pk = null;
-		$this->item = \Runtime\Map::from([]);
-		$this->primary_key = \Runtime\Vector::from([]);
-		$this->storage = null;
-		$this->bottom_buttons = null;
-		$this->load = null;
+		$this->item = new \Runtime\Map();
+		$this->fields = new \Runtime\Vector();
+		$this->field_errors = null;
 		$this->result = null;
-		$this->show_result = true;
+		$this->primary_rules = null;
+		$this->item_rules = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget.Form";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Form.FormModel";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.BaseModel";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Widget.Form.FormModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

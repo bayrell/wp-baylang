@@ -16,7 +16,9 @@
  *  limitations under the License.
 -->
 
-<class name="Runtime.WordPress.Admin.AdminLayout" extends="Runtime.Web.DefaultLayout">
+<class name="Runtime.WordPress.Admin.AdminLayout" extends="Runtime.DefaultLayout">
+
+<use name="Runtime.Hooks.RuntimeHook" />
 
 <style>
 .wp-heading-inline{
@@ -26,19 +28,22 @@
 </style>
 
 <template name="renderTitle">
-    <h1 class="wp-heading-inline">{{ this.layout.title }}</h1>
+	<h1 class="wp-heading-inline">{{ this.layout.title }}</h1>
 </template>
 
 <template name="renderApp">
-	%render this.renderCSS();
-	%render parent();
+	%render this.renderStyle();
+	<div class="root_container">
+		%render this.render();
+	</div>
+	%render this.renderMountApp();
 </template>
 
 <template>
-    <div class="default_layout wrap">
-	    %render this.renderTitle();
-	    %render this.renderCurrentPage();
-    </div>
+	<div class="default_layout wrap wp_admin_layout">
+		%render this.renderTitle();
+		%render this.renderCurrentPage();
+	</div>
 </template>
 
 </class>

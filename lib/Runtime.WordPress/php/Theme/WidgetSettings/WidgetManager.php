@@ -17,6 +17,20 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Theme\WidgetSettings;
+
+use Runtime\BaseObject;
+use Runtime\Web\BaseLayoutModel;
+use Runtime\WordPress\Theme\WidgetSettings\Button\ButtonFormModelSettings;
+use Runtime\WordPress\Theme\WidgetSettings\Button\ButtonFormSettings;
+use Runtime\WordPress\Theme\WidgetSettings\Form\FormModelSettings;
+use Runtime\WordPress\Theme\WidgetSettings\Form\FormSettings;
+use Runtime\WordPress\Theme\WidgetSettings\Gallery\GalleryModelSettings;
+use Runtime\WordPress\Theme\WidgetSettings\Gallery\GallerySettings;
+use BayLang\Constructor\WidgetPage\EditorProvider;
+use BayLang\Constructor\WidgetPage\WidgetManagerInterface;
+use BayLang\Constructor\WidgetPage\WidgetSettingsInterface;
+
+
 class WidgetManager extends \Runtime\BaseObject implements \BayLang\Constructor\WidgetPage\WidgetManagerInterface
 {
 	/**
@@ -27,57 +41,40 @@ class WidgetManager extends \Runtime\BaseObject implements \BayLang\Constructor\
 		$provider->remove("Runtime.Widget.WidgetSettings.Settings.FormSubmitSettings");
 		$provider->remove("Runtime.Widget.WidgetSettings.Settings.FormSubmitModelSettings");
 	}
+	
+	
 	/**
 	 * Returns group settings
 	 */
 	function getGroupSettings()
 	{
-		return \Runtime\Map::from([]);
+		return new \Runtime\Map([
+		]);
 	}
+	
+	
 	/**
 	 * Returns list of widget settings
 	 */
 	function getWidgetSettings()
 	{
-		return \Runtime\Vector::from([new \Runtime\WordPress\Theme\WidgetSettings\Button\ButtonFormModelSettings(),new \Runtime\WordPress\Theme\WidgetSettings\Button\ButtonFormSettings(),new \Runtime\WordPress\Theme\WidgetSettings\Form\FormModelSettings(),new \Runtime\WordPress\Theme\WidgetSettings\Form\FormSettings(),new \Runtime\WordPress\Theme\WidgetSettings\Gallery\GalleryModelSettings(),new \Runtime\WordPress\Theme\WidgetSettings\Gallery\GallerySettings()]);
+		return new \Runtime\Vector(
+			new \Runtime\WordPress\Theme\WidgetSettings\Button\ButtonFormModelSettings(),
+			new \Runtime\WordPress\Theme\WidgetSettings\Button\ButtonFormSettings(),
+			new \Runtime\WordPress\Theme\WidgetSettings\Form\FormModelSettings(),
+			new \Runtime\WordPress\Theme\WidgetSettings\Form\FormSettings(),
+			new \Runtime\WordPress\Theme\WidgetSettings\Gallery\GalleryModelSettings(),
+			new \Runtime\WordPress\Theme\WidgetSettings\Gallery\GallerySettings(),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Theme.WidgetSettings";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.WidgetSettings.WidgetManager";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Theme.WidgetSettings.WidgetManager"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,70 +18,71 @@
 
 <class name="Runtime.Widget.Tag">
 
-<use name="Runtime.Web.Messages.ValueChangeMessage" />
+<use name="Runtime.Widget.Messages.ValueChangeMessage" />
 
 
 <style>
-.widget_tag{
+.tag{
 	display: flex;
+	align-items: center;
 	flex-wrap: wrap;
-	font-family: var(--widget-font-family);
-	font-size: var(--widget-font-size);
-	background-color: var(--widget-color-default);
-	border-width: var(--widget-border-width);
-	border-color: var(--widget-color-border);
+	font-family: var(--font-family);
+	font-size: var(--font-input-size);
+	background-color: var(--color-background);
+	border-width: var(--border-width);
+	border-color: var(--color-border);
 	border-style: solid;
-	border-radius: 4px;
+	border-radius: var(--border-radius);
 	box-shadow: none;
 	outline: transparent;
 	line-height: normal;
-	padding: 2px;
-	min-height: 40px;
+	padding: calc(var(--space) * 0.75) calc(var(--space) * 1.5);
+	gap: calc(var(--space) * 0.5);
 	width: 100%;
 }
-.widget_tag__item{
+.tag__item{
 	display: flex;
 	align-items: stretch;
     justify-content: space-between;
-	border-width: var(--widget-border-width);
-	border-color: var(--widget-color-border);
+	border-width: var(--border-width);
+	border-color: var(--color-border);
 	border-style: solid;
 	border-radius: 4px;
 	padding: 3px 5px;
-	margin: 5px;
+	/*margin: 5px;*/
 }
-.widget_tag__text{
+.tag__text{
 	overflow-wrap: anywhere;
 	outline: 0;
 }
-.widget_tag__close{
+.tag__close{
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	margin-left: 5px;
 	cursor: pointer;
 }
-.widget_tag__span{
+.tag__span{
 	overflow-wrap: anywhere;
 	min-width: 100px;
-	padding: 3px;
-	margin: 5px;
+	/*padding: 3px;
+	margin: 5px;*/
 	outline: 0;
 }
-.widget_tag__span:first-child{
+.tag__span:first-child{
 	padding-left: 0;
 }
 </style>
 
 
 <template>
-	<div class="widget_tag">
+	<div class="tag">
 		%if (this.value)
 		{
 			%for (int i=0; i<this.value.count(); i++)
 			{
-				<div class="widget_tag__item">
-					<div class="widget_tag__text"
+				<div class="tag__item">
+					<div class="tag__text"
 						contenteditable="true"
 						@event:blur={{ void (var e) use (i){
 							this.onTextChange(i, e.target.innerText);
@@ -90,13 +91,13 @@
 							this.onTextKeyDown(i, e.target.innerText, e);
 						} }}
 					>{{ this.value.get(i) }}</div>
-					<div class="widget_tag__close"
+					<div class="tag__close"
 						@event:click={{ void () use (i){ this.onCloseClick(i); } }}
 					>x</div>
 				</div>
 			}
 		}
-		<span class="widget_tag__span"
+		<span class="tag__span"
 			contenteditable="true"
 			@event:blur={{ this.onSpanBlur }}
 			@event:keydown={{ this.onSpanKeyDown }}
@@ -109,7 +110,13 @@
 <script>
 
 props string name = "";
-props Collection<string> value = [];
+props Vector<string> value = [];
+
+
+/**
+ * Copy value
+ */
+Vector copyValue() => this.value ? this.value.slice() : [];
 
 
 /**
@@ -117,11 +124,11 @@ props Collection<string> value = [];
  */
 void onTextChange(int i, string value)
 {
-	var old_value = this.value.slice();
+	var old_value = this.copyValue();
 	this.value.set(i, value);
 	
 	/* Send value change */
-	this.emit("valueChange", new ValueChangeMessage{
+	this.emit(new ValueChangeMessage{
 		"value": this.value,
 		"old_value": old_value,
 		"data": this.data,
@@ -137,11 +144,11 @@ void onTextKeyDown(int i, string value, var e)
 	if (e.keyCode != 13) return;
 	
 	/* Set value */
-	var old_value = this.value.slice();
+	var old_value = this.copyValue();
 	this.value.set(i, value);
 	
 	/* Send value change */
-	this.emit("valueChange", new ValueChangeMessage{
+	this.emit(new ValueChangeMessage{
 		"value": this.value,
 		"old_value": old_value,
 		"data": this.data,
@@ -157,11 +164,11 @@ void onTextKeyDown(int i, string value, var e)
  */
 void onCloseClick(int i)
 {
-	var old_value = this.value.slice();
+	var old_value = this.copyValue();
 	this.value.remove(i);
 	
 	/* Send value change */
-	this.emit("valueChange", new ValueChangeMessage{
+	this.emit(new ValueChangeMessage{
 		"value": this.value,
 		"old_value": old_value,
 		"data": this.data,
@@ -178,13 +185,15 @@ void onSpanBlur(var e)
 	if (span.innerText == "") return;
 	
 	/* Add value */
-	var old_value = this.value.slice();
-	this.value.push(span.innerText);
+	var old_value = this.copyValue();
+	var value = this.value;
+	if (value !== null) value.push(span.innerText);
+	else value = [span.innerText];
 	span.innerText = "";
 	
 	/* Send value change */
-	this.emit("valueChange", new ValueChangeMessage{
-		"value": this.value,
+	this.emit(new ValueChangeMessage{
+		"value": value,
 		"old_value": old_value,
 		"data": this.data,
 	});
@@ -202,13 +211,14 @@ void onSpanKeyDown(var e)
 	if (span.innerText == "") return;
 	
 	/* Add value */
-	var old_value = this.value.slice();
-	this.value.push(span.innerText);
+	var old_value = this.copyValue();
+	var value = this.value ? this.value : [];
+	value.push(span.innerText);
 	span.innerText = "";
 	
 	/* Send value change */
-	this.emit("valueChange", new ValueChangeMessage{
-		"value": this.value,
+	this.emit(new ValueChangeMessage{
+		"value": value,
 		"old_value": old_value,
 		"data": this.data,
 	});

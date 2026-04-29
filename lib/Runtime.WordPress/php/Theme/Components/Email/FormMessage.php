@@ -17,211 +17,132 @@
  *  limitations under the License.
 */
 namespace Runtime\WordPress\Theme\Components\Email;
-class FormMessage extends \Runtime\Web\Component
+
+
+class FormMessage extends \Runtime\Component
 {
-	public $site_name;
-	public $form_name;
-	public $form_title;
-	public $invoice_id;
-	public $metrika_form_id;
-	public $data;
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["style" => "font-family:verdana;font-size:16px"])));
 		
-		/* Element 'table' */
-		$__v1 = new \Runtime\Vector();
+		/* Element table */
+		$__v1 = $__v0->element("table");
 		
 		if ($this->invoice_id)
 		{
-			/* Element 'tr' */
-			$__v2 = new \Runtime\Vector();
+			/* Element tr */
+			$__v2 = $__v1->element("tr");
 			
-			/* Element 'td' */
-			$__v3 = new \Runtime\Vector();
+			/* Element td */
+			$__v3 = $__v2->element("td", (new \Runtime\Map(["style" => "padding: 2px; text-align: right"])));
+			$__v3->push("Number:");
 			
-			/* Text */
-			$this->_t($__v3, "Number:");
-			
-			/* Element 'td' */
-			$this->_e($__v2, "td", ["style" => "padding: 2px; text-align: right"], $__v3);
-			
-			/* Element 'td' */
-			$__v3 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v3, $this->_escape($this->invoice_id));
-			
-			/* Element 'td' */
-			$this->_e($__v2, "td", ["style" => "padding: 2px; text-align: left"], $__v3);
-			
-			/* Element 'tr' */
-			$this->_e($__v1, "tr", [], $__v2);
+			/* Element td */
+			$__v4 = $__v2->element("td", (new \Runtime\Map(["style" => "padding: 2px; text-align: left"])));
+			$__v4->push($this->invoice_id);
 		}
 		
 		if ($this->site_name)
 		{
-			/* Element 'tr' */
-			$__v2 = new \Runtime\Vector();
+			/* Element tr */
+			$__v5 = $__v1->element("tr");
 			
-			/* Element 'td' */
-			$__v3 = new \Runtime\Vector();
+			/* Element td */
+			$__v6 = $__v5->element("td", (new \Runtime\Map(["style" => "padding: 2px; text-align: right"])));
+			$__v6->push("Web site:");
 			
-			/* Text */
-			$this->_t($__v3, "Web site:");
-			
-			/* Element 'td' */
-			$this->_e($__v2, "td", ["style" => "padding: 2px; text-align: right"], $__v3);
-			
-			/* Element 'td' */
-			$__v3 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v3, $this->_escape($this->site_name));
-			
-			/* Element 'td' */
-			$this->_e($__v2, "td", ["style" => "padding: 2px; text-align: left"], $__v3);
-			
-			/* Element 'tr' */
-			$this->_e($__v1, "tr", [], $__v2);
+			/* Element td */
+			$__v7 = $__v5->element("td", (new \Runtime\Map(["style" => "padding: 2px; text-align: left"])));
+			$__v7->push($this->site_name);
 		}
 		
 		if ($this->form_title)
 		{
-			/* Element 'tr' */
-			$__v2 = new \Runtime\Vector();
+			/* Element tr */
+			$__v8 = $__v1->element("tr");
 			
-			/* Element 'td' */
-			$__v3 = new \Runtime\Vector();
+			/* Element td */
+			$__v9 = $__v8->element("td", (new \Runtime\Map(["style" => "padding: 2px; text-align: right"])));
+			$__v9->push("Form title:");
 			
-			/* Text */
-			$this->_t($__v3, "Form title:");
-			
-			/* Element 'td' */
-			$this->_e($__v2, "td", ["style" => "padding: 2px; text-align: right"], $__v3);
-			
-			/* Element 'td' */
-			$__v3 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v3, $this->_escape($this->form_title));
-			
-			/* Element 'td' */
-			$this->_e($__v2, "td", ["style" => "padding: 2px; text-align: left"], $__v3);
-			
-			/* Element 'tr' */
-			$this->_e($__v1, "tr", [], $__v2);
+			/* Element td */
+			$__v10 = $__v8->element("td", (new \Runtime\Map(["style" => "padding: 2px; text-align: left"])));
+			$__v10->push($this->form_title);
 		}
 		
 		if ($this->form_name && $this->form_title != $this->form_name)
 		{
-			/* Element 'tr' */
-			$__v2 = new \Runtime\Vector();
+			/* Element tr */
+			$__v11 = $__v1->element("tr");
 			
-			/* Element 'td' */
-			$__v3 = new \Runtime\Vector();
+			/* Element td */
+			$__v12 = $__v11->element("td", (new \Runtime\Map(["style" => "padding: 2px; text-align: right"])));
+			$__v12->push("Form name:");
 			
-			/* Text */
-			$this->_t($__v3, "Form name:");
-			
-			/* Element 'td' */
-			$this->_e($__v2, "td", ["style" => "padding: 2px; text-align: right"], $__v3);
-			
-			/* Element 'td' */
-			$__v3 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v3, $this->_escape($this->form_name));
-			
-			/* Element 'td' */
-			$this->_e($__v2, "td", ["style" => "padding: 2px; text-align: left"], $__v3);
-			
-			/* Element 'tr' */
-			$this->_e($__v1, "tr", [], $__v2);
+			/* Element td */
+			$__v13 = $__v11->element("td", (new \Runtime\Map(["style" => "padding: 2px; text-align: left"])));
+			$__v13->push($this->form_name);
 		}
 		
-		if ($this->metrika_form_id)
+		if ($this->metrika_id)
 		{
-			/* Element 'tr' */
-			$__v2 = new \Runtime\Vector();
+			/* Element tr */
+			$__v14 = $__v1->element("tr");
 			
-			/* Element 'td' */
-			$__v3 = new \Runtime\Vector();
+			/* Element td */
+			$__v15 = $__v14->element("td", (new \Runtime\Map(["style" => "padding: 2px; text-align: right"])));
+			$__v15->push("Form id:");
 			
-			/* Text */
-			$this->_t($__v3, "Form id:");
-			
-			/* Element 'td' */
-			$this->_e($__v2, "td", ["style" => "padding: 2px; text-align: right"], $__v3);
-			
-			/* Element 'td' */
-			$__v3 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v3, $this->_escape($this->metrika_form_id));
-			
-			/* Element 'td' */
-			$this->_e($__v2, "td", ["style" => "padding: 2px; text-align: left"], $__v3);
-			
-			/* Element 'tr' */
-			$this->_e($__v1, "tr", [], $__v2);
+			/* Element td */
+			$__v16 = $__v14->element("td", (new \Runtime\Map(["style" => "padding: 2px; text-align: left"])));
+			$__v16->push($this->ucfirst($this->metrika_id));
 		}
 		
 		if ($this->data)
 		{
-			$keys = $this->data->keys();
-			
+			$keys = \Runtime\rtl::list($this->data->keys());
 			for ($i = 0; $i < $keys->count(); $i++)
 			{
 				$name = $keys->get($i);
 				$value = $this->data->get($name);
 				
-				/* Element 'tr' */
-				$__v2 = new \Runtime\Vector();
+				/* Element tr */
+				$__v17 = $__v1->element("tr");
 				
-				/* Element 'td' */
-				$__v3 = new \Runtime\Vector();
+				/* Element td */
+				$__v18 = $__v17->element("td", (new \Runtime\Map(["style" => "padding: 2px; text-align: right"])));
+				$__v18->push($name);
+				$__v18->push(":");
 				
-				/* Text */
-				$this->_t($__v3, $this->_escape($name));
-				
-				/* Text */
-				$this->_t($__v3, ":");
-				
-				/* Element 'td' */
-				$this->_e($__v2, "td", ["style" => "padding: 2px; text-align: right"], $__v3);
-				
-				/* Element 'td' */
-				$__v3 = new \Runtime\Vector();
-				
-				/* Text */
-				$this->_t($__v3, $this->_escape($value));
-				
-				/* Element 'td' */
-				$this->_e($__v2, "td", ["style" => "padding: 2px; text-align: left"], $__v3);
-				
-				/* Element 'tr' */
-				$this->_e($__v1, "tr", [], $__v2);
+				/* Element td */
+				$__v19 = $__v17->element("td", (new \Runtime\Map(["style" => "padding: 2px; text-align: left"])));
+				$__v19->push($value);
 			}
 		}
 		
-		/* Element 'table' */
-		$this->_e($__v0, "table", [], $__v1);
-		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["style" => "font-family:verdana;font-size:16px"], $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
-	static function css($vars)
+	var $site_name;
+	var $form_name;
+	var $form_title;
+	var $invoice_id;
+	var $metrika_id;
+	var $data;
+	/**
+	 * Uppercase first
+	 */
+	function ucfirst($name)
 	{
-		$res = "";
-		return $res;
+		$name = \Runtime\rs::trim($name);
+		return \Runtime\rs::upper(\Runtime\rs::charAt($name, 0)) . \Runtime\rs::substr($name, 1);
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -229,45 +150,10 @@ class FormMessage extends \Runtime\Web\Component
 		$this->form_name = "";
 		$this->form_title = "";
 		$this->invoice_id = "";
-		$this->metrika_form_id = "";
-		$this->data = \Runtime\Map::from([]);
+		$this->metrika_id = "";
+		$this->data = new \Runtime\Map();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Theme.Components.Email";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.Components.Email.FormMessage";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ""; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.WordPress.Theme.Components.Email.FormMessage"; }
 }

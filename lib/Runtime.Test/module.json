@@ -1,0 +1,24 @@
+{
+    "name": "Runtime.Test",
+    "assets": [
+        "Serialize/Basic.bay",
+        "Serialize/Object.bay",
+        "Serialize/Data/Contact.bay",
+        "Serialize/Data/ContactEmail.bay",
+        "Serialize/Data/ContactList.bay",
+        "Serialize/Data/ContactPhone.bay",
+        "Serialize/Data/PageModel.bay",
+        "Serialize/Data/User.bay",
+        "DateTest.bay",
+        "ModuleDescription.bay"
+    ],
+    "groups": [
+        "test"
+    ],
+    "src": "./bay",
+    "dest": {
+        "php": "./php",
+        "es6": "./es6",
+        "nodejs": "./nodejs"
+    }
+}

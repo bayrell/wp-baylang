@@ -18,10 +18,18 @@
 
 namespace Runtime.WordPress.Admin.MailSettings;
 
+use Runtime.Serializer.BaseType;
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.Required;
+use Runtime.Serializer.StringType;
+use Runtime.ORM.Query;
+use Runtime.Web.ApiResult;
+use Runtime.Web.ApiRequest;
 use Runtime.Web.Annotations.ApiMethod;
-use Runtime.Widget.Crud.CrudService;
-use Runtime.Widget.Crud.SaveApi;
-use Runtime.WordPress.Admin.MailSettings.MailCrudService;
+use Runtime.Widget.Api.SaveApi;
+use Runtime.WordPress.Admin.AdminMiddleware;
+use Runtime.WordPress.Database.MailSettings;
 
 
 class MailSaveApi extends SaveApi
@@ -29,19 +37,51 @@ class MailSaveApi extends SaveApi
 	/**
 	 * Returns api name
 	 */
-	pure string getApiName() => "admin.wordpress.mail.settings.save";
+	pure string getApiName() => "admin.wordpress.mail.settings";
 	
 	
 	/**
-	 * Returns service
+	 * Returns record name
 	 */
-	CrudService createService() => new MailCrudService();
+	pure string getRecordName() => classof MailSettings;
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	Vector<Middleware> getMiddleware() =>
+	[
+		new AdminMiddleware(),
+	];
+	
+	
+	/**
+	 * Returns save rules
+	 */
+	Vector rules() => [];
+	
+	
+	/**
+	 * Returns serialize rules
+	 */
+	void getItemRules(BaseType rules)
+	{
+		parent(rules);
+		rules.addType("enable", new IntegerType());
+		rules.addType("plan", new Required());
+		rules.addType("plan", new StringType());
+		rules.addType("host", new StringType());
+		rules.addType("port", new StringType());
+		rules.addType("login", new StringType());
+		rules.addType("password", new StringType());
+		rules.addType("ssl_enable", new IntegerType());
+	}
 	
 	
 	/**
 	 * Returns item fields
 	 */
-	Collection getItemFields() =>
+	Collection getItemFields(string action) =>
 	[
 		"id",
 		"enable",
@@ -51,24 +91,31 @@ class MailSaveApi extends SaveApi
 		"login",
 		"password",
 		"ssl_enable",
-		"is_deleted",
 	];
+	
+	
+	/**
+	 * Build query
+	 */
+	async void buildQuery(Query q)
+	{
+	}
 	
 	
 	/**
 	 * Action save
 	 */
-	@ApiMethod
+	@ApiMethod{ "name": "save" }
 	async void actionSave()
 	{
 		await parent();
 	}
-    
-    
-    /**
+	
+	
+	/**
 	 * Action delete
 	 */
-	@ApiMethod
+	@ApiMethod{ "name": "delete" }
 	async void actionDelete()
 	{
 		await parent();

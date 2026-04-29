@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,71 +17,55 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
+
+use Runtime\Widget\Messages\ValueChangeMessage;
+
 class TextArea extends \Runtime\Widget\Field
 {
-	public $direct_update;
-	public $readonly;
-	public $height;
-	public $name;
-	public $value;
-	public $placeholder;
-	public $change_timer;
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
+		
 		$props = $this->getProps();
 		
-		/* Element 'textarea' */
-		$__v0 = new \Runtime\Vector();
+		/* Element textarea */
+		$__v0 = $__v->element("textarea", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("textarea", $this->class, $componentHash)), "name" => $this->name, "placeholder" => $this->placeholder, "style" => $this->getStyle()]))->concat($props));
+		$__v0->push($this->value);
 		
-		/* Text */
-		$this->_t($__v0, $this->_escape($this->value));
-		
-		/* Element 'textarea' */
-		$this->_e($__v, "textarea", $this->_merge_attrs(["name" => $this->name,"placeholder" => $this->placeholder,"style" => $this->getStyle(),"class" => $this->_class_name(["widget_textarea"])], $props), $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
+	var $direct_update;
+	var $readonly;
+	var $height;
+	var $name;
+	var $value;
+	var $placeholder;
+	var $change_timer;
 	/**
- * Returns textarea props
- */
-	function getProps()
-	{
-		if ($this->readonly)
-		{
-			return \Runtime\Map::from(["readonly"=>true]);
-		}
-		return \Runtime\Map::from([]);
-	}
-	/**
- * Returns style
- */
+	 * Returns style
+	 */
 	function getStyle()
 	{
-		$content = \Runtime\Vector::from([]);
-		if ($this->height)
-		{
-			$content->push("min-height: " . \Runtime\rtl::toStr($this->height));
-		}
+		$content = new \Runtime\Vector();
+		if ($this->height) $content->push("min-height: " . $this->height);
 		return \Runtime\rs::join(";", $content);
 	}
 	/**
- * Updated event
- */
-	function onUpdated()
+	 * Updated event
+	 */
+	function updated()
 	{
 		$textarea = $this->getRef("textarea");
 		$textarea->value = $this->value;
 	}
 	/**
- * KeyDown event
- */
+	 * KeyDown event
+	 */
 	function onKeyDown($e)
 	{
-		if (!$this->direct_update)
-		{
-			return ;
-		}
+		if (!$this->direct_update) return;
 		if ($this->change_timer != null)
 		{
 			$window->clearTimeout($this->change_timer);
@@ -93,25 +77,20 @@ class TextArea extends \Runtime\Widget\Field
 		}, 300);
 	}
 	/**
- * Change event
- */
+	 * Change event
+	 */
 	function onChange()
 	{
 		$textarea = $this->getRef("textarea");
 		/* Send value change */
-		$this->emit("valueChange", new \Runtime\Web\Messages\ValueChangeMessage(\Runtime\Map::from(["value"=>$textarea->value,"old_value"=>$this->value,"data"=>$this->data])));
+		$this->emit(new \Runtime\Widget\Messages\ValueChangeMessage(new \Runtime\Map([
+			"value" => $textarea->value,
+			"old_value" => $this->value,
+			"data" => $this->data,
+		])));
 	}
-	static function components()
-	{
-		return \Runtime\Vector::from(["Runtime.Widget.Field"]);
-	}
-	static function css($vars)
-	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_textarea.h-ee82{width: 100%;max-width: 100%;min-height: 400px;font-family: var(--widget-font-family);font-size: var(--widget-font-size);padding: var(--widget-input-padding-y) var(--widget-input-padding-x);background-color: var(--widget-color-default);border-width: var(--widget-border-width);border-color: var(--widget-color-border);border-style: solid;border-radius: 4px;box-shadow: none;outline: transparent;line-height: normal}.widget_textarea.h-ee82:focus{outline: transparent}");
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -123,42 +102,7 @@ class TextArea extends \Runtime\Widget\Field
 		$this->placeholder = "";
 		$this->change_timer = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.TextArea";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Field";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".textarea.h-ee81{width: 100%;max-width: 100%;font-family: var(--font-family);font-size: var(--font-input-size);padding: calc(var(--space) * 0.75) calc(var(--space) * 1.5);background-color: var(--color-background);border-width: var(--border-width);border-color: var(--color-border);border-style: solid;border-radius: var(--space);box-shadow: none;outline: transparent;line-height: normal;transition: background-color var(--transition) var(--transition-type),\n\t\tborder-color var(--transition) var(--transition-type),\n\t\tcolor var(--transition) var(--transition-type)}.textarea.h-ee81:focus{outline: transparent}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.TextArea"; }
 }

@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,16 +18,21 @@
 
 namespace Runtime.Web;
 
-use Runtime.lib;
+use Runtime.BaseObject;
 use Runtime.BaseProvider;
-use Runtime.Callback;
+use Runtime.BusInterface;
+use Runtime.Method;
 use Runtime.Exceptions.ApiError;
 use Runtime.Exceptions.ItemNotFound;
+use Runtime.Exceptions.RuntimeException;
 use Runtime.Web.ApiResult;
+use Runtime.Web.ApiRequest;
 use Runtime.Web.BaseApi;
-use Runtime.Web.BusInterface;
+use Runtime.Web.Bus;
+use Runtime.Web.Middleware;
 use Runtime.Web.Annotations.Api;
 use Runtime.Web.Annotations.ApiMethod;
+use Runtime.Web.Hooks.AppHook;
 
 
 class BusLocal extends BaseProvider implements BusInterface
@@ -49,12 +54,86 @@ class BusLocal extends BaseProvider implements BusInterface
 		{
 			Api api = api_list.get(i);
 			string class_name = api.name;
-			Callback getApiName = new Callback(class_name, "getApiName");
+			Method getApiName = new Method(class_name, "getApiName");
 			
 			/* Save api */
-			string api_name = rtl::apply(getApiName);
-			this.api_list.set(api_name, api);
+			if (not getApiName.exists()) continue;
+			string api_name = getApiName.apply();
+			if (not this.api_list.has(api_name)) this.api_list.set(api_name, []);
+			Vector items = this.api_list.get(api_name);
+			items.push(api);
 		}
+	}
+	
+	
+	/**
+	 * Find api
+	 */
+	ApiMethod findApi(string api_name, string method_name)
+	{
+		Map result = {};
+		
+		/* Check params */
+		if (api_name == "" or method_name == "")
+		{
+			return null;
+		}
+		
+		/* Find api */
+		Vector<Api> items = this.api_list.get(api_name);
+		if (not items)
+		{
+			return null;
+		}
+		
+		/* Find method */
+		ApiMethod api_method = null;
+		items.each(void (Api api) use (api_method, method_name){
+			
+			if (api_method) return;
+			
+			Method getMethodsList = new Method(api.name, "getMethodsList");
+			Method getMethodInfoByName = new Method(api.name, "getMethodInfoByName");
+			Vector methods = getMethodsList.apply();
+			
+			for (int i=0; i<methods.count(); i++)
+			{
+				string name = methods.get(i);
+				Vector annotations = getMethodInfoByName.apply([name]);
+				ApiMethod api_method_item = annotations.find(
+					bool (BaseObject obj) => obj instanceof ApiMethod
+				);
+				if (api_method_item and api_method_item.name == method_name)
+				{
+					BaseApi api_item = rtl::newInstance(api.name);
+					api_method = api_method_item;
+					api_method.item = new Method(api_item, name);
+					return;
+				}
+			}
+		});
+		
+		return api_method;
+	}
+	
+	
+	/**
+	 * Run middleware
+	 */
+	async void runMiddleware(ApiMethod api_method)
+	{
+		BaseApi api = api_method.item.obj;
+		Vector items = api.getMiddleware();
+		for (int i=0; i<items.count(); i++)
+		{
+			Middleware item = items.get(i);
+			await item.api(api);
+		}
+		
+		/* Run hook */
+		await @.hook(AppHook::API_MIDDLEWARE, {
+			"api": api
+		});
 	}
 	
 	
@@ -63,129 +142,67 @@ class BusLocal extends BaseProvider implements BusInterface
 	 */
 	async ApiResult send(Dict params)
 	{
-		ApiResult result;
+		string api_name = params.get("api_name");
+		string method_name = params.get("method_name");
 		
-		string api_name = params["api_name"] |> default string "";
-		string method_name = params["method_name"] |> default string "";
-		string service = params["service"] |> default string "app";
-		if (service != "app")
-		{
-			result = new ApiResult();
-			return result.fail({
-				"message": "Service must be app"
-			});
-		}
+		ApiResult result = null;
 		
-		/* Call local api */
 		try
 		{
-			ApiMethod annotation = this.findApi(params);
-			result = await this.callAnnotation(annotation, params);
+			/* Find api */
+			ApiMethod api_method = this.findApi(api_name, method_name);
+			
+			/* Hook */
+			Map res = @.hook(AppHook::FIND_API, {
+				"api_name": api_name,
+				"method_name": method_name,
+				"api": api_method,
+			});
+			api_method = res.get("api");
+			
+			/* Check api */
+			if (api_method == null or api_method.item == null)
+			{
+				throw new ApiError(new ItemNotFound(api_name ~ "::" ~ method_name, "Api"));
+			}
+			
+			/* Call method */
+			ApiRequest request = new ApiRequest{
+				"data": params.get("data"),
+				"storage": params.get("storage"),
+			};
+			api_method.item.obj.setRequest(request);
+			
+			/* Run middleware */
+			await this.runMiddleware(api_method);
+			
+			/* Apply */
+			await api_method.apply(request);
+			result = api_method.item.obj.result;
 		}
-		catch (ApiError e)
+		catch (RuntimeException e)
 		{
 			result = new ApiResult();
-			result.fail(e.getPreviousException());
+			if (e instanceof ApiError)
+			{
+				if (e.result instanceof ApiResult) result = e.result;
+				else result.fail(e.prev);
+			}
+			else result.exception(e);
+		}
+		
+		/* If result does no exists */
+		if (not result)
+		{
+			result = new ApiResult();
+			result.exception(new ItemNotFound("ApiResult"));
 		}
 		
 		/* Set api name */
 		result.api_name = api_name;
 		result.method_name = method_name;
+		
+		/* Return result */
 		return result;
-	}
-	
-	
-	/**
-	 * Find local api
-	 */
-	async ApiMethod findApi(Dict params)
-	{
-		string api_name = params["api_name"] |> default string "";
-		string method_name = params["method_name"] |> default string "";
-		
-		/* Get annotation by api name */
-		Api annotation = this.api_list.get(api_name);
-		
-		/* Annotation not found */
-		if (annotation == null)
-		{
-			throw new ApiError( new ItemNotFound(api_name, "Api annotation") );
-		}
-		
-		/* Find method */
-		Callback getMethodInfoByName = new Callback(annotation.name, "getMethodInfoByName");
-		Dict method_info = getMethodInfoByName.apply([method_name]);
-		
-		/* Method not found */
-		if (method_info == null)
-		{
-			throw new ApiError( new ItemNotFound(method_name ~ " in " ~ api_name, "Api method") );
-		}
-		
-		/* Check if method is api */
-		ApiMethod api_method = method_info
-			.get("annotations")
-			.findItem( lib::isInstance(classof ApiMethod) )
-		;
-		if (api_method == null)
-		{
-			throw new ApiError( new ItemNotFound(method_name ~ " in " ~ api_name, "Api method") );
-		}
-		
-		/* Set props */
-		Dict result = {
-			"api_method": api_method,
-			"api_name": api_name,
-			"class_name": annotation.name,
-			"method_info": method_info,
-			"method_name": method_name,
-		};
-		return result;
-	}
-	
-	
-	/**
-	 * Call annotation
-	 */
-	async ApiResult callAnnotation(Dict annotation, Dict params)
-	{
-		Dict data = params["data"] |> default Dict null;
-		string class_name = annotation.get("class_name");
-		string method_name = annotation.get("method_name");
-		BaseApi api_instance = null;
-		Callback callback = null;
-		
-		/* Create api instance */
-		api_instance = rtl::newInstance(class_name);
-		api_instance.action = method_name;
-		api_instance.layout = params["layout"];
-		api_instance.post_data = data;
-		api_instance.result = new ApiResult;
-		api_instance.init();
-		
-		/* Get callback */
-		if (rtl::method_exists(class_name, method_name))
-		{
-			callback = new Callback(class_name, method_name);
-		}
-		else
-		{
-			callback = new Callback(api_instance, method_name);
-		}
-		
-		/* Call api */
-		try
-		{
-			await api_instance.onActionBefore();
-			await callback.apply([api_instance]);
-			await api_instance.onActionAfter();
-		}
-		catch (ApiError e)
-		{
-			api_instance.result.fail(e.getPreviousException());
-		}
-		
-		/* Return api result */
-		return api_instance.result;
 	}
 }

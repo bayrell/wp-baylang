@@ -17,6 +17,11 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Annotations;
+
+use Runtime\ORM\Annotations\BaseType;
+use Runtime\ORM\Connection;
+
+
 class CollectionType extends \Runtime\ORM\Annotations\BaseType
 {
 	/**
@@ -26,66 +31,36 @@ class CollectionType extends \Runtime\ORM\Annotations\BaseType
 	{
 		if ($item->has($this->name))
 		{
-			$value = \Runtime\rtl::attr($item, $this->name);
-			$obj = \Runtime\rtl::json_decode($value);
-			$item = \Runtime\rtl::setAttr($item, [$this->name], $obj);
+			$value = $item->get($this->name);
+			$obj = \Runtime\rtl::jsonDecode($value);
+			$item->set($this->name, $obj);
 			$item = $conn->fromDatabase($this, $item, $this->name);
 		}
 		return $item;
 	}
+	
+	
 	/**
 	 * Process item to database
 	 */
-	function toDatabase($conn, $item, $is_update)
+	function toDatabase($conn, $item)
 	{
-		$value = \Runtime\rtl::attr($item, $this->name);
+		$value = $item->get($this->name);
 		if ($value)
 		{
-			$item = \Runtime\rtl::setAttr($item, [$this->name], \Runtime\rtl::json_encode($value, false));
+			$item->set($this->name, \Runtime\rtl::jsonEncode($value, false));
 		}
 		$item = $conn->toDatabase($this, $item, $this->name);
 		return $item;
 	}
-	/* ======================= Class Init Functions ======================= */
-	function takeValue($k,$d=null)
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
+		parent::_init();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.Annotations";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Annotations.CollectionType";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Annotations.BaseType";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Annotations.CollectionType"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -17,31 +17,33 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Theme\Components\Form;
+
+use Runtime\Widget\Dialog\DialogModel;
+use Runtime\Widget\Dialog\DialogModelException;
+use Runtime\WordPress\Theme\Components\Form\FormDialog;
+use Runtime\WordPress\Theme\Components\Form\FormModel;
+
+
 class FormDialogModel extends \Runtime\Widget\Dialog\DialogModel
 {
-	public $component;
-	public $widget_name;
-	public $form;
-	public $form_settings;
+	var $component;
+	var $widget_name;
+	var $form;
+	var $form_settings;
+	
+	
 	/**
 	 * Init widget params
 	 */
 	function initParams($params)
 	{
 		parent::initParams($params);
-		if ($params == null)
-		{
-			return ;
-		}
-		if ($params->has("form"))
-		{
-			$this->form = $params->get("form");
-		}
-		if ($params->has("form_settings"))
-		{
-			$this->form_settings = $params->get("form_settings");
-		}
+		if ($params == null) return;
+		if ($params->has("form")) $this->form = $params->get("form");
+		if ($params->has("form_settings")) $this->form_settings = $params->get("form_settings");
 	}
+	
+	
 	/**
 	 * Init widget settings
 	 */
@@ -51,54 +53,23 @@ class FormDialogModel extends \Runtime\Widget\Dialog\DialogModel
 		/* Add form */
 		if (!$this->form)
 		{
-			$this->form = $this->addWidget("Runtime.WordPress.Theme.Components.Form.FormModel", $this->form_settings->concat(\Runtime\Map::from(["widget_name"=>"form"])));
+			$this->form = $this->addWidget("Runtime.WordPress.Theme.Components.Form.FormModel", $this->form_settings->concat(new \Runtime\Map([
+				"widget_name" => "form",
+			])));
 		}
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->component = "Runtime.WordPress.Theme.Components.Form.FormDialog";
 		$this->widget_name = "form_dialog";
 		$this->form = null;
-		$this->form_settings = \Runtime\Map::from([]);
+		$this->form_settings = new \Runtime\Map();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Theme.Components.Form";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.Components.Form.FormDialogModel";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Dialog.DialogModel";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Theme.Components.Form.FormDialogModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
  *  limitations under the License.
  */
 namespace Runtime;
+
+
 class re
 {
 	/**
@@ -26,18 +28,20 @@ class re
 	 * @param integer limit - ограничение
 	 * @return Vector<string>
 	 */
-	static function split($delimiter, $s, $limit=-1)
+	static function split($delimiter, $s, $limit = -1)
 	{
 		$arr = preg_split("/" . $delimiter . "/", $s, $limit);
-		return Vector::from($arr);
+		return \Runtime\Vector::from($arr);
 	}
+	
+	
 	/**
 	 * Search regular expression
 	 * @param string r regular expression
 	 * @param string s string
 	 * @return bool
 	 */
-	static function match($r, $s, $pattern="")
+	static function match($r, $s, $pattern = "")
 	{
 		$matches = [];
 		if (preg_match("/" . $r . "/" . $pattern, $s, $matches))
@@ -47,13 +51,15 @@ class re
 		
 		return false;
 	}
+	
+	
 	/**
 	 * Search regular expression
 	 * @param string r regular expression
 	 * @param string s string
-	 * @return Vector result
+	 * @return Collection result
 	 */
-	static function matchAll($r, $s, $pattern="")
+	static function matchAll($r, $s, $pattern = "")
 	{
 		$matches = [];
 		if (preg_match_all("/" . $r . "/" . $pattern, $s, $matches))
@@ -69,15 +75,17 @@ class re
 			}
 			$res = array_map
 			(
-				function ($item) { return Vector::from($item); },
+				function ($item) { return \Runtime\Vector::create($item); },
 				$res
 			);
-			return Vector::from($res);
+			return \Runtime\Vector::create($res);
 		}
 		
 		return null;
 		return null;
 	}
+	
+	
 	/**
 	 * Replace with regular expression
 	 * @param string r - regular expression
@@ -85,47 +93,17 @@ class re
 	 * @param string s - replaceable string
 	 * @return string
 	 */
-	static function replace($r, $replace, $s, $pattern="")
+	static function replace($r, $replace, $s, $pattern = "")
 	{
 		return preg_replace("/" . $r . "/" . $pattern, $replace, $s);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime";
 	}
-	static function getClassName()
-	{
-		return "Runtime.re";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.re"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

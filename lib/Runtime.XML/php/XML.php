@@ -17,10 +17,17 @@
  *  limitations under the License.
  */
 namespace Runtime\XML;
+
+use Runtime\XML\PatcherProvider;
+use Runtime\XML\BasePatcher;
+
+
 class XML
 {
-	public $xml;
-	public $errors;
+	var $xml;
+	var $errors;
+	
+	
 	/**
 	 * Load xml
 	 */
@@ -40,27 +47,27 @@ class XML
 		libxml_use_internal_errors($old_value);
 		
 		$res->xml = $xml;
-		$res->errors = $errors->toCollection();
+		$res->errors = $errors;
 		return $res;
 	}
+	
+	
 	/**
 	 * Returns new instance
 	 */
-	static function newInstance()
-	{
-		return \Runtime\rtl::newInstance(static::getClassName());
-	}
+	static function newInstance(){ return \Runtime\rtl::newInstance(static::getClassName()); }
+	
+	
 	/**
 	 * Returns true if XML is exists
 	 */
 	function exists()
 	{
-		if ($this->xml == null)
-		{
-			return false;
-		}
+		if ($this->xml == null) return false;
 		return true;
 	}
+	
+	
 	/**
 	 * Return current name
 	 */
@@ -73,12 +80,14 @@ class XML
 		}
 		return $res;
 	}
+	
+	
 	/**
 	 * Return items by name
 	 */
 	function get($name)
 	{
-		$res = [];
+		$res = new \Runtime\Vector();
 		
 		if ($this->xml != null)
 		{
@@ -87,17 +96,42 @@ class XML
 			{
 				$item = static::newInstance();
 				$item->xml = $xml[$i];
-				$res[] = $item;
+				$res->push($item);
 			}
 		}
 		
-		return \Runtime\Vector::from($res);
+		return $res;
 		return new \Runtime\Vector();
 	}
+	
+	
+	/**
+	 * Returns content
+	 */
+	function getContent($name, $pos = 0)
+	{
+		$item = $this->get($name)->get($pos);
+		return $item ? $item->value() : "";
+	}
+	
+	
+	/**
+	 * Set content
+	 */
+	function setContent($name, $value, $pos = 0)
+	{
+		$item = $this->get($name)->get($pos);
+		if ($item)
+		{
+			$item->setValue($value);
+		}
+	}
+	
+	
 	/**
 	 * Get value
 	 */
-	function value($trim=true)
+	function value($trim = true)
 	{
 		$value = "";
 		if ($this->xml != null)
@@ -110,6 +144,8 @@ class XML
 		}
 		return $value;
 	}
+	
+	
 	/**
 	 * Set value
 	 */
@@ -121,6 +157,8 @@ class XML
 			$item->nodeValue = $value;
 		}
 	}
+	
+	
 	/**
 	 * Returns childs count
 	 */
@@ -132,6 +170,8 @@ class XML
 		}
 		return 0;
 	}
+	
+	
 	/**
 	 * Return items
 	 */
@@ -154,6 +194,8 @@ class XML
 		return \Runtime\Vector::from($arr);
 		return new \Runtime\Vector();
 	}
+	
+	
 	/**
 	 * Remove childs
 	 */
@@ -165,10 +207,12 @@ class XML
 			$items->get($i)->remove();
 		}
 	}
+	
+	
 	/**
 	 * Get attribute
 	 */
-	function attr($key, $trim=true)
+	function attr($key, $trim = true)
 	{
 		if ($this->xml != null)
 		{
@@ -182,10 +226,12 @@ class XML
 		}
 		return null;
 	}
+	
+	
 	/**
 	 * Get attribute
 	 */
-	function attributes($trim=true)
+	function attributes($trim = true)
 	{
 		$items = new \Runtime\Map();
 		if ($this->xml != null)
@@ -205,6 +251,8 @@ class XML
 		}
 		return $items;
 	}
+	
+	
 	/**
 	 * Add attribute
 	 */
@@ -215,10 +263,9 @@ class XML
 			$this->xml->addAttribute($key, $value);
 		}
 	}
-	function addAttr($key, $value)
-	{
-		return $this->addAttribute($key, $value);
-	}
+	function addAttr($key, $value){ return $this->addAttribute($key, $value); }
+	
+	
 	/**
 	 * Remove attribute
 	 */
@@ -230,10 +277,9 @@ class XML
 			$dom->removeAttribute($key);
 		}
 	}
-	function removeAttr($key)
-	{
-		return $this->removeAttribute($key);
-	}
+	function removeAttr($key){ return $this->removeAttribute($key); }
+	
+	
 	/**
 	 * Add attributes
 	 */
@@ -242,11 +288,13 @@ class XML
 		$attrs_keys = $attrs->keys();
 		for ($i = 0; $i < $attrs_keys->count(); $i++)
 		{
-			$key = \Runtime\rtl::attr($attrs_keys, $i);
+			$key = $attrs_keys[$i];
 			$value = $attrs->get($key);
 			$this->addAttribute($key, $value);
 		}
 	}
+	
+	
 	/**
 	 * Remove attributes
 	 */
@@ -264,6 +312,8 @@ class XML
 			}
 		}
 	}
+	
+	
 	/**
 	 * Remove current element
 	 */
@@ -275,6 +325,8 @@ class XML
 			$item->parentNode->removeChild($item);
 		}
 	}
+	
+	
 	/**
 	 * Append XML
 	 */
@@ -291,6 +343,8 @@ class XML
 		$child->addAttributes($item->attributes());
 		return $child;
 	}
+	
+	
 	/**
 	 * Prepend XML
 	 */
@@ -309,6 +363,8 @@ class XML
 		$child->addAttributes($item->attributes());
 		return $child;
 	}
+	
+	
 	/**
 	 * Append childs from XML
 	 */
@@ -320,6 +376,8 @@ class XML
 			$this->append($item);
 		}
 	}
+	
+	
 	/**
 	 * Prepend childs from XML
 	 */
@@ -331,6 +389,8 @@ class XML
 			$this->prepend($item);
 		}
 	}
+	
+	
 	/**
 	 * Patch XML with operation
 	 */
@@ -344,6 +404,8 @@ class XML
 			$patcher->patch($this, $operation);
 		}
 	}
+	
+	
 	/**
 	 * Patch XML with operation
 	 */
@@ -359,17 +421,15 @@ class XML
 		}
 		return $res;
 	}
+	
+	
 	/**
 	 * To string
 	 */
-	function toString($params=null)
+	function toString($params = null)
 	{
-		$__v0 = new \Runtime\Monad(\Runtime\rtl::attr($params, "indent"));
-		$__v0 = $__v0->monad(\Runtime\rtl::m_to("bool", true));
-		$indent = $__v0->value();
-		$__v0 = new \Runtime\Monad(\Runtime\rtl::attr($params, "wrap"));
-		$__v0 = $__v0->monad(\Runtime\rtl::m_to("bool", false));
-		$wrap = $__v0->value();
+		$indent = $params->get("indent");
+		$wrap = $params->get("wrap");
 		$xml_str = "";
 		if ($params != null) $params = $params->_map;
 		if ($params == null) $params = [];
@@ -380,48 +440,15 @@ class XML
 		$xml_str = tidy_repair_string($xml_str, $params);
 		return $xml_str;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		$this->xml = null;
 		$this->errors = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.XML";
-	}
-	static function getClassName()
-	{
-		return "Runtime.XML.XML";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.XML.XML"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

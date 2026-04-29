@@ -25,6 +25,7 @@
 	"exclude":
 	[
 		".git",
+		".vscode/",
 		"lib/",
 		"vendor/",
 		"baylang.php"

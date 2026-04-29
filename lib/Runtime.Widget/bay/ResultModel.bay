@@ -1,0 +1,137 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget;
+
+use Runtime.ApiResult;
+use Runtime.BaseModel;
+use Runtime.SerializeInterface;
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
+use Runtime.Exceptions.AbstractException;
+use Runtime.Widget.Result;
+
+
+class ResultModel extends BaseModel
+{
+	int code = 0;
+	string message = "";
+	string component = classof Result;
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("code", new IntegerType());
+		rules.addType("message", new StringType());
+	}
+	
+	
+	/**
+	 * Init widget params
+	 */
+	void initParams(Dict params)
+	{
+		parent(params);
+	}
+	
+	
+	/**
+	 * Message
+	 */
+	void setMessage(string message)
+	{
+		this.message = message;
+	}
+	
+	
+	/**
+	 * Success
+	 */
+	void setSuccess(string message, int code = 1)
+	{
+		this.code = code;
+		this.message = message;
+	}
+	
+	
+	/**
+	 * Error
+	 */
+	void setError(string message, int code = -1)
+	{
+		this.code = code;
+		this.message = message;
+	}
+	
+	
+	/**
+	 * Set exception
+	 */
+	void setException(AbstractException e)
+	{
+		this.code = e.getErrorCode();
+		this.message = e.getErrorMessage();
+	}
+	
+	
+	/**
+	 * Set api result
+	 */
+	void setApiResult(ApiResult res)
+	{
+		this.code = res.code;
+		this.message = res.message;
+	}
+	
+	
+	/**
+	 * Set wait message
+	 */
+	void setWaitMessage(string message = "")
+	{
+		this.code = 0;
+		this.message = (message != "") ? message : "Wait please ...";
+	}
+	
+	
+	/**
+	 * Clear error
+	 */
+	void clear()
+	{
+		this.code = 0;
+		this.message = "";
+	}
+	
+	
+	/**
+	 * Returns true if error
+	 */
+	bool isError() => this.code < 0;
+	
+	
+	/**
+	 * Returns true if success
+	 */
+	bool isSuccess() => this.code > 0;
+}

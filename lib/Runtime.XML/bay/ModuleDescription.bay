@@ -23,7 +23,7 @@ use Runtime.XML.PatcherProvider;
 use Runtime.XML.XMLPatcher;
 
 
-static class ModuleDescription
+class ModuleDescription
 {
 	/**
 	 * Returns module name

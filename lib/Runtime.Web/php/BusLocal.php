@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,200 +17,181 @@
  *  limitations under the License.
  */
 namespace Runtime\Web;
-class BusLocal extends \Runtime\BaseProvider implements \Runtime\Web\BusInterface
+
+use Runtime\BaseObject;
+use Runtime\BaseProvider;
+use Runtime\BusInterface;
+use Runtime\Method;
+use Runtime\Exceptions\ApiError;
+use Runtime\Exceptions\ItemNotFound;
+use Runtime\Exceptions\RuntimeException;
+use Runtime\Web\ApiResult;
+use Runtime\Web\ApiRequest;
+use Runtime\Web\BaseApi;
+use Runtime\Web\Bus;
+use Runtime\Web\Middleware;
+use Runtime\Web\Annotations\Api;
+use Runtime\Web\Annotations\ApiMethod;
+use Runtime\Web\Hooks\AppHook;
+
+
+class BusLocal extends \Runtime\BaseProvider implements \Runtime\BusInterface
 {
-	public $api_list;
+	var $api_list;
+	
+	
 	/**
 	 * Init providers
 	 */
 	function init()
 	{
 		parent::init();
-		$this->api_list = \Runtime\Map::from([]);
+		$this->api_list = new \Runtime\Map();
 		$api_list = \Runtime\rtl::getContext()->getEntities("Runtime.Web.Annotations.Api");
 		for ($i = 0; $i < $api_list->count(); $i++)
 		{
 			$api = $api_list->get($i);
 			$class_name = $api->name;
-			$getApiName = new \Runtime\Callback($class_name, "getApiName");
+			$getApiName = new \Runtime\Method($class_name, "getApiName");
 			/* Save api */
-			$api_name = \Runtime\rtl::apply($getApiName);
-			$this->api_list->set($api_name, $api);
+			if (!$getApiName->exists()) continue;
+			$api_name = $getApiName->apply();
+			if (!$this->api_list->has($api_name)) $this->api_list->set($api_name, new \Runtime\Vector());
+			$items = $this->api_list->get($api_name);
+			$items->push($api);
 		}
 	}
+	
+	
+	/**
+	 * Find api
+	 */
+	function findApi($api_name, $method_name)
+	{
+		$result = new \Runtime\Map();
+		/* Check params */
+		if ($api_name == "" || $method_name == "")
+		{
+			return null;
+		}
+		/* Find api */
+		$items = $this->api_list->get($api_name);
+		if (!$items)
+		{
+			return null;
+		}
+		/* Find method */
+		$api_method = null;
+		$items->each(function ($api) use (&$api_method, &$method_name)
+		{
+			if ($api_method) return;
+			$getMethodsList = new \Runtime\Method($api->name, "getMethodsList");
+			$getMethodInfoByName = new \Runtime\Method($api->name, "getMethodInfoByName");
+			$methods = $getMethodsList->apply();
+			for ($i = 0; $i < $methods->count(); $i++)
+			{
+				$name = $methods->get($i);
+				$annotations = $getMethodInfoByName->apply(new \Runtime\Vector($name));
+				$api_method_item = $annotations->find(function ($obj){ return $obj instanceof \Runtime\Web\Annotations\ApiMethod; });
+				if ($api_method_item && $api_method_item->name == $method_name)
+				{
+					$api_item = \Runtime\rtl::newInstance($api->name);
+					$api_method = $api_method_item;
+					$api_method->item = new \Runtime\Method($api_item, $name);
+					return;
+				}
+			}
+		});
+		return $api_method;
+	}
+	
+	
+	/**
+	 * Run middleware
+	 */
+	function runMiddleware($api_method)
+	{
+		$api = $api_method->item->obj;
+		$items = $api->getMiddleware();
+		for ($i = 0; $i < $items->count(); $i++)
+		{
+			$item = $items->get($i);
+			$item->api($api);
+		}
+		/* Run hook */
+		\Runtime\rtl::getContext()->hook(\Runtime\Web\Hooks\AppHook::API_MIDDLEWARE, new \Runtime\Map([
+			"api" => $api,
+		]));
+	}
+	
+	
 	/**
 	 * Send api to frontend
 	 */
 	function send($params)
 	{
-		$__v0 = new \Runtime\Monad(\Runtime\rtl::attr($params, "api_name"));
-		$__v0 = $__v0->monad(\Runtime\rtl::m_to("string", ""));
-		$api_name = $__v0->value();
-		$__v0 = new \Runtime\Monad(\Runtime\rtl::attr($params, "method_name"));
-		$__v0 = $__v0->monad(\Runtime\rtl::m_to("string", ""));
-		$method_name = $__v0->value();
-		$__v0 = new \Runtime\Monad(\Runtime\rtl::attr($params, "service"));
-		$__v0 = $__v0->monad(\Runtime\rtl::m_to("string", "app"));
-		$service = $__v0->value();
-		if ($service != "app")
-		{
-			$result = new \Runtime\Web\ApiResult();
-			return $result->fail(\Runtime\Map::from(["message"=>"Service must be app"]));
-		}
-		/* Call local api */
+		$api_name = $params->get("api_name");
+		$method_name = $params->get("method_name");
+		$result = null;
 		try
 		{
-			
-			$annotation = $this->findApi($params);
-			$result = $this->callAnnotation($annotation, $params);
+			/* Find api */
+			$api_method = $this->findApi($api_name, $method_name);
+			/* Hook */
+			$res = \Runtime\rtl::getContext()->hook(\Runtime\Web\Hooks\AppHook::FIND_API, new \Runtime\Map([
+				"api_name" => $api_name,
+				"method_name" => $method_name,
+				"api" => $api_method,
+			]));
+			$api_method = $res->get("api");
+			/* Check api */
+			if ($api_method == null || $api_method->item == null)
+			{
+				throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\ItemNotFound($api_name . "::" . $method_name, "Api"));
+			}
+			/* Call method */
+			$request = new \Runtime\Web\ApiRequest(new \Runtime\Map([
+				"data" => $params->get("data"),
+				"storage" => $params->get("storage"),
+			]));
+			$api_method->item->obj->setRequest($request);
+			/* Run middleware */
+			$this->runMiddleware($api_method);
+			/* Apply */
+			$api_method->apply($request);
+			$result = $api_method->item->obj->result;
 		}
-		catch (\Exception $_ex)
+		catch (\Runtime\Exceptions\RuntimeException $e)
 		{
-			if ($_ex instanceof \Runtime\Exceptions\ApiError)
+			$result = new \Runtime\Web\ApiResult();
+			if ($e instanceof \Runtime\Exceptions\ApiError)
 			{
-				$e = $_ex;
-				$result = new \Runtime\Web\ApiResult();
-				$result->fail($e->getPreviousException());
+				if ($e->result instanceof \Runtime\Web\ApiResult) $result = $e->result;
+				else $result->fail($e->prev);
 			}
-			else
-			{
-				throw $_ex;
-			}
+			else $result->exception($e);
+		}
+		/* If result does no exists */
+		if (!$result)
+		{
+			$result = new \Runtime\Web\ApiResult();
+			$result->exception(new \Runtime\Exceptions\ItemNotFound("ApiResult"));
 		}
 		/* Set api name */
 		$result->api_name = $api_name;
 		$result->method_name = $method_name;
+		/* Return result */
 		return $result;
 	}
-	/**
-	 * Find local api
-	 */
-	function findApi($params)
-	{
-		$__v0 = new \Runtime\Monad(\Runtime\rtl::attr($params, "api_name"));
-		$__v0 = $__v0->monad(\Runtime\rtl::m_to("string", ""));
-		$api_name = $__v0->value();
-		$__v0 = new \Runtime\Monad(\Runtime\rtl::attr($params, "method_name"));
-		$__v0 = $__v0->monad(\Runtime\rtl::m_to("string", ""));
-		$method_name = $__v0->value();
-		/* Get annotation by api name */
-		$annotation = $this->api_list->get($api_name);
-		/* Annotation not found */
-		if ($annotation == null)
-		{
-			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\ItemNotFound($api_name, "Api annotation"));
-		}
-		/* Find method */
-		$getMethodInfoByName = new \Runtime\Callback($annotation->name, "getMethodInfoByName");
-		$method_info = $getMethodInfoByName->apply(\Runtime\Vector::from([$method_name]));
-		/* Method not found */
-		if ($method_info == null)
-		{
-			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\ItemNotFound($method_name . \Runtime\rtl::toStr(" in ") . \Runtime\rtl::toStr($api_name), "Api method"));
-		}
-		/* Check if method is api */
-		$api_method = $method_info->get("annotations")->findItem(\Runtime\lib::isInstance("Runtime.Web.Annotations.ApiMethod"));
-		if ($api_method == null)
-		{
-			throw new \Runtime\Exceptions\ApiError(new \Runtime\Exceptions\ItemNotFound($method_name . \Runtime\rtl::toStr(" in ") . \Runtime\rtl::toStr($api_name), "Api method"));
-		}
-		/* Set props */
-		$result = \Runtime\Map::from(["api_method"=>$api_method,"api_name"=>$api_name,"class_name"=>$annotation->name,"method_info"=>$method_info,"method_name"=>$method_name]);
-		return $result;
-	}
-	/**
-	 * Call annotation
-	 */
-	function callAnnotation($annotation, $params)
-	{
-		$__v0 = new \Runtime\Monad(\Runtime\rtl::attr($params, "data"));
-		$__v0 = $__v0->monad(\Runtime\rtl::m_to("Runtime.Dict", null));
-		$data = $__v0->value();
-		$class_name = $annotation->get("class_name");
-		$method_name = $annotation->get("method_name");
-		$api_instance = null;
-		$callback = null;
-		/* Create api instance */
-		$api_instance = \Runtime\rtl::newInstance($class_name);
-		$api_instance->action = $method_name;
-		$api_instance->layout = \Runtime\rtl::attr($params, "layout");
-		$api_instance->post_data = $data;
-		$api_instance->result = new \Runtime\Web\ApiResult();
-		$api_instance->init();
-		/* Get callback */
-		if (\Runtime\rtl::method_exists($class_name, $method_name))
-		{
-			$callback = new \Runtime\Callback($class_name, $method_name);
-		}
-		else
-		{
-			$callback = new \Runtime\Callback($api_instance, $method_name);
-		}
-		/* Call api */
-		try
-		{
-			
-			$api_instance->onActionBefore();
-			$callback->apply(\Runtime\Vector::from([$api_instance]));
-			$api_instance->onActionAfter();
-		}
-		catch (\Exception $_ex)
-		{
-			if ($_ex instanceof \Runtime\Exceptions\ApiError)
-			{
-				$e = $_ex;
-				$api_instance->result->fail($e->getPreviousException());
-			}
-			else
-			{
-				throw $_ex;
-			}
-		}
-		/* Return api result */
-		return $api_instance->result;
-	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->api_list = \Runtime\Map::from([]);
+		$this->api_list = new \Runtime\Map();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Web";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.BusLocal";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseProvider";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.BusLocal"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

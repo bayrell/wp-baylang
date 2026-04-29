@@ -18,13 +18,13 @@
 
 namespace Runtime.ORM;
 
-use Runtime.lib;
 use Runtime.BaseObject;
 use Runtime.DateTime;
 use Runtime.ORM.Annotations.Migration;
 use Runtime.ORM.Factory.CursorFactory;
 use Runtime.ORM.BaseMigration;
 use Runtime.ORM.Connection;
+use Runtime.ORM.ConnectionPool;
 use Runtime.ORM.Cursor;
 use Runtime.ORM.Provider as DatabaseProvider;
 use Runtime.ORM.Query;
@@ -33,11 +33,9 @@ use Runtime.ORM.QueryLog;
 
 class MigrationBuilder extends BaseObject
 {
-	Connection connection = null;
-	Connection connection_query = null;
+	QueryLog log = null;
+	ConnectionPool pool = null;
 	Collection<BaseMigration> migrations = null;
-	string connection_name = "";
-	bool execute = false;
 	Collection<Dict> history = [];
 	Dict history_cache = {};
 	
@@ -48,14 +46,33 @@ class MigrationBuilder extends BaseObject
 	void constructor(string connection_name = "default")
 	{
 		parent();
-		this.connection_name = connection_name;
+		this.pool = ConnectionPool::get(connection_name);
+	}
+	
+	
+	/**
+	 * Create connection
+	 */
+	async Connection createConnection(bool execute)
+	{
+		if (execute)
+		{
+			return await this.pool.getConnection();
+		}
+		
+		Connection connection = this.pool.createConnection();
+		connection.setQueryLog(this.log);
+		connection.setCursorFactory(
+			new CursorFactory(classof Cursor)
+		);
+		return connection;
 	}
 	
 	
 	/**
 	 * Returns query log
 	 */
-	QueryLog getQueryLog() => this.connection_query.getQueryLog();
+	QueryLog getQueryLog() => this.connection.getQueryLog();
 	
 	
 	/**
@@ -63,7 +80,9 @@ class MigrationBuilder extends BaseObject
 	 */
 	Collection<string> getSQL()
 	{
-		Collection<string> items = this.getQueryLog().map(lib::attr("sql"));
+		Collection<string> items = this.log.map(
+			string (Map item) => item.get("sql")
+		);
 		Collection<string> result = [];
 		
 		for (int i=0; i<items.count(); i++)
@@ -91,23 +110,15 @@ class MigrationBuilder extends BaseObject
 	async void init()
 	{
 		/* Get database provider */
-		DatabaseProvider database = @.provider(classof DatabaseProvider);
+		DatabaseProvider database = @.provider(
+			classof DatabaseProvider
+		);
 		
-		/* Fork connection */
-		this.connection = database.getConnection(this.connection_name);
-		this.connection_query = this.connection.fork();
-		
-		/* Set query log */
-		this.connection_query.setQueryLog(new QueryLog);
-		
-		/* Execute migration */
-		if (not this.execute)
-		{
-			this.connection_query.setCursorFactory(new CursorFactory(classof Cursor));
-		}
+		/* Create query log */
+		this.log = new QueryLog();
 		
 		/* Get migrations */
-		this.migrations = this.getMigrations();
+		this.migrations = await this.getMigrations();
 		
 		/* Create table */
 		await this.createTable();
@@ -122,31 +133,37 @@ class MigrationBuilder extends BaseObject
 	 */
 	async void createTable()
 	{
-		Query q = (new Query())
+		Query q = new Query()
 			.select()
 			.from("`information_schema`.`tables`", "t")
 			.addRawField("count(*) as c")
-			.where("table_schema", "=", this.connection.database)
-			.where("table_name", "=", this.connection.getTableName("database_migrations"))
+			.where("table_schema", "=", this.pool.getDatabaseName())
+			.where("table_name", "=", this.pool.getTableName("database_migrations"))
 		;
 		
-		Cursor cursor = this.connection.execute(q);
-		int count = await cursor.fetchVar('c');
-		await cursor.close();
+		Connection connection = await this.pool.getConnection();
 		
-		if (count == 1) return;
-		
-		/* Create table */
-		Collection<string> sql = [
-			"CREATE TABLE `" ~ this.connection.getTableName("database_migrations") ~ "` (",
-			"  `id` bigint(20) NOT NULL AUTO_INCREMENT,",
-			"  `name` varchar(255) NOT NULL,",
-			"  `gmtime_add` datetime NOT NULL,",
-			"  PRIMARY KEY (`id`),"
-			"  UNIQUE KEY name (`name`)"
-			") ENGINE=InnoDB",
-		];
-		await this.connection.executeSQL(rs::join("\n", sql));
+		try
+		{
+			int count = await connection.fetchVar(q, "c");		
+			if (count == 1) return;
+			
+			/* Create table */
+			Collection<string> sql = [
+				"CREATE TABLE `" ~ connection.getTableName("database_migrations") ~ "` (",
+				"  `id` bigint(20) NOT NULL AUTO_INCREMENT,",
+				"  `name` varchar(255) NOT NULL,",
+				"  `gmtime_add` datetime NOT NULL,",
+				"  PRIMARY KEY (`id`),",
+				"  UNIQUE KEY (`name`)",
+				") ENGINE=InnoDB",
+			];
+			await connection.executeSQL(rs::join("\n", sql));
+		}
+		finally
+		{
+			await connection.release();
+		}
 	}
 	
 	
@@ -155,17 +172,25 @@ class MigrationBuilder extends BaseObject
 	 */
 	async void loadHistory()
 	{
-		Query q = (new Query())
+		Query q = new Query()
 			.select(["id", "name", "gmtime_add"])
 			.from("database_migrations")
 			.orderBy("id", "asc")
 		;
 		
-		this.history = this.connection.fetchAll(q).toDict();
-		for (int i=0; i<this.history.count(); i++)
+		Connection connection = await this.pool.getConnection();
+		try
 		{
-			Dict item = this.history.get(i);
-			this.history_cache.set(item.get("name"), item);
+			this.history = await connection.fetchAll(q);
+			for (int i=0; i<this.history.count(); i++)
+			{
+				Dict item = this.history.get(i);
+				this.history_cache.set(item.get("name"), item);
+			}
+		}
+		finally
+		{
+			await connection.release();
 		}
 	}
 	
@@ -173,7 +198,7 @@ class MigrationBuilder extends BaseObject
 	/**
 	 * Returns migrations
 	 */
-	Collection<BaseMigration> getMigrations()
+	async Collection<BaseMigration> getMigrations()
 	{
 		Collection<Migration> items = @.getEntities(classof Migration);
 		items = items.map(
@@ -187,6 +212,9 @@ class MigrationBuilder extends BaseObject
 			items.appendItems(item.buildMigrations());
 		}
 		
+		/* Create new conection */
+		Connection connection = this.pool.createConnection();
+		
 		/* Make index */
 		Dict<BaseMigration> index = {};
 		for (int i=0; i<items.count(); i++)
@@ -195,7 +223,7 @@ class MigrationBuilder extends BaseObject
 			index.set(item.getName(), item);
 			
 			/* Set connection */
-			item.setConnection(this.connection_query);
+			item.setConnection(connection);
 		}
 		
 		/* Add items */
@@ -218,7 +246,7 @@ class MigrationBuilder extends BaseObject
 			(
 				BaseMigration (string name) use (index) => index.get(name)
 			);
-			required = required.filter(lib::equalNot(null));
+			required = required.filter(bool (string item) => item != null);
 			
 			/* Add required migrations */
 			for (int i=0; i<required.count(); i++)
@@ -234,6 +262,9 @@ class MigrationBuilder extends BaseObject
 		{
 			addItem(items.get(i));
 		}
+		
+		/* Release connection */
+		await connection.release();
 		
 		return migrations;
 	}
@@ -263,16 +294,18 @@ class MigrationBuilder extends BaseObject
 	/**
 	 * Add migration to dabase
 	 */
-	async void addMigration(BaseMigration migration)
+	async void addMigration(
+		Connection connection, BaseMigration migration
+	)
 	{
 		string name = migration.getName();
 		
 		/* Insert record */
-		await this.connection.insert(
+		await connection.insert(
 			"database_migrations",
 			{
 				"name": name,
-				"gmtime_add": DateTime::now().setOffset(0).getDateTimeString(),
+				"gmtime_add": DateTime::now().setOffset(0).format(),
 			}
 		);
 	}
@@ -281,41 +314,71 @@ class MigrationBuilder extends BaseObject
 	/**
 	 * Remove migration
 	 */
-	async void removeMigration(BaseMigration migration)
+	async void removeMigration(
+		Connection connection, BaseMigration migration
+	)
 	{
 		string name = migration.getName();
 		
 		/* Remove record */
-		Query q = (new Query)
+		Query q = new Query()
 			.delete("database_migrations")
 			.where("name", "=", name)
 		;
-		Cursor c = await this.connection.execute(q);
-		await c.close();
+		await connection.query(q);
+	}
+	
+	
+	/**
+	 * Set connection
+	 */
+	void setConnection(Connection connection)
+	{
+		for (int i=0; i<this.migrations.count(); i++)
+		{
+			BaseMigration migration = this.migrations.get(i);
+			migration.setConnection(connection);
+		}
 	}
 	
 	
 	/**
 	 * Up migrations
 	 */
-	async void up()
+	async void up(bool execute = false)
 	{
-		for (int i=0; i<this.migrations.count(); i++)
+		Connection connection = await this.createConnection(execute);
+		
+		try
 		{
-			BaseMigration migration = this.migrations.get(i);
-			
-			/* Check allow migration */
-			int allow = this.allowMigration(migration, "up");
-			if (allow == 0) continue;
-			
-			/* Up migration */
-			if (migration.up) await rtl::apply(migration.up);
-			
-			/* Add migration */
-			if (this.execute)
+			this.setConnection(connection);
+			for (int i=0; i<this.migrations.count(); i++)
 			{
-				await this.addMigration(migration);
+				BaseMigration migration = this.migrations.get(i);
+				
+				/* Check allow migration */
+				bool allow = this.allowMigration(migration, "up");
+				if (not allow) continue;
+				
+				/* Up migration */
+				if (migration.up)
+				{
+					fn up = migration.up;
+					await up();
+				}
+				
+				/* Add migration */
+				if (execute)
+				{
+					await this.addMigration(
+						connection, migration
+					);
+				}
 			}
+		}
+		finally
+		{
+			await connection.release();
 		}
 	}
 	
@@ -323,24 +386,40 @@ class MigrationBuilder extends BaseObject
 	/**
 	 * Down migrations
 	 */
-	async void down()
+	async void down(bool execute = false)
 	{
-		for (int i=this.migrations.count() - 1; i>=0; i--)
+		Connection connection = await this.createConnection(execute);
+		
+		try
 		{
-			BaseMigration migration = this.migrations.get(i);
-			
-			/* Check allow migration */
-			int allow = this.allowMigration(migration, "down");
-			if (allow == 0) continue;
-			
-			/* Down */
-			if (migration.down) await rtl::apply(migration.down);
-			
-			/* Remove migration */
-			if (this.execute)
+			this.setConnection(connection);
+			for (int i=this.migrations.count() - 1; i>=0; i--)
 			{
-				await this.removeMigration(migration);
+				BaseMigration migration = this.migrations.get(i);
+				
+				/* Check allow migration */
+				bool allow = this.allowMigration(migration, "down");
+				if (not allow) continue;
+				
+				/* Down */
+				if (migration.down)
+				{
+					fn down = migration.down;
+					await down();
+				}
+				
+				/* Remove migration */
+				if (execute)
+				{
+					await this.removeMigration(
+						connection, migration
+					);
+				}
 			}
+		}
+		finally
+		{
+			await connection.release();
 		}
 	}
 }

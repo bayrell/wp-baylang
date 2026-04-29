@@ -16,13 +16,103 @@
  *  limitations under the License.
 -->
 
-
 <class name="Runtime.WordPress.Admin.MailLog.MailLogPage">
 
+<use name="Runtime.DateTime" />
+<use name="Runtime.Widget.Button" component="true" />
+<use name="Runtime.Widget.Form.FormRow" component="true" />
+<use name="Runtime.Widget.Dialog.Dialog" component="true" />
+<use name="Runtime.Widget.Dialog.DialogModel" />
+<use name="Runtime.Widget.Table.Table" component="true" />
+
 <template>
-	<div class="form_settings_page">
-		%render this.renderWidget(this.model.table);
+	<div class="mail_log_page">
+		<Table model={{ this.model.table }} page_name="p">
+			<slot name="header">
+				<th></th>
+				<th>Worker</th>
+				<th>Plan</th>
+				<th>Status</th>
+				<th>Dest</th>
+				<th>Title</th>
+				<th>Error</th>
+				<th>Send time</th>
+				<th></th>
+			</slot>
+			<slot name="row" args="Map item, int row_number">
+				<td>{{ row_number + 1 }}</td>
+				<td>{{ item.get("worker") }}</td>
+				<td>{{ item.get("plan") }}</td>
+				<td>{{ this.getStatus(item.get("status")) }}</td>
+				<td>{{ item.get("dest") }}</td>
+				<td>{{ item.get("title") }}</td>
+				<td>{{ item.get("send_email_error") }}</td>
+				<td>
+					%set DateTime send_time = item.get("gmtime_send");
+					{{ send_time ? send_time.normalize().format() : "" }}
+				</td>
+				<td>
+					<Button @event:click="this.showItem(item.copy())">View</Button>
+				</td>
+			</slot>
+		</Table>
+		<Dialog model={{ this.dialog }}>
+			<slot name="title">
+				Show item
+			</slot>
+			<slot name="content">
+				%if (this.current_item)
+				{
+					<FormRow label="Worker">{{ this.current_item.get("worker") }}</FormRow>
+					<FormRow label="Plan">{{ this.current_item.get("plan") }}</FormRow>
+					<FormRow label="Status">
+						{{ this.getStatus(this.current_item.get("status")) }}
+					</FormRow>
+					<FormRow label="Dest">{{ this.current_item.get("dest") }}</FormRow>
+					<FormRow label="Title">{{ this.current_item.get("title") }}</FormRow>
+					<FormRow label="Error">{{ this.current_item.get("send_email_error") }}</FormRow>
+					<FormRow label="Date">
+						%set DateTime send_time = this.current_item.get("gmtime_send");
+						{{ send_time ? send_time.normalize().format() : "" }}
+					</FormRow>
+					<FormRow label="Message">
+						%render this.current_item.get("message");
+					</FormRow>
+				}
+			</slot>
+			<slot name="footer">
+				<Button @event:click="this.dialog.hide()">Close</Button>
+			</slot>
+		</Dialog>
 	</div>
 </template>
+
+<script>
+
+DialogModel dialog = new DialogModel();
+Map current_item = null;
+
+
+/**
+ * Sho item
+ */
+void showItem(Map item)
+{
+	this.current_item = item;
+	this.dialog.show();
+}
+
+
+/**
+ * Returns status
+ */
+string getStatus(int status)
+{
+	if (status == 1) return "Send";
+	if (status == -1) return "Error";
+	return "No";
+}
+
+</script>
 
 </class>

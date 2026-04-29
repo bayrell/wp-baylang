@@ -1,0 +1,90 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Widget.Form;
+
+use Runtime.ApiResult;
+use Runtime.BaseModel;
+use Runtime.Widget.ResultModel;
+
+
+class FieldErrors extends BaseModel
+{
+	Map errors = {};
+	string error_name = "fields";
+	
+	
+	/**
+	 * Init widget params
+	 */
+	void initParams(Map params)
+	{
+		parent(params)
+		
+		if (params.has("error_name")) this.error_name = params.get("error_name");
+	}
+	
+	
+	/**
+	 * Set api result
+	 */
+	void setApiResult(ApiResult result)
+	{
+		this.setFieldErrors(result.data.get(this.error_name));
+	}
+	
+	
+	/**
+	 * Set field errors
+	 */
+	void setFieldErrors(Map field_errors)
+	{
+		if (not field_errors)
+		{
+			this.errors = {};
+			return;
+		}
+		
+		this.errors = {};
+		Vector keys = rtl::list(field_errors.keys());
+		for (int i=0; i<keys.count(); i++)
+		{
+			string field_name = keys.get(i);
+			Vector messages = field_errors.get(field_name);
+			string message = rs::join(", ", messages);
+			ResultModel result = new ResultModel();
+			result.setError(message);
+			this.errors.set(field_name, result);
+		}
+	}
+	
+	
+	/**
+	 * Returns result
+	 */
+	ResultModel get(string field_name) => this.errors.get(field_name);
+	
+	
+	/**
+	 * Clear
+	 */
+	void clear()
+	{
+		this.errors = {};
+	}
+}

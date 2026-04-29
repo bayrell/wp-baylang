@@ -18,17 +18,35 @@
 
 namespace Runtime.WordPress;
 
-use Runtime.Web.BaseApp;
+use Runtime.Web.BasePHP;
 
 
-class WP_App extends BaseApp
+class WP_App extends BasePHP
 {
 	#ifcode PHP then
 	
 	/**
+	 * Send status code
+	 */
+	function sendStatusCode($http_code)
+	{
+		status_header($http_code);
+	}
+	
+	
+	/**
+	 * Send header
+	 */
+	function sendHeader($key, $value)
+	{
+		header($key . ":" . $value);
+	}
+	
+	
+	/**
 	 * Read POST
 	 */
-	function readPost($ctx)
+	function readPost()
 	{
 		$content_type = isset($_SERVER['HTTP_CONTENT_TYPE']) ?
 			$_SERVER['HTTP_CONTENT_TYPE'] : "";

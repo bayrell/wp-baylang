@@ -17,51 +17,24 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin;
-class AdminLayoutModel extends \Runtime\Web\BaseLayoutModel
+
+use Runtime\BaseLayout;
+use Runtime\Web\RouteList;
+use Runtime\WordPress\Admin\AdminLayout;
+
+
+class AdminLayoutModel extends \Runtime\BaseLayout
 {
-	public $component;
-	/* ======================= Class Init Functions ======================= */
+	var $component;
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->component = "Runtime.WordPress.Admin.AdminLayout";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Admin";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.AdminLayoutModel";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.BaseLayoutModel";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.AdminLayoutModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

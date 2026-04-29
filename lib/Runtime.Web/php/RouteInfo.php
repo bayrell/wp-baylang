@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,59 +17,107 @@
  *  limitations under the License.
  */
 namespace Runtime\Web;
+
+use Runtime\re;
+use Runtime\Method;
+use Runtime\BaseObject;
+use Runtime\SerializeInterface;
+use Runtime\Serializer\IntegerType;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\ObjectType;
+use Runtime\Serializer\StringType;
+use Runtime\Serializer\VectorType;
+use Runtime\TypeError;
+use Runtime\Entity\Factory;
+use Runtime\Exceptions\ItemNotFound;
+use Runtime\Exceptions\RuntimeException;
+use Runtime\Web\BasePageModel;
+use Runtime\Web\BaseRoute;
+use Runtime\Web\Middleware;
+use Runtime\Web\RenderContainer;
+use Runtime\Web\RouteList;
+
+
 class RouteInfo extends \Runtime\BaseObject implements \Runtime\SerializeInterface
 {
-	public $name;
-	public $uri;
-	public $uri_match;
-	public $domain;
-	public $label;
-	public $layout;
-	public $route_class;
-	public $data;
-	public $middleware;
-	public $params;
-	public $matches;
-	public $is_backend;
-	public $pos;
-	function __construct($params=null)
+	var $name;
+	var $uri;
+	var $uri_match;
+	var $domain;
+	var $label;
+	var $layout;
+	var $route_class;
+	var $method;
+	var $data;
+	var $middleware;
+	var $params;
+	var $matches;
+	var $is_backend;
+	var $pos;
+	
+	
+	/**
+	 * Constructor
+	 */
+	function __construct($params = null)
 	{
 		parent::__construct();
 		$this->_assign_values($params);
 	}
+	
+	
 	/**
-	 * Process frontend data
+	 * Serialize object
 	 */
-	function serialize($serializer, $data)
+	static function serialize($rules)
 	{
-		$serializer->process($this, "data", $data);
-		$serializer->process($this, "domain", $data);
-		$serializer->process($this, "label", $data);
-		$serializer->process($this, "layout", $data);
-		$serializer->process($this, "matches", $data);
-		$serializer->process($this, "middleware", $data);
-		$serializer->process($this, "name", $data);
-		$serializer->process($this, "params", $data);
-		$serializer->process($this, "pos", $data);
-		$serializer->process($this, "route_class", $data);
-		$serializer->process($this, "uri", $data);
-		$serializer->process($this, "uri_match", $data);
+		parent::serialize($rules);
+		$rules->addType("data", new \Runtime\Serializer\MapType(new \Runtime\Serializer\StringType()));
+		$rules->addType("domain", new \Runtime\Serializer\StringType());
+		$rules->addType("label", new \Runtime\Serializer\StringType());
+		$rules->addType("layout", new \Runtime\Serializer\StringType());
+		$rules->addType("name", new \Runtime\Serializer\StringType());
+		$rules->addType("matches", new \Runtime\Serializer\MapType(new \Runtime\Serializer\StringType()));
+		$rules->addType("params", new \Runtime\Serializer\VectorType(new \Runtime\Serializer\StringType()));
+		$rules->addType("pos", new \Runtime\Serializer\IntegerType());
+		$rules->addType("route_class", new \Runtime\Serializer\StringType());
+		$rules->addType("uri", new \Runtime\Serializer\StringType());
+		$rules->addType("uri_match", new \Runtime\Serializer\StringType());
 	}
+	
+	
 	/**
 	 * Copy route
 	 */
 	function copy()
 	{
-		return \Runtime\Serializer::copy($this);
+		return \Runtime\rtl::copy($this);
 	}
+	
+	
+	/**
+	 * Returns layout name
+	 */
+	function getLayoutName()
+	{
+		if ($this->layout != "") return $this->layout;
+		if ($this->route_class != "")
+		{
+			$f = new \Runtime\Method($this->route_class, "getLayoutName");
+			return $f->exists() ? $f->apply() : "";
+		}
+		return "";
+	}
+	
+	
 	/**
 	 * Compile route
 	 */
 	function compile()
 	{
-		if ($this->uri_match == "")
+		if ($this->uri_match == "" || $this->uri_match == null)
 		{
-			$this->uri_match = "^" . \Runtime\rtl::toStr(\Runtime\re::replace("\\/", "\\/", $this->uri)) . \Runtime\rtl::toStr("\$");
+			$this->uri_match = "^" . \Runtime\re::replace("\\/", "\\/", $this->uri) . "\$";
 		}
 		$matches = \Runtime\re::matchAll("{(.*?)}", $this->uri);
 		if ($matches)
@@ -77,17 +125,19 @@ class RouteInfo extends \Runtime\BaseObject implements \Runtime\SerializeInterfa
 			$params = new \Runtime\Vector();
 			for ($i = 0; $i < $matches->count(); $i++)
 			{
-				$arr = \Runtime\rtl::attr($matches, $i);
-				$name = \Runtime\rtl::attr($arr, 1);
-				$this->uri_match = \Runtime\re::replace("{" . \Runtime\rtl::toStr($name) . \Runtime\rtl::toStr("}"), "([^\\/]*?)", $this->uri_match);
+				$arr = $matches[$i];
+				$name = $arr[1];
+				$this->uri_match = \Runtime\re::replace("{" . $name . "}", "([^\\/]*?)", $this->uri_match);
 				$this->params->push($name);
 			}
 		}
 		else
 		{
-			$this->params = \Runtime\Vector::from([]);
+			$this->params = new \Runtime\Vector();
 		}
 	}
+	
+	
 	/**
 	 * Add matches
 	 */
@@ -100,6 +150,50 @@ class RouteInfo extends \Runtime\BaseObject implements \Runtime\SerializeInterfa
 			$this->matches->set($param_name, $match_value);
 		}
 	}
+	
+	
+	/**
+	 * Call middleware
+	 */
+	function callMiddleware($container)
+	{
+		if ($this->middleware)
+		{
+			for ($i = 0; $i < $this->middleware->count(); $i++)
+			{
+				$middleware = null;
+				$item = $this->middleware->get($i);
+				/* Create middleware */
+				if (\Runtime\rtl::isString($item))
+				{
+					$middleware = \Runtime\rtl::newInstance($item);
+				}
+				else if ($item instanceof \Runtime\Entity\Factory)
+				{
+					$middleware = $item->factory();
+				}
+				/* Apply middleware */
+				$middleware->route($container);
+			}
+		}
+		/* Call route class middleware */
+		if ($this->route_class)
+		{
+			$class_name = $this->route_class;
+			$getMiddleware = new \Runtime\Method($class_name, "getMiddleware");
+			if ($getMiddleware->exists())
+			{
+				$items = $getMiddleware->apply();
+				for ($i = 0; $i < $items->count(); $i++)
+				{
+					$middleware = $items->get($i);
+					$middleware->route($container);
+				}
+			}
+		}
+	}
+	
+	
 	/**
 	 * Render route
 	 */
@@ -107,7 +201,9 @@ class RouteInfo extends \Runtime\BaseObject implements \Runtime\SerializeInterfa
 	{
 		throw new \Runtime\Exceptions\RuntimeException("RouteInfo is abstract class");
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -118,49 +214,15 @@ class RouteInfo extends \Runtime\BaseObject implements \Runtime\SerializeInterfa
 		$this->label = null;
 		$this->layout = null;
 		$this->route_class = null;
+		$this->method = "GET";
 		$this->data = null;
 		$this->middleware = null;
-		$this->params = \Runtime\Vector::from([]);
-		$this->matches = \Runtime\Map::from([]);
+		$this->params = new \Runtime\Vector();
+		$this->matches = new \Runtime\Map();
 		$this->is_backend = false;
 		$this->pos = 100;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Web";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.RouteInfo";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.RouteInfo"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

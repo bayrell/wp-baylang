@@ -17,73 +17,63 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Database;
-class MailDelivery extends \Runtime\ORM\Relation
+
+use Runtime\BaseObject;
+use Runtime\DateTime;
+use Runtime\ORM\Connection;
+use Runtime\ORM\Relation;
+use Runtime\ORM\Record;
+use Runtime\ORM\Annotations\AutoIncrement;
+use Runtime\ORM\Annotations\BigIntType;
+use Runtime\ORM\Annotations\BooleanType;
+use Runtime\ORM\Annotations\DateTimeType;
+use Runtime\ORM\Annotations\Primary;
+use Runtime\ORM\Annotations\StringType;
+use Runtime\ORM\Annotations\TinyIntType;
+use Runtime\ORM\Annotations\Unique;
+
+
+class MailDelivery extends \Runtime\ORM\Record
 {
 	/**
-     * Returns table name
-     */
-	static function getTableName()
-	{
-		return "mail_delivery";
-	}
+	 * Returns table name
+	 */
+	static function getTableName(){ return "mail_delivery"; }
+	
+	
 	/**
-     * Returns table schema
-     */
+	 * Returns table schema
+	 */
 	static function schema()
 	{
-		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.WordPress.Database.MailDelivery.schema", func_get_args());
-		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;$__memorize_value = \Runtime\Vector::from([new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"worker"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"plan"])),new \Runtime\ORM\Annotations\TinyIntType(\Runtime\Map::from(["name"=>"status"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"dest"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"uuid"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"title"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"message"])),new \Runtime\ORM\Annotations\DateTimeType(\Runtime\Map::from(["name"=>"gmtime_plan"])),new \Runtime\ORM\Annotations\DateTimeType(\Runtime\Map::from(["name"=>"gmtime_send"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"send_email_error"])),new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"send_email_code"])),new \Runtime\ORM\Annotations\DateTimeType(\Runtime\Map::from(["name"=>"gmtime_add"])),new \Runtime\ORM\Annotations\BooleanType(\Runtime\Map::from(["name"=>"is_delete"])),new \Runtime\ORM\Annotations\AutoIncrement(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\Primary(\Runtime\Map::from(["keys"=>\Runtime\Vector::from(["id"])])),new \Runtime\ORM\Annotations\Unique(\Runtime\Map::from(["keys"=>\Runtime\Vector::from(["uuid"])]))]);
-		\Runtime\rtl::_memorizeSave("Runtime.WordPress.Database.MailDelivery.schema", func_get_args(), $__memorize_value);
-		return $__memorize_value;
+		return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "worker"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "plan"])),
+			new \Runtime\ORM\Annotations\TinyIntType(new \Runtime\Map(["name" => "status"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "dest"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "uuid"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "title"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "message"])),
+			new \Runtime\ORM\Annotations\DateTimeType(new \Runtime\Map(["name" => "gmtime_plan"])),
+			new \Runtime\ORM\Annotations\DateTimeType(new \Runtime\Map(["name" => "gmtime_send"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "send_email_error"])),
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "send_email_code"])),
+			new \Runtime\ORM\Annotations\DateTimeType(new \Runtime\Map(["name" => "gmtime_add", "autocreate" => true])),
+			new \Runtime\ORM\Annotations\BooleanType(new \Runtime\Map(["name" => "is_delete"])),
+			new \Runtime\ORM\Annotations\AutoIncrement(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\Primary(new \Runtime\Map(["keys" => new \Runtime\Vector("id")])),
+			new \Runtime\ORM\Annotations\Unique(new \Runtime\Map(["keys" => new \Runtime\Vector("uuid")])),
+		);
 	}
-	/**
-	 * Save
-	 */
-	function save($connection, $params=null)
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		if ($this->get("gmtime_add") == null)
-		{
-			$this->set("gmtime_add", \Runtime\DateTime::now());
-		}
-		parent::save($connection, $params);
+		parent::_init();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Database";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Database.MailDelivery";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Relation";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Database.MailDelivery"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

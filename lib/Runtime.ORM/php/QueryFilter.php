@@ -17,13 +17,21 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM;
+
+use Runtime\BaseObject;
+
 class QueryFilter extends \Runtime\BaseObject
 {
-	public $key;
-	public $op;
-	public $value;
-	public $alias;
-	function __construct($key="", $op="", $value="", $alias="")
+	var $key;
+	var $op;
+	var $value;
+	var $alias;
+	
+	
+	/**
+	 * Constructor
+	 */
+	function __construct($key = "", $op = "", $value = "", $alias = "")
 	{
 		parent::__construct();
 		$this->key = $key;
@@ -31,38 +39,24 @@ class QueryFilter extends \Runtime\BaseObject
 		$this->value = $value;
 		$this->alias = $alias;
 	}
+	
+	
 	/**
 	 * Validate operation
 	 */
 	static function validateOp($op)
 	{
-		if ($op == "=")
-		{
-			return true;
-		}
-		if ($op == ">")
-		{
-			return true;
-		}
-		if ($op == ">=")
-		{
-			return true;
-		}
-		if ($op == "<")
-		{
-			return true;
-		}
-		if ($op == "<=")
-		{
-			return true;
-		}
-		if ($op == "!=")
-		{
-			return true;
-		}
+		if ($op == "=") return true;
+		if ($op == ">") return true;
+		if ($op == ">=") return true;
+		if ($op == "<") return true;
+		if ($op == "<=") return true;
+		if ($op == "!=") return true;
 		return false;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -71,42 +65,7 @@ class QueryFilter extends \Runtime\BaseObject
 		$this->value = "";
 		$this->alias = "";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.QueryFilter";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.QueryFilter"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

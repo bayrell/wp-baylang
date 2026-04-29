@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,8 +18,11 @@
 
 <class name="Runtime.Widget.Tab.Tabs">
 
+<use name="Runtime.Component" />
+<use name="Runtime.VirtualDom" />
 <use name="Runtime.Web.BaseModel" />
 <use name="Runtime.Widget.Tab.Tab" component="true" />
+<use name="Runtime.Widget.Tab.TabMessage" />
 
 
 <style>
@@ -29,17 +32,23 @@
 .tabs__header{
 	display: flex;
 	position: relative;
-	border-bottom-width: var(--widget-border-width);
-	border-bottom-color: var(--widget-color-border);
+	border-bottom-width: var(--border-width);
+	border-bottom-color: var(--color-border);
 	border-bottom-style: solid;
+	transition: background-color var(--transition) var(--transition-type),
+		border-color var(--transition) var(--transition-type),
+		color var(--transition) var(--transition-type);
 }
 .tabs__header_item{
 	position: relative;
-	padding: calc(1.5 * var(--widget-space));
+	padding: calc(1.5 * var(--space));
 	border-color: transparent;
-	border-width: var(--widget-border-width);
+	border-width: var(--border-width);
 	border-style: solid;
 	border-bottom-width: 0px;
+	transition: background-color var(--transition) var(--transition-type),
+		border-color var(--transition) var(--transition-type),
+		color var(--transition) var(--transition-type);
 	text-decoration: none;
 	color: inherit;
 	cursor: pointer;
@@ -47,7 +56,7 @@
 	-moz-user-select: none;
 	-khtml-user-select: none;
 	-ms-user-select: none;
-    top: var(--widget-border-width);
+    top: var(--border-width);
 }
 .tabs__header_item:hover,
 .tabs__header_item:visited,
@@ -59,11 +68,11 @@
 	outline: transparent;
 }
 .tabs__header_item--active{
-	background-color: var(--widget-color-table-background);
-	border-color: var(--widget-color-border);
+	background-color: var(--color-background);
+	border-color: var(--color-border);
 }
 .tabs__content{
-	margin-top: calc(2 * var(--widget-space));
+	margin-top: calc(2 * var(--space));
 }
 .tabs__item{
 	position: relative;
@@ -76,64 +85,44 @@
 
 
 <template name="renderHeader">
-	%for (int i=0; i<this.model.items.count(); i++)
-	{
-		%set Dict tab = this.model.items.get(i);
-		%set string tab_key = tab["key"];
-		%set string tab_label = tab["label"];
-		%set string tab_href = tab["href"];
-		%set bool is_active = this.model.isActive(tab_key);
-		
-		%if (tab_href == null)
+	<div class="tabs__header">
+		%set Vector items = this.items;
+		%for (int i=0; i<items.count(); i++)
 		{
-			<div class="tabs__header_item" class={{ is_active ? "tabs__header_item--active" : "" }}
-				data-tab={{ tab_key }}
-				@event:onClick={{ this.onClick }}
-			>
-				{{ tab_label }}
-			</div>
-		}
-		%else
-		{
-			<a class="tabs__header_item" class={{ is_active ? "tabs__header_item--active" : "" }}
-				data-tab={{ tab_key }} href={{ tab_href }}
-			>
-				{{ tab_label }}
-			</a>
-		}
-	}
-</template>
-
-
-<template name="renderContent">
-	%if (this.model.render)
-	{
-		%for (int i=0; i<this.model.items.count(); i++)
-		{
-			%set Dict tab = this.model.items.get(i);
-			%set string tab_key = tab.get("key");
-			%if (this.model.canShow(tab_key))
+			%set Map tab = items.get(i);
+			%set string tab_name = tab.get("name");
+			%set string tab_title = tab.get("title");
+			%set string tab_href = tab.get("href");
+			%set bool is_active = this.model.isActive(tab_name);
+			
+			%if (tab_href == null)
 			{
-				<div class="tabs__item"
-					class={{ this.model.isActive(tab_key) ? "tabs__item--active" : "" }}
-					data-tab={{ tab_key }}
+				<div class="tabs__header_item"
+					class={{ is_active ? "tabs__header_item--active" : "" }}
+					data-tab={{ tab_name }}
+					@event:click="this.onClick(tab_name)"
 				>
-					%render this.renderSlot(tab_key);
+					{{ tab_title }}
 				</div>
 			}
+			%else
+			{
+				<a class="tabs__header_item" class={{ is_active ? "tabs__header_item--active" : "" }}
+					data-tab={{ tab_name }} href={{ tab_href }}
+				>
+					{{ tab_title }}
+				</a>
+			}
 		}
-	}
+	</div>
 </template>
 
 
 <template>
 	<div class="tabs" class={{ this.class }}>
-		<div class="tabs__header">
-			%render this.renderHeader();
-		</div>
+		%render this.renderHeader();
 		<div class="tabs__content">
 			%render this.renderSlot("default");
-			%render this.renderContent();
 		</div>
 	</div>
 </template>
@@ -141,11 +130,52 @@
 
 <script>
 
-void onClick(var e)
+/**
+ * Returns items
+ */
+computed Vector items()
 {
-	string tab_key = e.target.getAttribute("data-tab");
+	Vector result = [];
+	Vector items = [];
+	VirtualDom vdom = this.renderSlot("default");
+	if (vdom instanceof VirtualDom) items = vdom.items;
+	else
+	{
+		items = Vector::create(vdom);
+	}
+	for (int i=0; i<items.count(); i++)
+	{
+		VirtualDom item = items.get(i);
+		if (item instanceof VirtualDom)
+		{
+			result.push({
+				"name": item.attrs.get("name"),
+				"title": item.attrs.get("title"),
+				"href": item.attrs.get("href"),
+			});
+		}
+		else
+		{
+			result.push({
+				"name": item.props.name,
+				"title": item.props.title,
+				"href": item.props.href,
+			});
+		}
+	}
+	return result;
+}
+
+
+/**
+ * OnClick
+ */
+void onClick(string tab_key)
+{
 	this.model.setActive(tab_key);
-	this.emit("select", tab_key);
+	this.emit(new TabMessage{
+		"key": tab_key,
+	});
 }
 
 </script>

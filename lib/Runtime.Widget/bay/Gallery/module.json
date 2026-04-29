@@ -17,7 +17,8 @@
 	"dest":
 	{
 		"php": "./../../php/Gallery",
-		"es6": "./../../es6/Gallery"
+		"es6": "./../../es6/Gallery",
+		"nodejs": "./../../nodejs/Gallery"
 	},
 	"allow":
 	[

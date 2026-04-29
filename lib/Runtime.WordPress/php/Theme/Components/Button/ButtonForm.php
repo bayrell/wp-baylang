@@ -17,87 +17,53 @@
  *  limitations under the License.
 */
 namespace Runtime\WordPress\Theme\Components\Button;
-class ButtonForm extends \Runtime\Web\Component
+
+use Runtime\Widget\Button;
+use Runtime\Widget\Dialog\Dialog;
+
+
+class ButtonForm extends \Runtime\Component
 {
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("widget_button__wrap", $this->class, $this->renderListClass(), $componentHash))])));
 		
-		/* Component 'Button' */
-		$this->_c($__v0, "Runtime.Widget.Button", ["styles" => $this->model->styles], function (){
-			$__v = new \Runtime\Vector();
+		/* Element Runtime.Widget.Button */
+		$__v1 = $__v0->element("Runtime.Widget.Button", (new \Runtime\Map(["styles" => $this->model->styles])));
+		
+		/* Content */
+		$__v1->slot("default", function ()
+		{
+			$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+			$__v = new \Runtime\VirtualDom($this);
 			
 			if ($this->model->content)
 			{
-				/* Text */
-				$this->_t($__v, $this->_escape($this->model->content));
+				$__v->push($this->model->content);
 			}
 			else
 			{
-				/* Text */
-				$this->_t($__v, $this->renderSlot("default"));
+				$__v->push($this->renderSlot("default"));
 			}
 			
 			return $__v;
 		});
+		$__v->push($this->renderWidget($this->model->dialog));
 		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_button__wrap", $this->class, $this->renderListClass()])], $__v0);
-		
-		/* Text */
-		$this->_t($__v, $this->renderWidget($this->model->dialog));
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
-	static function components()
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return \Runtime\Vector::from(["Runtime.Widget.Button","Runtime.Widget.Dialog.Dialog"]);
+		parent::_init();
 	}
-	static function css($vars)
-	{
-		$res = "";
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Theme.Components.Button";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.Components.Button.ButtonForm";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ""; }
+	static function getRequiredComponents(){ return new \Runtime\Vector("Runtime.Widget.Button", "Runtime.Widget.Dialog.Dialog"); }
+	static function getClassName(){ return "Runtime.WordPress.Theme.Components.Button.ButtonForm"; }
 }

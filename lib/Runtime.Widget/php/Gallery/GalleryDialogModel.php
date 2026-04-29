@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,31 +17,35 @@
  *  limitations under the License.
  */
 namespace Runtime\Widget\Gallery;
+
+use Runtime\Widget\Gallery\GalleryDialog;
+use Runtime\Widget\Dialog\DialogModel;
+
+
 class GalleryDialogModel extends \Runtime\Widget\Dialog\DialogModel
 {
-	public $component;
-	public $current;
+	var $component;
+	var $current;
+	
+	
 	/**
 	 * Returns items
 	 */
-	function getItems()
-	{
-		return $this->parent_widget->getItems();
-	}
+	function getItems(){ return $this->parent_widget->getItems(); }
+	
+	
 	/**
 	 * Returns item
 	 */
-	function getItem($pos)
-	{
-		return $this->parent_widget->getItem($pos);
-	}
+	function getItem($pos){ return $this->parent_widget->getItem($pos); }
+	
+	
 	/**
 	 * Returns image
 	 */
-	function getImage($pos)
-	{
-		return $this->parent_widget->getBigImage($pos);
-	}
+	function getImage($pos){ return $this->parent_widget->getBigImage($pos); }
+	
+	
 	/**
 	 * Returns true if image is contains
 	 */
@@ -49,13 +53,15 @@ class GalleryDialogModel extends \Runtime\Widget\Dialog\DialogModel
 	{
 		return $this->parent_widget->dialog_image_contains === true || $this->parent_widget->dialog_image_contains == "1" || $this->parent_widget->dialog_image_contains == "true";
 	}
+	
+	
+	
 	/**
 	 * Returns current image
 	 */
-	function getCurrentImage()
-	{
-		return $this->getImage($this->current);
-	}
+	function getCurrentImage(){ return $this->getImage($this->current); }
+	
+	
 	/**
 	 * Select image
 	 */
@@ -65,7 +71,7 @@ class GalleryDialogModel extends \Runtime\Widget\Dialog\DialogModel
 		if ($count == 0)
 		{
 			$this->current = 0;
-			return ;
+			return;
 		}
 		$this->current = $pos % $count;
 		if ($this->current < 0)
@@ -73,6 +79,8 @@ class GalleryDialogModel extends \Runtime\Widget\Dialog\DialogModel
 			$this->current = ($this->current + $count) % $count;
 		}
 	}
+	
+	
 	/**
 	 * Show prev image
 	 */
@@ -80,6 +88,8 @@ class GalleryDialogModel extends \Runtime\Widget\Dialog\DialogModel
 	{
 		$this->select($this->current - 1);
 	}
+	
+	
 	/**
 	 * Show next image
 	 */
@@ -87,49 +97,16 @@ class GalleryDialogModel extends \Runtime\Widget\Dialog\DialogModel
 	{
 		$this->select($this->current + 1);
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->component = "Runtime.Widget.Gallery.GalleryDialog";
 		$this->current = 0;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget.Gallery";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Gallery.GalleryDialogModel";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Dialog.DialogModel";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Widget.Gallery.GalleryDialogModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

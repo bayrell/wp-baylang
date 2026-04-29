@@ -1,0 +1,173 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime;
+
+use Runtime.BaseObject;
+use Runtime.RenderContainer;
+use Runtime.Listener;
+use Runtime.Method;
+use Runtime.Serializer.BaseType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
+use Runtime.SerializeInterface;
+
+
+class BaseModel extends BaseObject implements SerializeInterface
+{
+	bool autoload = false;
+	BaseModel layout = null;
+	BaseModel parent_widget = null;
+	Listener listener = new Listener(this);
+	string component = "";
+	
+	
+	/**
+	 * Create model
+	 */
+	void constructor(Dict params = null)
+	{
+		parent();
+		
+		/* Setup widget params */
+		this.initParams(params);
+		
+		/* Init widget settings */
+		this.initWidget(params);
+		
+		/* Add component */
+		if (this.layout != null and this.component != "")
+		{
+			this.layout.addComponent(this.component);
+		}
+	}
+	
+	
+	/**
+	 * Init widget params
+	 */
+	void initParams(Dict params)
+	{
+		if (not params) return;
+		
+		this.parent_widget = params.get("parent_widget");
+		if (params.has("layout")) this.layout = params.get("layout");
+		else this.layout = this.parent_widget ? this.parent_widget.layout : null;
+		
+		/* Autoload */
+		if (params.has("autoload")) this.autoload = params.get("autoload");
+		
+		/* Register events */
+		if (params.has("events"))
+		{
+			Map events = params.get("events");
+			for (string name in events.keys())
+			{
+				this.listener.add(name, events.get(name));
+			}
+		}
+		
+		/* Setup params */
+		this.component = params.has("component") ? params.get("component") : this.component;
+	}
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+	}
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("component", new StringType());
+	}
+	
+	
+	/**
+	 * Load widget data
+	 */
+	async void loadData(RenderContainer container)
+	{
+		ObjectType rules = new ObjectType();
+		static::serialize(rules);
+		for (string key in rules.items.keys())
+		{
+			BaseType item = rules.items.get(key).find(
+				bool (BaseType item) => item instanceof ObjectType
+			);
+			if (not (item instanceof ObjectType)) continue;
+			
+			BaseObject obj = rtl::attr(this, key);
+			if (not (obj instanceof BaseModel)) continue;
+			if (not obj.autoload) continue;
+			
+			await obj.loadData(container);
+		}
+	}
+	
+	
+	/**
+	 * Build page title
+	 */
+	void buildTitle(RenderContainer container)
+	{
+	}
+	
+	
+	/**
+	 * Create widget
+	 */
+	BaseModel createWidget(string class_name, Dict params = null)
+	{
+		if (params == null) params = {};
+		if (not params.has("parent_widget")) params.set("parent_widget", this);
+		BaseModel widget = rtl::newInstance(class_name, [params]);
+		return widget;
+	}
+	
+	
+	/**
+	 * Set field
+	 */
+	void filter(string field_name, var item)
+	{
+		ObjectType rules = new ObjectType;
+		static::serialize(rules);
+		BaseType field_rule = rules.items.get(field_name).get(0);
+		if (!field_rule) return;
+		
+		Vector errors = [];
+		return field_rule.filter(item, errors);
+	}
+	
+	
+	/**
+	 * Add event listener
+	 */
+	void addEventListener(string event_name, Method f, int priority = 100)
+	{
+		this.listener.add(event_name, f, priority);
+	}
+}

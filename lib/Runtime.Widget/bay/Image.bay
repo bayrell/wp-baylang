@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,10 +20,10 @@
 
 
 <style>
-.widget_image{
+.image{
 	display: inline-block;
 }
-.widget_image__no_image{
+.image__no_image{
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -34,11 +34,14 @@
 }
 </style>
 
+<template name="renderNoImage">
+	<div class="image__no_image">No image</div>
+</template>
 
 <template>
 	%if (this.src)
 	{
-		<img class="widget_image"
+		<img class="image"
 			class={{ this.class }}
 			src={{ this.layout.assets(this.src) }}
 			@key="image"
@@ -46,8 +49,8 @@
 	}
 	%else
 	{
-		<div class="widget_image" class={{ this.class }} @key="no_image">
-			<div class="widget_image__no_image">No image</div>
+		<div class="image" class={{ this.class }} @key="no_image">
+			%render this.renderNoImage();
 		</div>
 	}
 </template>
@@ -56,6 +59,20 @@
 <script>
 
 props string src = "";
+
+
+/**
+ * Returns widget params
+ */
+static Vector<Map> widgetParams() =>
+[
+	{
+		"type": "param",
+		"name": "src",
+		"label": "Source",
+		"component": "BayLang.Constructor.Frontend.Components.SelectImageButton",
+	},
+];
 
 </script>
 

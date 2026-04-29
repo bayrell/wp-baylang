@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,24 +18,38 @@
 
 namespace Runtime.Web;
 
-use Runtime.SerializeInterface;
-use Runtime.Serializer;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
 use Runtime.Web.RouteInfo;
 use Runtime.Web.RenderContainer;
 
 
 class RouteModel extends RouteInfo
 {
-	string model = null;
+	string model = "";
+	Dict model_params = null;
 	
 	
 	/**
 	 * Process frontend data
 	 */
-	void serialize(Serializer serializer, Map data)
+	static void serialize(ObjectType rules)
 	{
-		serializer.process(this, "model", data);
-		parent(serializer, data);
+		parent(rules);
+		rules.addType("model", new StringType());
+		rules.addType("model_params", new MapType());
+	}
+	
+	
+	/**
+	 * Copy object
+	 */
+	RouteModel copy()
+	{
+		RouteModel route = rtl::copy(this);
+		if (this.model_params) route.model_params = this.model_params.copy();
+		return route;
 	}
 	
 	
@@ -44,11 +58,11 @@ class RouteModel extends RouteInfo
 	 */
 	async void render(RenderContainer container)
 	{
-		string page_model_name = this.model;
-		if (page_model_name == "") return;
-		if (not rtl::class_exists(page_model_name)) return;
+		/* Check page model */
+		if (this.model == "") return;
+		if (not rtl::classExists(this.model)) return;
 		
 		/* Render page model */
-		await container.renderPageModel(page_model_name);
+		await container.renderPageModel(this.model, this.model_params);
 	}
 }

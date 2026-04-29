@@ -18,18 +18,38 @@
 
 namespace Runtime.ORM.Annotations;
 
-use Runtime.BaseStruct;
 use Runtime.ORM.ConnectionInterface as Connection;
+use Runtime.ORM.Annotations.BaseStruct;
 
 
-struct BaseType extends BaseStruct
+class BaseType extends BaseStruct
 {
 	var default = null;
-	string table_name = "";
-	string class_name = "";
 	string name = "";
 	string comment = "";
 	bool nullable = false;
+	
+	
+	/**
+	 * Create object
+	 */
+	void constructor(Map params = null)
+	{
+		parent();
+		this._assign_values(params);
+	}
+	
+	
+	/**
+	 * Returns rule
+	 */
+	BaseType getRule() => null;
+	
+	
+	/**
+	 * Prepare data before save
+	 */
+	Map prepare(Map item, string action) => item;
 	
 	
 	/**
@@ -48,18 +68,13 @@ struct BaseType extends BaseStruct
 	/**
 	 * Process item to database
 	 */
-	async var toDatabase(Connection conn, Dict item, bool is_update)
+	async var toDatabase(Connection conn, Dict item)
 	{
-		if (not is_update and
-			this.name != "" and
-			this.default !== null and
-			not item.has(this.name)
-		)
+		if (this.name != "" and not item.has(this.name))
 		{
-			item <= { this.name } <= this.default;
+			if (this.default) item.set(this.name, this.default);
 		}
 		item = await conn.toDatabase(this, item, this.name);
 		return item;
 	}
-	
 }

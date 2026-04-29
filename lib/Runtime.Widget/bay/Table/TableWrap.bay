@@ -1,0 +1,157 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.Table.TableWrap">
+
+<use name="Runtime.Widget.Form.Form" component="true" />
+<use name="Runtime.Widget.Form.FormRow" component="true" />
+<use name="Runtime.Widget.Table.Table" component="true" />
+<use name="Runtime.Widget.Table.TableDialog" component="true" />
+<use name="Runtime.Widget.Pagination" component="true" />
+
+<style>
+.table_wrap > .row_buttons{
+	margin-bottom: calc(var(--space) * 2);
+}
+.table_pagination{
+	text-align: center;
+}
+</style>
+
+<template name="renderTopButtons">
+	%if (this.slot("top_buttons"))
+	{
+		%render this.renderSlot("top_buttons");
+	}
+</template>
+
+<template name="renderFilter">
+	%if (this.slot("filter"))
+	{
+		%render this.renderSlot("filter");
+	}
+</template>
+
+<template name="renderDialog">
+	%if (this.dialog == "true")
+	{
+		<TableDialog class={{ "dialog--" ~ this.model.dialog_action }}
+			model={{ this.model.dialog }} manager={{ this.model }}
+		>
+			<slot name="save">
+				<Form fields={{ this.model.form_fields }} model={{ this.model.form }} />
+			</slot>
+		</TableDialog>
+	}
+</template>
+
+<template name="renderTableValue" args="Map item, Map field, int row_number">
+	%set string field_name = field.get("name");
+	%if (field_name == "row_number")
+	{
+		%render row_number + this.row_offset + 1;
+	}
+	%else if (field.has("component"))
+	{
+		%set string component = field.get("component");
+		%set Map props = field.has("props") ? field.get("props") : {};
+		<{component} name={{ field_name }} value={{ item.get(field_name) }} ...props />
+	}
+	%else if (field.has("model"))
+	{
+		%render this.renderWidget(field.get("model"));
+	}
+	%else if (field.has("slot"))
+	{
+		%render this.renderSlot(field.get("slot"), [item, field, row_number]);
+	}
+	%else if (field.has("value"))
+	{
+		{{ rtl::apply(field.get("value"), [item, field, row_number]) }}
+	}
+	%else
+	{
+		{{ item.get(field_name) }}
+	}
+</template>
+
+<template name="renderTable">
+	%if (this.slot("table"))
+	{
+		%render this.renderSlot("table");
+	}
+	%else
+	{
+		<Table model={{ this.model.table }}>
+			<slot name="header">
+				%for (int i=0; i<this.model.table_fields.count(); i++)
+				{
+					%set Map field = this.model.table_fields.get(i);
+					<th class={{ "th--" ~ field.get("name") }}>
+						{{ field.has("label") ? field.get("label") : "" }}
+					</th>
+				}
+			</slot>
+			<slot name="row" args="Map item, int row_number">
+				%for (int i=0; i<this.model.table_fields.count(); i++)
+				{
+					%set Map field = this.model.table_fields.get(i);
+					<td class={{ "td--" ~ field.get("name") }}>
+						%render this.renderTableValue(item, field, row_number);
+					</td>
+				}
+			</slot>
+			<slot name="pagination">
+				<tr><td class="table_pagination" colspan={{ this.model.table_fields.count() }}>
+					<Pagination
+						name={{ this.model.page_name }}
+						page={{ this.model.table.page + 1 }}
+						pages={{ this.model.table.pages }}
+					/>
+				</td></tr>
+			</slot>
+		</Table>
+	}
+</template>
+
+<template>
+	<div class="table_wrap">
+		%render this.renderTopButtons();
+		%render this.renderFilter();
+		%render this.renderTable();
+		%render this.renderDialog();
+	</div>
+</template>
+
+<script>
+
+props string dialog = "true";
+
+
+/**
+ * Returns offset
+ */
+computed int row_offset()
+{
+	if (not this.model.loader) return 0;
+	return this.model.loader.page * this.model.loader.limit;
+}
+
+</script>
+
+</class>

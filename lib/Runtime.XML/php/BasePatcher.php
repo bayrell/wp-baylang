@@ -17,6 +17,11 @@
  *  limitations under the License.
  */
 namespace Runtime\XML;
+
+use Runtime\BaseObject;
+use Runtime\XML\XML;
+
+
 class BasePatcher extends \Runtime\BaseObject
 {
 	/**
@@ -24,51 +29,22 @@ class BasePatcher extends \Runtime\BaseObject
 	 */
 	function types()
 	{
-		return \Runtime\Vector::from([]);
+		return new \Runtime\Vector();
 	}
+	
+	
 	/**
 	 * Patch XML with operation
 	 */
-	function patch($xml, $operation)
+	function patch($xml, $operation){}
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
+		parent::_init();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.XML";
-	}
-	static function getClassName()
-	{
-		return "Runtime.XML.BasePatcher";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.XML.BasePatcher"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

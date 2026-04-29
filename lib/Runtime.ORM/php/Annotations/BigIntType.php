@@ -17,8 +17,20 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Annotations;
+
+use Runtime\Serializer\IntegerType;
+use Runtime\ORM\Annotations\BaseType;
+use Runtime\ORM\Connection;
+
+
 class BigIntType extends \Runtime\ORM\Annotations\BaseType
 {
+	/**
+	 * Returns schema
+	 */
+	function getRule(){ return new \Runtime\Serializer\IntegerType(); }
+	
+	
 	/**
 	 * Process item from database
 	 */
@@ -26,58 +38,26 @@ class BigIntType extends \Runtime\ORM\Annotations\BaseType
 	{
 		if ($item->has($this->name))
 		{
-			$value = \Runtime\rtl::attr($item, $this->name);
+			$value = $item->get($this->name);
 			if ($value === null && $this->nullable)
 			{
-				$item = \Runtime\rtl::setAttr($item, [$this->name], null);
+				$item->set($this->name, null);
 			}
 			else
 			{
-				$item = \Runtime\rtl::setAttr($item, [$this->name], \Runtime\rtl::to($value, ["e"=>"int"]));
+				$item->set($this->name, \Runtime\rtl::toInt($value));
 			}
 		}
 		return $item;
 	}
-	/* ======================= Class Init Functions ======================= */
-	function takeValue($k,$d=null)
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
+		parent::_init();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.Annotations";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Annotations.BigIntType";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Annotations.BaseType";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Annotations.BigIntType"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -17,38 +17,56 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\MySQL;
+
+use Runtime\re;
+use Runtime\BaseObject;
+use Runtime\ORM\Annotations\BaseType;
+use Runtime\ORM\Annotations\EmbeddingType;
+use Runtime\ORM\Connection;
+use Runtime\ORM\Provider;
+use Runtime\ORM\Query;
+use Runtime\ORM\QueryField;
+use Runtime\ORM\QueryFilter;
+
+
 class SQLBuilder extends \Runtime\BaseObject
 {
-	public $conn;
-	public $data;
-	public $q;
-	public $sql;
+	var $conn;
+	var $data;
+	var $q;
+	var $sql;
+	var $annotations;
+	
+	
+	/**
+	 * Constructor
+	 */
 	function __construct($conn, $q)
 	{
+		parent::__construct();
 		$this->conn = $conn;
 		$this->q = $q;
 	}
+	
+	
 	/**
 	 * Returns sql
 	 */
-	function getSQL()
-	{
-		return $this->sql;
-	}
+	function getSQL(){ return $this->sql; }
+	
+	
 	/**
 	 * Returns data
 	 */
-	function getData()
-	{
-		return $this->data;
-	}
+	function getData(){ return $this->data; }
+	
+	
 	/**
 	 * Returns true if builder is correct
 	 */
-	function isValid()
-	{
-		return $this->sql != null;
-	}
+	function isValid(){ return $this->sql != null; }
+	
+	
 	/**
 	 * Format sql
 	 */
@@ -56,10 +74,7 @@ class SQLBuilder extends \Runtime\BaseObject
 	{
 		$sql = $this->sql;
 		$data = $this->data;
-		if ($data == null)
-		{
-			return $sql;
-		}
+		if ($data == null) return $sql;
 		$data->each(function ($value, $key) use (&$sql)
 		{
 			if ($value === null)
@@ -68,40 +83,41 @@ class SQLBuilder extends \Runtime\BaseObject
 			}
 			else
 			{
-				$value = $this->quote($value);
+				if (!\Runtime\rtl::isInteger($value))
+				{
+					$value = $this->quote($value);
+				}
 				$sql = \Runtime\rs::replace($this->formatKey($key), $value, $sql);
 			}
 		});
 		return $sql;
 	}
+	
+	
 	/**
 	 * Format key
 	 */
-	function formatKey($key)
-	{
-		return ":" . \Runtime\rtl::toStr($key);
-	}
+	function formatKey($key){ return ":" . $key; }
+	
+	
 	/**
 	 * Prepare field
 	 */
 	function prepareField($item)
 	{
+		if (\Runtime\rs::charAt($item, 0) == "@") return \Runtime\rs::substr($item, 1);
 		$res1 = \Runtime\rs::split(",", $item);
-		$res1 = $res1->map(function ($s)
-		{
-			return \Runtime\rs::trim($s);
-		});
+		$res1 = $res1->map(function ($s){ return \Runtime\rs::trim($s); });
 		$res1 = $res1->map(function ($s)
 		{
 			$res2 = \Runtime\rs::split(".", $s);
-			$res2 = $res2->map(function ($name)
-			{
-				return "`" . \Runtime\rtl::toStr($name) . \Runtime\rtl::toStr("`");
-			});
+			$res2 = $res2->map(function ($name){ return "`" . $name . "`"; });
 			return \Runtime\rs::join(".", $res2);
 		});
 		return \Runtime\rs::join(",", $res1);
 	}
+	
+	
 	/**
 	 * Prepare value
 	 */
@@ -109,29 +125,34 @@ class SQLBuilder extends \Runtime\BaseObject
 	{
 		if ($op == "%like%")
 		{
-			$item = "%" . \Runtime\rtl::toStr($item) . \Runtime\rtl::toStr("%");
+			$item = "%" . $item . "%";
 			$op = "like";
 		}
 		else if ($op == "like%")
 		{
-			$item = $item . \Runtime\rtl::toStr("%");
+			$item = $item . "%";
 			$op = "like";
 		}
 		else if ($op == "%like")
 		{
-			$item = "%" . \Runtime\rtl::toStr($item);
+			$item = "%" . $item;
 			$op = "like";
 		}
-		return \Runtime\Vector::from([$item,$op]);
+		return new \Runtime\Vector($item, $op);
 	}
+	
+	
 	/**
 	 * Quote
 	 */
 	function quote($value)
 	{
 		$value = $this->conn->pdo->quote($value);
+		$value = "'" . $value . "'";
 		return $value;
 	}
+	
+	
 	/**
 	 * Returns table name
 	 */
@@ -139,20 +160,57 @@ class SQLBuilder extends \Runtime\BaseObject
 	{
 		if (\Runtime\rs::substr($this->q->_table_name, 0, 1) != "`")
 		{
-			return "`" . \Runtime\rtl::toStr($this->conn->prefix) . \Runtime\rtl::toStr($this->q->_table_name) . \Runtime\rtl::toStr("`");
+			return "`" . $this->conn->pool->params->get("prefix") . $this->q->_table_name . "`";
 		}
 		return $this->q->_table_name;
 	}
+	
+	
+	/**
+	 * Returns table annotations
+	 */
+	function getAnotations()
+	{
+		$provider = \Runtime\rtl::getContext()->provider("Runtime.ORM.Provider");
+		return $provider->getAnotations($this->q->_table_name);
+	}
+	
+	
+	/**
+	 * Find annotation
+	 */
+	function findAnnotation($key)
+	{
+		return $this->annotations->find(function ($annotation) use (&$key)
+		{
+			return $annotation instanceof \Runtime\ORM\Annotations\BaseType && $annotation->name == $key;
+		});
+	}
+	
+	
+	
+	/**
+	 * Wrap key
+	 */
+	function wrapKey($key, $value)
+	{
+		$annotation = $this->findAnnotation($key);
+		if ($annotation instanceof \Runtime\ORM\Annotations\EmbeddingType)
+		{
+			return "VEC_FromText(" . $value . ")";
+		}
+		return $value;
+	}
+	
+	
 	/**
 	 * Returns query sql
 	 */
 	function build()
 	{
-		if ($this->q == null)
-		{
-			return $this;
-		}
+		if ($this->q == null) return $this;
 		$q = $this->q;
+		$this->annotations = $this->getAnotations();
 		/* Select query */
 		if ($q->_kind == \Runtime\ORM\Query::QUERY_SELECT)
 		{
@@ -160,40 +218,34 @@ class SQLBuilder extends \Runtime\BaseObject
 			$sql = "SELECT ";
 			$field_index = 0;
 			/* Add distinct */
-			if ($q->_distinct != "")
-			{
-				$sql .= \Runtime\rtl::toStr(" DISTINCT ");
-			}
+			if ($q->_distinct != "") $sql .= " DISTINCT ";
 			/* Add fields */
 			if ($q->_fields != null)
 			{
-				$fields = $q->_fields->map(function ($item) use (&$q,&$data,&$field_index)
+				$fields = $q->_fields->map(function ($item) use (&$q, &$data, &$field_index)
 				{
 					$field_name = "";
 					if ($item instanceof \Runtime\ORM\QueryField)
 					{
 						$table_name = $item->table_name;
-						if ($table_name == "")
-						{
-							$table_name = $q->_table_name;
-						}
-						$field_name = "`" . \Runtime\rtl::toStr($table_name) . \Runtime\rtl::toStr("`.`") . \Runtime\rtl::toStr($item->field_name) . \Runtime\rtl::toStr("`");
+						if ($table_name == "") $table_name = $q->_table_name;
+						$field_name = "`" . $table_name . "`.`" . $item->field_name . "`";
 						if ($item->alias_name != "")
 						{
-							$field_name .= \Runtime\rtl::toStr(" as `" . \Runtime\rtl::toStr($item->alias_name) . \Runtime\rtl::toStr("`"));
+							$field_name .= " as `" . $item->alias_name . "`";
 						}
 					}
 					else if ($item instanceof \Runtime\ORM\QueryFilter)
 					{
 						$res = $this->convertFilterItem($item, $data, $field_index);
-						$field_name = \Runtime\rtl::attr($res, 0);
-						$field_index = \Runtime\rtl::attr($res, 1);
+						$field_name = $res[0];
+						$field_index = $res[1];
 						if ($item->alias != "")
 						{
-							$field_name .= \Runtime\rtl::toStr(" as `" . \Runtime\rtl::toStr($item->alias) . \Runtime\rtl::toStr("`"));
+							$field_name .= " as `" . $item->alias . "`";
 						}
 					}
-					else if (\Runtime\rtl::isCallable($item))
+					else if (\Runtime\rtl::isFunction($item))
 					{
 						return $item($this);
 					}
@@ -203,82 +255,79 @@ class SQLBuilder extends \Runtime\BaseObject
 					}
 					return $field_name;
 				});
-				$sql .= \Runtime\rtl::toStr(\Runtime\rs::join(", ", $fields));
+				$sql .= \Runtime\rs::join(", ", $fields);
 			}
-			else
-			{
-				$sql .= \Runtime\rtl::toStr(" * ");
-			}
+			else $sql .= " * ";
 			/* New line */
-			$sql .= \Runtime\rtl::toStr("\n");
+			$sql .= "\n";
 			/* Add table name */
-			$sql .= \Runtime\rtl::toStr(" FROM " . \Runtime\rtl::toStr($this->getTableName()) . \Runtime\rtl::toStr(" AS `") . \Runtime\rtl::toStr($q->_table_alias) . \Runtime\rtl::toStr("`"));
+			$sql .= " FROM " . $this->getTableName() . " AS `" . $q->_table_alias . "`";
 			/* New line */
-			$sql .= \Runtime\rtl::toStr("\n");
+			$sql .= "\n";
 			/* Add joins */
 			if ($q->_join != null && $q->_join->count() > 0)
 			{
 				for ($i = 0; $i < $q->_join->count(); $i++)
 				{
-					$join = \Runtime\rtl::attr($q->_join, $i);
-					$kind = \Runtime\rtl::attr($join, "kind");
-					$table_name = \Runtime\rtl::attr($join, "table_name");
-					$alias_name = \Runtime\rtl::attr($join, "alias_name");
-					$filter = \Runtime\rtl::attr($join, "filter");
-					$res = $this->convertFilter($filter, $data, $field_index);
-					$where = \Runtime\rtl::attr($res, 0);
-					$field_index = \Runtime\rtl::attr($res, 1);
-					if ($kind == "left")
+					$join = $q->_join[$i];
+					$kind = $join->get("kind");
+					$table_name = $join->get("table_name");
+					$alias_name = $join->get("alias_name");
+					$where = $join->get("filter");
+					if ($where instanceof \Runtime\Vector)
 					{
-						$sql .= \Runtime\rtl::toStr(" LEFT JOIN ");
+						$res = $this->convertFilter($where, $data, $field_index);
+						$where = $res[0];
+						$field_index = $res[1];
 					}
-					else
-					{
-						$sql .= \Runtime\rtl::toStr(" INNER JOIN ");
-					}
-					$sql .= \Runtime\rtl::toStr("`" . \Runtime\rtl::toStr($this->conn->prefix) . \Runtime\rtl::toStr($table_name) . \Runtime\rtl::toStr("`"));
-					if ($alias_name != "")
-					{
-						$sql .= \Runtime\rtl::toStr(" AS `" . \Runtime\rtl::toStr($alias_name) . \Runtime\rtl::toStr("`"));
-					}
-					$sql .= \Runtime\rtl::toStr(" ON (" . \Runtime\rtl::toStr($where) . \Runtime\rtl::toStr(")"));
+					if ($kind == "left") $sql .= " LEFT JOIN ";
+					else $sql .= " INNER JOIN ";
+					$sql .= "`" . $this->conn->pool->params->get("prefix") . $table_name . "`";
+					if ($alias_name != "") $sql .= " AS `" . $alias_name . "`";
+					$sql .= " ON (" . $where . ")";
 					/* New line */
-					$sql .= \Runtime\rtl::toStr("\n");
+					$sql .= "\n";
 				}
 			}
 			/* Add where */
 			if ($q->_filter != null && $q->_filter->count() > 0)
 			{
 				$res = $this->convertFilter($q->_filter, $data, $field_index);
-				$where = \Runtime\rtl::attr($res, 0);
-				$field_index = \Runtime\rtl::attr($res, 1);
-				if ($where != "")
-				{
-					$sql .= \Runtime\rtl::toStr(" WHERE " . \Runtime\rtl::toStr($where));
-				}
+				$where = $res[0];
+				$field_index = $res[1];
+				if ($where != "") $sql .= " WHERE " . $where;
 				/* New line */
-				$sql .= \Runtime\rtl::toStr("\n");
+				$sql .= "\n";
+			}
+			/* Add group by */
+			if ($q->_group_by != null && $q->_group_by->count() > 0)
+			{
+				$group_by = $q->_group_by->map(function ($field){ return $this->prepareField($field); });
+				$sql .= " GROUP BY " . \Runtime\rs::join(",", $group_by);
+				/* New line */
+				$sql .= "\n";
+			}
+			/* Add having */
+			if ($q->_having != null && $q->_having->count() > 0)
+			{
+				$res = $this->convertFilter($q->_having, $data, $field_index);
+				$having_str = $res[0];
+				$field_index = $res[1];
+				if ($having_str != "") $sql .= " HAVING " . $having_str;
+				/* New line */
+				$sql .= "\n";
 			}
 			/* Add order */
 			if ($q->_order != null && $q->_order->count() > 0)
 			{
-				$order = $q->_order->map(function ($item)
-				{
-					return $this->prepareField(\Runtime\rtl::attr($item, 0)) . \Runtime\rtl::toStr(" ") . \Runtime\rtl::toStr(\Runtime\rtl::attr($item, 1));
-				});
-				$sql .= \Runtime\rtl::toStr(" ORDER BY " . \Runtime\rtl::toStr(\Runtime\rs::join(",", $order)));
+				$order = $q->_order->map(function ($item){ return $this->prepareField($item[0]) . " " . $item[1]; });
+				$sql .= " ORDER BY " . \Runtime\rs::join(",", $order);
 				/* New line */
-				$sql .= \Runtime\rtl::toStr("\n");
+				$sql .= "\n";
 			}
 			/* Add order */
-			if ($q->_limit >= 0)
-			{
-				$sql .= \Runtime\rtl::toStr(" LIMIT " . \Runtime\rtl::toStr($q->_limit));
-			}
-			if ($q->_limit >= 0 && $q->_start >= 0)
-			{
-				$sql .= \Runtime\rtl::toStr(" OFFSET " . \Runtime\rtl::toStr($q->_start));
-			}
+			if ($q->_limit >= 0) $sql .= " LIMIT " . $q->_limit;
+			if ($q->_limit >= 0 && $q->_start >= 0) $sql .= " OFFSET " . $q->_start;
 			$this->sql = $sql;
 			$this->data = $data;
 		}
@@ -288,15 +337,15 @@ class SQLBuilder extends \Runtime\BaseObject
 			$values = new \Runtime\Vector();
 			if ($q->_data)
 			{
-				$q->_data->each(function ($value, $key) use (&$keys,&$values)
+				$q->_data->each(function ($value, $key) use (&$keys, &$values)
 				{
-					$keys->push("`" . \Runtime\rtl::toStr($key) . \Runtime\rtl::toStr("`"));
-					$values->push($this->formatKey($key));
+					$keys->push("`" . $key . "`");
+					$values->push($this->wrapKey($key, $this->formatKey($key)));
 				});
 			}
 			/* Build sql */
-			$this->sql = "INSERT INTO " . \Runtime\rtl::toStr($this->getTableName()) . \Runtime\rtl::toStr(" (") . \Runtime\rtl::toStr(\Runtime\rs::join(",", $keys)) . \Runtime\rtl::toStr(") VALUES (") . \Runtime\rtl::toStr(\Runtime\rs::join(",", $values)) . \Runtime\rtl::toStr(")");
-			$this->data = $q->_data->clone();
+			$this->sql = "INSERT INTO " . $this->getTableName() . " (" . \Runtime\rs::join(",", $keys) . ") VALUES (" . \Runtime\rs::join(",", $values) . ")";
+			$this->data = $q->_data->copy();
 		}
 		else if ($q->_kind == \Runtime\ORM\Query::QUERY_UPDATE)
 		{
@@ -306,29 +355,29 @@ class SQLBuilder extends \Runtime\BaseObject
 			/* Build update */
 			if ($q->_data)
 			{
-				$q->_data->each(function ($value, $key) use (&$update_arr,&$data)
+				$q->_data->each(function ($value, $key) use (&$update_arr, &$data)
 				{
-					$field_key = "update_" . \Runtime\rtl::toStr($key);
+					$field_key = "update_" . $key;
 					$field_name = $this->prepareField($key);
-					$update_arr->push($field_name . \Runtime\rtl::toStr(" = ") . \Runtime\rtl::toStr($this->formatKey($field_key)));
-					$data = $data->set($field_key, $value);
+					$update_arr->push($field_name . " = " . $this->wrapKey($key, $this->formatKey($field_key)));
+					$data->set($field_key, $value);
 				});
 			}
 			/* Build where */
 			$res = $this->convertFilter($q->_filter, $data);
-			$where_str = \Runtime\rtl::attr($res, 0);
+			$where_str = $res[0];
 			/* Build sql */
-			$this->sql = "UPDATE " . \Runtime\rtl::toStr($this->getTableName()) . \Runtime\rtl::toStr(" SET ") . \Runtime\rtl::toStr(\Runtime\rs::join(", ", $update_arr)) . \Runtime\rtl::toStr(" WHERE ") . \Runtime\rtl::toStr($where_str);
+			$this->sql = "UPDATE " . $this->getTableName() . " SET " . \Runtime\rs::join(", ", $update_arr) . " WHERE " . $where_str;
 			$this->data = $data;
 		}
 		else if ($q->_kind == \Runtime\ORM\Query::QUERY_DELETE)
 		{
 			/* Build where */
-			$data = \Runtime\Map::from([]);
+			$data = new \Runtime\Map();
 			$res = $this->convertFilter($q->_filter, $data);
-			$where_str = \Runtime\rtl::attr($res, 0);
+			$where_str = $res[0];
 			/* Delete item */
-			$this->sql = "DELETE FROM " . \Runtime\rtl::toStr($this->getTableName()) . \Runtime\rtl::toStr(" WHERE ") . \Runtime\rtl::toStr($where_str);
+			$this->sql = "DELETE FROM " . $this->getTableName() . " WHERE " . $where_str;
 			$this->data = $data;
 		}
 		else if ($q->_kind == \Runtime\ORM\Query::QUERY_RAW)
@@ -338,16 +387,34 @@ class SQLBuilder extends \Runtime\BaseObject
 		}
 		return $this;
 	}
+	
+	
 	/**
 	 * Convert filter
 	 */
-	function convertFilterItem($item, $data, $field_index=0)
+	function convertFilterItem($item, $data, $field_index = 0)
 	{
 		if (\Runtime\rtl::isString($item))
 		{
-			return \Runtime\Vector::from([$item,$field_index]);
+			return new \Runtime\Vector($item, $field_index);
 		}
-		$allow_operations = \Runtime\Vector::from(["=","!=",">=","<=","<",">","like","%like%","like%","%like","match","match_boolean"]);
+		$allow_operations = new \Runtime\Vector(
+			"=",
+			"!=",
+			">=",
+			"<=",
+			"<",
+			">",
+			"like",
+			"%like%",
+			"like%",
+			"%like",
+			"match",
+			"match_boolean",
+			"distance",
+			"distance_cosine",
+			"distance_euclidean",
+		);
 		$convert_key = function ($s)
 		{
 			$s = \Runtime\re::replace("[,\\.]", "_", $s);
@@ -366,9 +433,7 @@ class SQLBuilder extends \Runtime\BaseObject
 		}
 		else
 		{
-			$field_name = \Runtime\rtl::attr($item, 0);
-			$op = \Runtime\rtl::attr($item, 1);
-			$value = \Runtime\rtl::attr($item, 2);
+			return new \Runtime\Vector("", $field_index);
 		}
 		/* OR */
 		if ($field_name == "\$or")
@@ -376,12 +441,25 @@ class SQLBuilder extends \Runtime\BaseObject
 			$where_or = new \Runtime\Vector();
 			for ($j = 0; $j < $value->count(); $j++)
 			{
-				$res_or = $this->convertFilterItem(\Runtime\rtl::attr($value, $j), $data, $field_index);
-				$where_or->push(\Runtime\rtl::attr($res_or, 0));
-				$field_index = \Runtime\rtl::attr($res_or, 1);
+				$res_or = $this->convertFilterItem($value[$j], $data, $field_index);
+				$where_or->push($res_or[0]);
+				$field_index = $res_or[1];
 			}
-			$s = "(" . \Runtime\rtl::toStr(\Runtime\rs::join(" OR ", $where_or)) . \Runtime\rtl::toStr(")");
-			return \Runtime\Vector::from([$s,$field_index]);
+			$s = "(" . \Runtime\rs::join(" OR ", $where_or) . ")";
+			return new \Runtime\Vector($s, $field_index);
+		}
+		if ($op == "is")
+		{
+			if ($value != "" && $value != null)
+			{
+				$s = $this->prepareField($field_name) . " is not null";
+				return new \Runtime\Vector($s, $field_index);
+			}
+			else
+			{
+				$s = $this->prepareField($field_name) . " is null";
+				return new \Runtime\Vector($s, $field_index);
+			}
 		}
 		/* Check operation */
 		if ($allow_operations->indexOf($op) == -1)
@@ -392,68 +470,78 @@ class SQLBuilder extends \Runtime\BaseObject
 		{
 			if ($op == "!=")
 			{
-				$s = $this->prepareField($field_name) . \Runtime\rtl::toStr(" is not null");
-				return \Runtime\Vector::from([$s,$field_index]);
+				$s = $this->prepareField($field_name) . " is not null";
+				return new \Runtime\Vector($s, $field_index);
 			}
 			else
 			{
-				$s = $this->prepareField($field_name) . \Runtime\rtl::toStr(" is null");
-				return \Runtime\Vector::from([$s,$field_index]);
+				$s = $this->prepareField($field_name) . " is null";
+				return new \Runtime\Vector($s, $field_index);
 			}
 		}
-		else if ($value instanceof \Runtime\Collection)
+		else if ($value instanceof \Runtime\Vector && $op == "=")
 		{
-			if ($op == "=")
+			if ($value->count() == 0)
 			{
-				if ($value->count() == 0)
+				return new \Runtime\Vector("1 = 0", $field_index);
+			}
+			else
+			{
+				$res = new \Runtime\Vector();
+				for ($j = 0; $j < $value->count(); $j++)
 				{
-					return \Runtime\Vector::from(["1 = 0",$field_index]);
+					$field_key = $convert_key("where_" . $field_name . "_" . $field_index);
+					$data->set($field_key, $value[$j]);
+					$res->push($this->formatKey($field_key));
+					$field_index++;
 				}
-				else
-				{
-					$res = new \Runtime\Vector();
-					for ($j = 0; $j < $value->count(); $j++)
-					{
-						$field_key = $convert_key($field_index . \Runtime\rtl::toStr("_where_") . \Runtime\rtl::toStr($field_name));
-						$data->set($field_key, \Runtime\rtl::attr($value, $j));
-						$res->push($this->formatKey($field_key));
-						$field_index++;
-					}
-					$s = $this->prepareField($field_name) . \Runtime\rtl::toStr(" in (") . \Runtime\rtl::toStr(\Runtime\rs::join(",", $res)) . \Runtime\rtl::toStr(")");
-					return \Runtime\Vector::from([$s,$field_index]);
-				}
+				$s = $this->prepareField($field_name) . " in (" . \Runtime\rs::join(",", $res) . ")";
+				return new \Runtime\Vector($s, $field_index);
 			}
 		}
 		else
 		{
 			$s = "";
-			$field_key = $convert_key($field_index . \Runtime\rtl::toStr("_where_") . \Runtime\rtl::toStr($field_name));
+			$field_key = $convert_key("where_" . $field_name . "_" . $field_index);
 			$field_name = $this->prepareField($field_name);
 			$res = $this->prepareValue($value, $op);
-			$value = \Runtime\rtl::attr($res, 0);
-			$op = \Runtime\rtl::attr($res, 1);
+			$value = $res[0];
+			$op = $res[1];
 			if ($op == "match")
 			{
-				$s = "MATCH(" . \Runtime\rtl::toStr($field_name) . \Runtime\rtl::toStr(") AGAINST (") . \Runtime\rtl::toStr($this->formatKey($field_key)) . \Runtime\rtl::toStr(")");
+				$s = "MATCH(" . $field_name . ") AGAINST (" . $this->formatKey($field_key) . ")";
 			}
 			else if ($op == "match_boolean")
 			{
-				$s = "MATCH(" . \Runtime\rtl::toStr($field_name) . \Runtime\rtl::toStr(") AGAINST (:") . \Runtime\rtl::toStr($this->formatKey($field_key)) . \Runtime\rtl::toStr(" IN BOOLEAN MODE)");
+				$s = "MATCH(" . $field_name . ") AGAINST (:" . $this->formatKey($field_key) . " IN BOOLEAN MODE)";
+			}
+			else if ($op == "distance" || $op == "distance_cosine" || $op == "distance_euclidean")
+			{
+				$distance_type = "VEC_DISTANCE_COSINE";
+				if ($op == "distance_euclidean") $distance_type = "VEC_DISTANCE_EUCLIDEAN";
+				$s = $distance_type . "(" . $field_name . ", VEC_FromText(" . $this->formatKey($field_key) . "))";
+				$annotation = $this->findAnnotation($field_key);
+				if ($annotation)
+				{
+					$value = $annotation->toDatabase($value);
+				}
 			}
 			else
 			{
-				$s = $field_name . \Runtime\rtl::toStr(" ") . \Runtime\rtl::toStr($op) . \Runtime\rtl::toStr(" ") . \Runtime\rtl::toStr($this->formatKey($field_key));
+				$s = $field_name . " " . $op . " " . $this->formatKey($field_key);
 			}
 			$data->set($field_key, $value);
 			$field_index++;
-			return \Runtime\Vector::from([$s,$field_index]);
+			return new \Runtime\Vector($s, $field_index);
 		}
-		return \Runtime\Vector::from(["",$field_index]);
+		return new \Runtime\Vector("", $field_index);
 	}
+	
+	
 	/**
 	 * Convert filter
 	 */
-	function convertFilter($filter, $data, $field_index=0)
+	function convertFilter($filter, $data, $field_index = 0)
 	{
 		$where = new \Runtime\Vector();
 		for ($i = 0; $i < $filter->count(); $i++)
@@ -462,15 +550,14 @@ class SQLBuilder extends \Runtime\BaseObject
 			$res = $this->convertFilterItem($item, $data, $field_index);
 			$s = $res->get(0);
 			$field_index = $res->get(1);
-			if ($s != "")
-			{
-				$where->push($s);
-			}
+			if ($s != "") $where->push($s);
 		}
 		$where_str = \Runtime\rs::join(" AND ", $where);
-		return \Runtime\Vector::from([$where_str,$field_index]);
+		return new \Runtime\Vector($where_str, $field_index);
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -478,43 +565,9 @@ class SQLBuilder extends \Runtime\BaseObject
 		$this->data = null;
 		$this->q = null;
 		$this->sql = null;
+		$this->annotations = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.MySQL";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.MySQL.SQLBuilder";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.MySQL.SQLBuilder"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

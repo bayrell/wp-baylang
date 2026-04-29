@@ -21,7 +21,7 @@ namespace Runtime.ORM.Annotations;
 use Runtime.Entity.Entity;
 
 
-struct Migration extends Entity
+class Migration extends Entity
 {
 	void constructor(string name)
 	{

@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@
 namespace Runtime;
 
 use Runtime.re;
-use Runtime.rs;
 
 
 #ifcode JAVASCRIPT then
@@ -49,6 +48,7 @@ class fs
 	 */
 	static string join(Collection arr)
 	{
+		arr = arr.filter(bool (string s) => s != "");
 		string path = rs::join(static::DIRECTORY_SEPARATOR, arr);
 		path = re::replace("\\/+", "/", path);
 		path = re::replace("\\/\\.\\/", "/", path);
@@ -227,7 +227,7 @@ class fs
 		
 		$arr = scandir($dirpath);
 		$arr = array_filter($arr, function($s){ return $s != "." && $s != ".."; });
-		return \Runtime\Vector::from(array_values($arr));
+		return \Runtime\Vector::create(array_values($arr));
 		
 		#endswitch
 		
@@ -247,7 +247,7 @@ class fs
 		
 		for (int i=0; i<items.count(); i++)
 		{
-			string item_name = items.item(i);
+			string item_name = items.get(i);
 			string item_path = static::join([ dirpath, item_name ]);
 			string item_name2 = static::join([ parent_name, item_name ]);
 			

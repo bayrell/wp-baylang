@@ -18,9 +18,14 @@
 
 namespace Runtime.WordPress.Admin.Robots;
 
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.StringType;
+use Runtime.Web.ApiResult;
+use Runtime.Web.ApiRequest;
 use Runtime.Web.BaseApi;
 use Runtime.Web.Annotations.ApiMethod;
 use Runtime.WordPress.WP_Helper;
+use Runtime.WordPress.Admin.AdminMiddleware;
 
 
 class RobotsApi extends BaseApi
@@ -28,22 +33,28 @@ class RobotsApi extends BaseApi
 	/**
 	 * Returns api name
 	 */
-	pure string getApiName() => "admin.wordpress.robots.save";
+	pure string getApiName() => "admin.wordpress.robots";
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	Vector<Middleware> getMiddleware() =>
+	[
+		new AdminMiddleware(),
+	];
 	
 	
 	/**
 	 * Action item
 	 */
-	@ApiMethod
+	@ApiMethod{ "name": "item" }
 	async void actionItem()
 	{
 		string content = WP_Helper::get_option("robots.txt");
-		this.result.success({
+		this.success({
 			"data": {
-				"pk": true,
-				"item": {
-					"content": content,
-				},
+				"content": content,
 			}
 		});
 	}
@@ -52,24 +63,14 @@ class RobotsApi extends BaseApi
 	/**
 	 * Action save
 	 */
-	@ApiMethod
+	@ApiMethod{ "name": "save" }
 	async void actionSave()
 	{
-		string content = this.post_data
-			|> attr "item"
-			|> attr "content"
-			|> default string ""
-		;
-		
-		WP_Helper::update_option("robots.txt", content);
-		
-		this.result.success({
-			"data": {
-				"pk": true,
-				"item": {
-					"content": content,
-				},
-			}
-		});
+		MapType rules = new MapType{
+			"content": new StringType(),
+		};
+		this.data = this.filter(this.request.data, rules);
+		WP_Helper::update_option("robots.txt", this.data.get("content"));
+		this.success();
 	}
 }

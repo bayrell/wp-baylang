@@ -21,7 +21,7 @@ namespace Runtime.XML.Test;
 use Runtime.Unit.UnitTest;
 
 
-static class ModuleDescription
+class ModuleDescription
 {
 	/**
 	 * Returns module name

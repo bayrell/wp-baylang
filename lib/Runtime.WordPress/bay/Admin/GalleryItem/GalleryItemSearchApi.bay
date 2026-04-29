@@ -18,10 +18,15 @@
 
 namespace Runtime.WordPress.Admin.GalleryItem;
 
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.Required;
+use Runtime.ORM.Query;
 use Runtime.Web.Annotations.ApiMethod;
-use Runtime.Widget.Crud.CrudService;
-use Runtime.Widget.Crud.SearchApi;
-use Runtime.WordPress.Admin.GalleryItem.GalleryItemService;
+use Runtime.Widget.Api.SearchApi;
+use Runtime.WordPress.Admin.AdminMiddleware;
+use Runtime.WordPress.Admin.Components.ImageRule;
+use Runtime.WordPress.Database.GalleryItem;
 
 
 class GalleryItemSearchApi extends SearchApi
@@ -29,19 +34,49 @@ class GalleryItemSearchApi extends SearchApi
 	/**
 	 * Returns api name
 	 */
-	pure string getApiName() => "admin.wordpress.gallery.item.search";
+	pure string getApiName() => "admin.wordpress.gallery.item";
 	
 	
 	/**
-	 * Returns service
+	 * Returns record name
 	 */
-	CrudService createService() => new GalleryItemService();
+	pure string getRecordName() => classof GalleryItem;
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	Vector<Middleware> getMiddleware() =>
+	[
+		new AdminMiddleware(),
+	];
+	
+	
+	/**
+	 * Returns data rules
+	 */
+	void getDataRules(MapType rules)
+	{
+		rules.addType("foreign_key", new Required());
+		rules.addType("foreign_key", new MapType{
+			"item_id": new IntegerType(),
+		});
+	}
+	
+	
+	/**
+	 * Returns rules
+	 */
+	void rules() =>
+	[
+		new ImageRule{ "name": "image", "key": "image_id" },
+	];
 	
 	
 	/**
 	 * Returns item fields
 	 */
-	Collection getItemFields() =>
+	Collection getItemFields(string action) =>
 	[
 		"id",
 		"name",
@@ -52,21 +87,21 @@ class GalleryItemSearchApi extends SearchApi
 	
 	
 	/**
+	 * Build query
+	 */
+	async void buildQuery(Query q)
+	{
+		q.where("gallery_id", "=", this.foreign_key.get("item_id"));
+		q.orderBy("pos", "desc");
+	}
+	
+	
+	/**
 	 * Action search
 	 */
-	@ApiMethod
+	@ApiMethod{ "name": "search" }
 	async void actionSearch()
 	{
-		/* Create service */
-		CrudService service = this.createService();
-		
-		/* Foreign key */
-		await service.loadGallery(this.post_data["foreign_key", "gallery_id"]);
-		
-		/* Search items */
-		await service.search(this.post_data);
-		
-		/* Build result */
-		this.buildResult(service);
+		await parent();
 	}
 }

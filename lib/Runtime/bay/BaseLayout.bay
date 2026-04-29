@@ -1,0 +1,352 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime;
+
+use Runtime.ApiResult;
+use Runtime.BaseModel;
+use Runtime.BaseStorage;
+use Runtime.BusInterface;
+use Runtime.DefaultLayout;
+use Runtime.Method;
+use Runtime.Hooks.RuntimeHook;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.Serializer;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.VectorType;
+
+
+class BaseLayout extends BaseModel
+{
+	BaseStorage storage = null;
+	Vector<string> body_class = [];
+	Vector<string> components = [];
+	Map pages = {};
+	Map component_props = {};
+	string component = classof DefaultLayout;
+	string current_component = "";
+	string current_page_model = "";
+	string name = "";
+	string lang = "en";
+	string title = "";
+	string description = "";
+	string theme = "light";
+	
+	
+	/**
+	 * Init params
+	 */
+	void initParams(Dict params)
+	{
+		parent(params);
+		this.layout = this;
+	}
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Init storage */
+		this.initStorage();
+	}
+	
+	
+	/**
+	 * Init storage
+	 */
+	void initStorage()
+	{
+		this.storage = this.createWidget(classof BaseStorage);
+	}
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("component_props", new MapType());
+		rules.addType("components", new VectorType(new StringType()));
+		rules.addType("current_component", new StringType());
+		rules.addType("current_page_model", new StringType());
+		rules.addType("body_class", new VectorType(new StringType()));
+		rules.addType("lang", new StringType());
+		rules.addType("name", new StringType());
+		rules.addType("theme", new StringType());
+		rules.addType("title", new StringType());
+		rules.addType("description", new StringType());
+		rules.addType("storage", new ObjectType({"class_name": classof BaseStorage}));
+		rules.addType("pages", new MapType(new ObjectType{
+			"autocreate": true,
+			"extends": classof BaseModel,
+			"create": void (BaseLayout layout, ObjectType rules, Map data)
+			{
+				return layout.createWidget(rules.class_name, data);
+			}
+		}));
+	}
+	
+	
+	/**
+	 * Add component
+	 */
+	void addComponent(string class_name)
+	{
+		this.components.push(class_name);
+	}
+	
+	
+	/**
+	 * Returns page model
+	 */
+	BaseModel getPageModel() => this.pages.get(this.current_page_model);
+	
+	
+	/**
+	 * Set page model
+	 */
+	BaseModel setPageModel(string class_name, Map params=null)
+	{
+		if (not params) params = {};
+		this.current_page_model = class_name;
+		
+		BaseModel page = this.pages.get(class_name);
+		if (not page)
+		{
+			page = this.createWidget(class_name, params);
+			this.pages.set(class_name, page);
+		}
+		
+		return page;
+	}
+	
+	
+	/**
+	 * Set page description
+	 */
+	void setDescription(string description)
+	{
+		this.description = description;
+	}
+	
+	
+	/**
+	 * Set current page
+	 */
+	void setCurrentPage(string component_name, Map props = null)
+	{
+		this.current_component = component_name;
+		this.component_props = props;
+	}
+	
+	
+	/**
+	 * Set page title
+	 */
+	void setPageTitle(string title, bool full_title=false)
+	{
+		Map res = @.hook(RuntimeHook::TITLE, {
+			"layout": this,
+			"title": title,
+			"title_orig": title,
+			"full_title": full_title,
+		});
+		this.title = res.get("title");
+	}
+	
+	
+	/**
+	 * Set page description
+	 */
+	void setPageDescription(string description)
+	{
+		this.description = description;
+	}
+	
+	
+	/**
+	 * Returns object
+	 */
+	var get(string name) => this.storage.frontend.get(name);
+	
+	
+	/**
+	 * Returns site name
+	 */
+	string getSiteName() => "";
+	
+	
+	/**
+	 * Create url
+	 */
+	string url(string name, Map params = null)
+	{
+		var router = this.get("router");
+		return router ? router.url(name, params) : "";
+	}
+	
+	
+	/**
+	 * Send api
+	 */
+	async ApiResult sendApi(Map params)
+	{
+		BusInterface api = @.provider("api");
+		#ifdef BACKEND then
+		params.set("storage", this.storage.backend);
+		#endif
+		return await api.send(params);
+	}
+	
+	
+	/**
+	 * Restore layout
+	 */
+	void restore(BaseLayout layout)
+	{
+		Map old_pages = layout ? layout.pages : {};
+		
+		/* Restore pages */
+		Vector keys = rtl::list(old_pages.keys());
+		for (int i=0; i<keys.count(); i++)
+		{
+			string key = keys.get(i);
+			BaseModel widget = old_pages.get(key);
+			widget.parent_widget = this;
+			this.pages.set(key, widget);
+		}
+		
+		/* Restore storage */
+		this.storage = layout.storage;
+	}
+	
+	
+	/**
+	 * Translate
+	 */
+	string translate(Map text, Map params = null)
+	{
+		string s = text.has(this.lang) ? text.get(this.lang) :
+			text.get(this.getDefaultLang())
+		;
+		return rs::format(s, params);
+	}
+	
+	
+	/**
+	 * Returns default lang
+	 */
+	string getDefaultLang() => "en";
+	
+	
+	/**
+	 * Assets
+	 */
+	void assets(string path)
+	{
+		string library = "app";
+		var arr = rs::split(":", path);
+		if (arr.count() >= 2)
+		{
+			library = arr.get(0);
+			path = arr.get(1);
+		}
+		var assets = this.get("assets");
+		return assets ? assets.get(library, path) : path;
+	}
+	
+	
+	/**
+	 * Returns components
+	 */
+	Vector getComponents()
+	{
+		Map res = @.hook(RuntimeHook::COMPONENTS, {
+			"components": this.components.slice(),
+		});
+		return static::getRequiredComponents(res.get("components"));
+	}
+	
+	
+	/**
+	 * Returns all components
+	 */
+	static Vector getRequiredComponents(Vector components)
+	{
+		Map hash = {};
+		fn isHash = bool (string class_name) => not hash.has(class_name);
+		
+		Vector result_components = [];
+		
+		fn deep = void (fn deep, Vector components)
+		{
+			for (int i=0; i<components.count(); i++)
+			{
+				string class_name = components.get(i);
+				
+				if (hash.has(class_name)) continue;
+				hash.set(class_name, true);
+				
+				Vector arr = [];
+				
+				/* Add parent components */
+				Vector items = rtl::getParents(class_name, "Runtime.Component")
+					.filter(isHash);
+				arr.appendItems(items);
+				
+				/* Add required components */
+				Method f = new Method(class_name, "getRequiredComponents");
+				if (f.exists())
+				{
+					items = f.apply().filter(isHash);
+					arr.appendItems(items);
+				}
+				
+				deep(deep, arr);
+				result_components.push(class_name);
+			}
+		};
+		
+		deep(deep, components);
+		
+		return result_components;
+	}
+	
+	
+	/**
+	 * Returns style
+	 */
+	static string getStyle(Vector components)
+	{
+		Vector content = [];
+		for (int i=0; i<components.count(); i++)
+		{
+			string class_name = components.get(i);
+			Method f = new Method(class_name, "getComponentStyle");
+			if (not f.exists()) continue;
+			content.push(f.apply());
+		}
+		return rs::join("", content);
+	}
+}

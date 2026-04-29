@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@
 
 namespace Runtime.Web;
 
-use Runtime.SerializeInterface;
-use Runtime.Serializer;
+use Runtime.BaseModel;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
 use Runtime.Web.RouteInfo;
 use Runtime.Web.RenderContainer;
 
@@ -32,10 +33,10 @@ class RoutePage extends RouteInfo
 	/**
 	 * Process frontend data
 	 */
-	void serialize(Serializer serializer, Map data)
+	static void serialize(ObjectType rules)
 	{
-		serializer.process(this, "page", data);
-		parent(serializer, data);
+		parent(rules)
+		rules.addType("page", new StringType());
 	}
 	
 	
@@ -44,7 +45,11 @@ class RoutePage extends RouteInfo
 	 */
 	async void render(RenderContainer container)
 	{
-		container.layout.setPageComponent(this.page);
+		container.layout.current_page_model = "page_model";
+		container.layout.pages.set("page_model", container.layout.createWidget(classof BaseModel, {
+			"component": this.page,
+		}));
+		
 		if (this.data)
 		{
 			string title = this.data.get("title");

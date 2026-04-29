@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,57 +17,45 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
-class Pagination extends \Runtime\Web\Component
+
+
+class Pagination extends \Runtime\Component
 {
-	public $page;
-	public $pages;
-	public $delta;
-	public $name;
 	function render()
 	{
-		$__v = new \Runtime\Vector();
-		$page_start = \Runtime\Math::max(2, $this->page - $this->delta + 1);
-		$page_end = \Runtime\Math::min($this->page + $this->delta, $this->pages - 1);
-		$props = \Runtime\Map::from([]);
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'nav' */
-		$__v0 = new \Runtime\Vector();
+		$page_start = \Runtime\rtl::max(2, $this->page - $this->delta + 1);
+		$page_end = \Runtime\rtl::min($this->page + $this->delta, $this->pages - 1);
+		$props = new \Runtime\Map();
+		
+		/* Element nav */
+		$__v0 = $__v->element("nav", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("pagination", $componentHash))])));
 		
 		if ($this->pages > 1)
 		{
-			/* Element 'ul' */
-			$__v1 = new \Runtime\Vector();
+			/* Element ul */
+			$__v1 = $__v0->element("ul");
 			
 			if ($this->name)
 			{
 				$_ = $props->set("href", $this->getPageUrl(1));
 			}
 			
-			/* Element 'li' */
-			$__v2 = new \Runtime\Vector();
+			/* Element li */
+			$__v2 = $__v1->element("li", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector($this->page == 1 ? "active" : "", $componentHash))])));
 			
-			/* Element 'a' */
-			$__v3 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v3, "1");
-			
-			/* Element 'a' */
-			$this->_e($__v2, "a", $this->_merge_attrs([], $props), $__v3);
-			
-			/* Element 'li' */
-			$this->_e($__v1, "li", ["class" => $this->_class_name([(($this->page == 1) ? ("active") : (""))])], $__v2);
+			/* Element a */
+			$__v3 = $__v2->element("a", (new \Runtime\Map([]))->concat($props));
+			$__v3->push("1");
 			
 			if ($page_start > 2)
 			{
-				/* Element 'li' */
-				$__v2 = new \Runtime\Vector();
-				
-				/* Text */
-				$this->_t($__v2, "...");
-				
-				/* Element 'li' */
-				$this->_e($__v1, "li", [], $__v2);
+				/* Element li */
+				$__v4 = $__v1->element("li");
+				$__v4->push("...");
 			}
 			
 			if ($page_start <= $page_end)
@@ -79,33 +67,20 @@ class Pagination extends \Runtime\Web\Component
 						$_ = $props->set("href", $this->getPageUrl($p));
 					}
 					
-					/* Element 'li' */
-					$__v2 = new \Runtime\Vector();
+					/* Element li */
+					$__v5 = $__v1->element("li", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector($this->page == $p ? "active" : "", $componentHash))])));
 					
-					/* Element 'a' */
-					$__v3 = new \Runtime\Vector();
-					
-					/* Text */
-					$this->_t($__v3, $this->_escape($p));
-					
-					/* Element 'a' */
-					$this->_e($__v2, "a", $this->_merge_attrs([], $props), $__v3);
-					
-					/* Element 'li' */
-					$this->_e($__v1, "li", ["class" => $this->_class_name([(($this->page == $p) ? ("active") : (""))])], $__v2);
+					/* Element a */
+					$__v6 = $__v5->element("a", (new \Runtime\Map([]))->concat($props));
+					$__v6->push($p);
 				}
 			}
 			
 			if ($page_end < $this->pages - 1)
 			{
-				/* Element 'li' */
-				$__v2 = new \Runtime\Vector();
-				
-				/* Text */
-				$this->_t($__v2, "...");
-				
-				/* Element 'li' */
-				$this->_e($__v1, "li", [], $__v2);
+				/* Element li */
+				$__v7 = $__v1->element("li");
+				$__v7->push("...");
 			}
 			
 			if ($this->pages > 1)
@@ -115,57 +90,39 @@ class Pagination extends \Runtime\Web\Component
 					$_ = $props->set("href", $this->getPageUrl($this->pages));
 				}
 				
-				/* Element 'li' */
-				$__v2 = new \Runtime\Vector();
+				/* Element li */
+				$__v8 = $__v1->element("li", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector($this->page == $this->pages ? "active" : "", $componentHash))])));
 				
-				/* Element 'a' */
-				$__v3 = new \Runtime\Vector();
-				
-				/* Text */
-				$this->_t($__v3, $this->_escape($this->pages));
-				
-				/* Element 'a' */
-				$this->_e($__v2, "a", $this->_merge_attrs([], $props), $__v3);
-				
-				/* Element 'li' */
-				$this->_e($__v1, "li", ["class" => $this->_class_name([(($this->page == $this->pages) ? ("active") : (""))])], $__v2);
+				/* Element a */
+				$__v9 = $__v8->element("a", (new \Runtime\Map([]))->concat($props));
+				$__v9->push($this->pages);
 			}
-			
-			/* Element 'ul' */
-			$this->_e($__v0, "ul", [], $__v1);
 		}
 		
-		/* Element 'nav' */
-		$this->_e($__v, "nav", ["class" => $this->_class_name(["pagination"])], $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
+	var $page;
+	var $pages;
+	var $delta;
+	var $name;
 	/**
- * Returns page url
- */
+	 * Returns page url
+	 */
 	function getPageUrl($page)
 	{
-		$uri = $this->layout->request_full_uri;
-		return \Runtime\rs::url_get_add($uri, $this->name, $page);
+		$request = $this->layout->get("request");
+		return \Runtime\rs::url_get_add($request->full_uri, $this->name, $page > 1 ? $page : "");
 	}
 	/**
- * Click event
- */
+	 * Click event
+	 */
 	function onClick($page)
 	{
-		if ($this->name)
-		{
-			return ;
-		}
+		if ($this->name) return;
 		$this->emit("page", $page);
 	}
-	static function css($vars)
-	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".pagination.h-e7d6{text-align: center;padding: 10px 0;width: 100%}.pagination.h-e7d6 ul,.pagination.h-e7d6 li{padding: 0;margin: 0}.pagination.h-e7d6 li{display: inline-block;vertical-align: top;list-style: none;margin-left: 5px;margin-right: 5px}.pagination.h-e7d6 a,.pagination.h-e7d6 a:hover,.pagination.h-e7d6 span{display: flex;align-items: center;justify-content: center;background-color: var(--widget-color-table-background);border-color: var(--widget-color-border);border-width: var(--widget-border-width);border-style: solid;border-radius: 4px;color: var(--widget-color-text);text-align: center;width: 30px;height: 30px;line-height: 0;font-size: 14px;text-decoration: none}.pagination.h-e7d6 li:first-child{margin-left: 0px}.pagination.h-e7d6 li.active a,.pagination.h-e7d6 li.active a:hover{background-color: var(--widget-color-selected);border-color: var(--widget-color-selected);color: var(--widget-color-selected-text)}.pagination.h-e7d6 li a:focus{outline: 0;box-shadow: none}");
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -174,42 +131,7 @@ class Pagination extends \Runtime\Web\Component
 		$this->delta = 5;
 		$this->name = "";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Pagination";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".pagination.h-e7d5{text-align: center;padding: var(--space) 0;width: 100%}.pagination.h-e7d5 ul, .pagination.h-e7d5 li{padding: 0;margin: 0}.pagination.h-e7d5 li{display: inline-block;vertical-align: top;list-style: none;margin-left: calc(var(--space) * 0.5);margin-right: calc(var(--space) * 0.5)}.pagination.h-e7d5 a, .pagination.h-e7d5 a:hover, .pagination.h-e7d5 span{display: flex;align-items: center;justify-content: center;background-color: var(--color-surface);border-color: var(--color-border);border-width: var(--border-width);border-style: solid;border-radius: var(--border-radius);color: var(--color-surface-text);text-align: center;width: 30px;height: 30px;line-height: 0;font-size: var(--font-size);text-decoration: none}.pagination.h-e7d5 li:first-child{margin-left: 0px}.pagination.h-e7d5 li.active a, .pagination.h-e7d5 li.active a:hover{background-color: var(--color-selected);border-color: var(--color-selected);color: var(--color-selected-text)}.pagination.h-e7d5 li a:focus{outline: 0;box-shadow: none}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.Pagination"; }
 }

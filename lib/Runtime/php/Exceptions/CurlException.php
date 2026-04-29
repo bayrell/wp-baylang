@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,59 +17,32 @@
  *  limitations under the License.
  */
 namespace Runtime\Exceptions;
-class CurlException extends \Runtime\Exceptions\AbstractException
+
+use Runtime\RuntimeConstant;
+use Runtime\Exceptions\RuntimeException;
+
+
+class CurlException extends \Runtime\Exceptions\RuntimeException
 {
-	public $http_code;
-	public $http_content;
-	function __construct($http_code, $http_content, $prev=null)
+	var $http_code;
+	var $http_content;
+	
+	function __construct($http_code, $http_content, $prev = null)
 	{
-		parent::__construct("HTTP error code: " . \Runtime\rtl::toStr($http_code), \Runtime\rtl::ERROR_CURL_ERROR, $prev);
+		parent::__construct("HTTP error code: " . $http_code, \Runtime\rtl::ERROR_CURL_ERROR, $prev);
 		$this->http_code = $http_code;
 		$this->http_content = $http_content;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->http_code = -1;
 		$this->http_content = "";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Exceptions";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Exceptions.CurlException";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Exceptions.AbstractException";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Exceptions.CurlException"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

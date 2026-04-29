@@ -17,68 +17,59 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Theme\Components\Gallery;
+
+use Runtime\Serializer;
+use Runtime\Web\ApiResult;
+use Runtime\Web\RenderContainer;
+use Runtime\Widget\Gallery\GalleryModel as BaseGalleryModel;
+
+
 class GalleryModel extends \Runtime\Widget\Gallery\GalleryModel
 {
-	public $api_name;
-	public $big_size;
-	public $small_size;
+	var $api_name;
+	var $big_size;
+	var $small_size;
+	
+	
 	/**
 	 * Returns small image
 	 */
 	function getSmallImage($pos)
 	{
 		$item = $this->getItem($pos);
-		if (!$item)
-		{
-			return "";
-		}
-		$image = \Runtime\rtl::attr($item, ["image", "sizes", $this->small_size]);
-		if (!$image)
-		{
-			return "";
-		}
+		if (!$item) return "";
+		$image = $item["image", "sizes", $this->small_size];
+		if (!$image) return "";
 		return $image->get("file");
 	}
+	
+	
 	/**
 	 * Returns big image
 	 */
 	function getBigImage($pos)
 	{
 		$item = $this->getItem($pos);
-		if (!$item)
-		{
-			return "";
-		}
-		$image = \Runtime\rtl::attr($item, ["image", "sizes", $this->big_size]);
-		if (!$image)
-		{
-			return "";
-		}
+		if (!$item) return "";
+		$image = $item["image", "sizes", $this->big_size];
+		if (!$image) return "";
 		return $image->get("file");
 	}
+	
+	
 	/**
 	 * Init widget params
 	 */
 	function initParams($params)
 	{
 		parent::initParams($params);
-		if ($params == null)
-		{
-			return ;
-		}
-		if ($params->has("api_name"))
-		{
-			$this->api_name = $params->get("api_name");
-		}
-		if ($params->has("big_size"))
-		{
-			$this->big_size = $params->get("big_size");
-		}
-		if ($params->has("small_size"))
-		{
-			$this->small_size = $params->get("small_size");
-		}
+		if ($params == null) return;
+		if ($params->has("api_name")) $this->api_name = $params->get("api_name");
+		if ($params->has("big_size")) $this->big_size = $params->get("big_size");
+		if ($params->has("small_size")) $this->small_size = $params->get("small_size");
 	}
+	
+	
 	/**
 	 * Init widget settings
 	 */
@@ -86,6 +77,8 @@ class GalleryModel extends \Runtime\Widget\Gallery\GalleryModel
 	{
 		parent::initWidget($params);
 	}
+	
+	
 	/**
 	 * Process frontend data
 	 */
@@ -94,17 +87,27 @@ class GalleryModel extends \Runtime\Widget\Gallery\GalleryModel
 		$serializer->process($this, "items", $data);
 		parent::serialize($serializer, $data);
 	}
+	
+	
 	/**
 	 * Load items
 	 */
 	function loadItems()
 	{
-		$result = $this->layout->callApi(\Runtime\Map::from(["api_name"=>"runtime.wordpress.gallery","method_name"=>"actionSearch","data"=>\Runtime\Map::from(["api_name"=>$this->api_name])]));
+		$result = $this->layout->callApi(new \Runtime\Map([
+			"api_name" => "runtime.wordpress.gallery",
+			"method_name" => "actionSearch",
+			"data" => new \Runtime\Map([
+				"api_name" => $this->api_name,
+			]),
+		]));
 		if ($result->isSuccess())
 		{
 			$this->items = $result->data->get("items");
 		}
 	}
+	
+	
 	/**
 	 * Load data
 	 */
@@ -113,7 +116,9 @@ class GalleryModel extends \Runtime\Widget\Gallery\GalleryModel
 		parent::loadData($container);
 		$this->loadItems();
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -121,42 +126,7 @@ class GalleryModel extends \Runtime\Widget\Gallery\GalleryModel
 		$this->big_size = "medium_large";
 		$this->small_size = "medium";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Theme.Components.Gallery";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.Components.Gallery.GalleryModel";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Gallery.GalleryModel";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Theme.Components.Gallery.GalleryModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

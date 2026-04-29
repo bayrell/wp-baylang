@@ -17,15 +17,24 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Theme\Api;
+
+use Runtime\ORM\Connection;
+use Runtime\ORM\Query;
+use Runtime\ORM\QueryResult;
+use Runtime\ORM\Relation;
+use Runtime\Web\BaseApi;
+use Runtime\Web\Annotations\ApiMethod;
+use Runtime\WordPress\WP_Helper;
+
+
 class GalleryApi extends \Runtime\Web\BaseApi
 {
 	/**
 	 * Returns api name
 	 */
-	static function getApiName()
-	{
-		return "runtime.wordpress.gallery";
-	}
+	static function getApiName(){ return "runtime.wordpress.gallery"; }
+	
+	
 	/**
 	 * Action search
 	 */
@@ -34,68 +43,46 @@ class GalleryApi extends \Runtime\Web\BaseApi
 		$connection = \Runtime\ORM\Connection::get();
 		/* Load items */
 		$api_name = $this->post_data->get("api_name");
-		$q = (new \Runtime\ORM\Query())->select(\Runtime\Vector::from(["gallery_item.*"]))->from("gallery_item")->innerJoin("gallery", \Runtime\Vector::from(["gallery.id = gallery_item.gallery_id"]))->where("gallery.api_name", "=", $api_name)->orderBy("pos", "desc")->orderBy("id", "asc");
+		$q = (new \Runtime\ORM\Query())->select(new \Runtime\Vector("gallery_item.*"))->from("gallery_item")->innerJoin("gallery", new \Runtime\Vector("gallery.id = gallery_item.gallery_id"))->where("gallery.api_name", "=", $api_name)->orderBy("pos", "desc")->orderBy("id", "asc");
 		$result = $connection->fetchAll($q);
 		/* Load images */
-		$images_id = $result->map(function ($item)
-		{
-			return $item->get("image_id");
-		});
+		$images_id = $result->map(function ($item){ return $item->get("image_id"); });
 		$images = \Runtime\WordPress\WP_Helper::loadImages($connection, $images_id);
 		/* Build items */
 		$items = $result->map(function ($item) use (&$images)
 		{
 			$image_id = $item->get("image_id");
-			return \Runtime\Map::from(["id"=>$item->get("id"),"image_id"=>$image_id,"image"=>$images->get($image_id),"name"=>$item->get("name")]);
+			return new \Runtime\Map([
+				"id" => $item->get("id"),
+				"image_id" => $image_id,
+				"image" => $images->get($image_id),
+				"name" => $item->get("name"),
+			]);
 		});
 		/* Return result */
-		$this->success(\Runtime\Map::from(["data"=>\Runtime\Map::from(["items"=>$items])]));
-	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Theme.Api";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.Api.GalleryApi";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.BaseApi";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
+		$this->success(new \Runtime\Map([
+			"data" => new \Runtime\Map([
+				"items" => $items,
 			]),
-		]);
+		]));
 	}
-	static function getFieldsList()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		$a = [];
-		return \Runtime\Collection::from($a);
+		parent::_init();
 	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Theme.Api.GalleryApi"; }
 	static function getMethodsList()
 	{
-		$a=[
-			"actionSearch",
-		];
-		return \Runtime\Collection::from($a);
+		return new \Runtime\Vector("actionSearch");
 	}
 	static function getMethodInfoByName($field_name)
 	{
-		if ($field_name == "actionSearch")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
+		if ($field_name == "actionSearch") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod()
+		);
 		return null;
 	}
 }

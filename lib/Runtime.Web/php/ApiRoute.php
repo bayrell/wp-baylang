@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,6 +17,22 @@
  *  limitations under the License.
  */
 namespace Runtime\Web;
+
+use Runtime\Exceptions\ApiError;
+use Runtime\Exceptions\RuntimeException;
+use Runtime\Web\ApiProvider;
+use Runtime\Web\ApiResult;
+use Runtime\Web\BaseRoute;
+use Runtime\Web\Bus;
+use Runtime\Web\BusInterface;
+use Runtime\Web\BusLocal;
+use Runtime\Web\Cookie;
+use Runtime\Web\JsonResponse;
+use Runtime\Web\RenderContainer;
+use Runtime\Web\RouteAction;
+use Runtime\Web\RouteInfo;
+
+
 class ApiRoute extends \Runtime\Web\BaseRoute
 {
 	/**
@@ -24,87 +40,66 @@ class ApiRoute extends \Runtime\Web\BaseRoute
 	 */
 	static function getRoutes()
 	{
-		return \Runtime\Vector::from([new \Runtime\Web\RouteAction(\Runtime\Map::from(["uri"=>"/api/{service}/{api_name}/{method_name}/","name"=>"runtime:web:api","action"=>"actionIndex","pos"=>1000]))]);
+		return new \Runtime\Vector(
+			new \Runtime\Web\RouteAction(new \Runtime\Map([
+				"uri" => "/api/{api_name}/{method_name}",
+				"name" => "runtime:web:api",
+				"action" => "actionIndex",
+				"method" => "post",
+				"pos" => 1000,
+			])),
+			new \Runtime\Web\RouteAction(new \Runtime\Map([
+				"uri" => "/api/{api_name}/{method_name}/",
+				"name" => "runtime:web:api:index",
+				"action" => "actionIndex",
+				"method" => "post",
+				"pos" => 1000,
+			])),
+		);
 	}
+	
+	
 	/**
 	 * Action index
 	 */
 	static function actionIndex($container)
 	{
 		/* Call api */
-		$service = \Runtime\rtl::attr($container->route->matches, "service");
-		$api_name = \Runtime\rtl::attr($container->route->matches, "api_name");
-		$method_name = \Runtime\rtl::attr($container->route->matches, "method_name");
+		$api_name = $container->route->matches->get("api_name");
+		$method_name = $container->route->matches->get("method_name");
 		$api_result = null;
-		$bus = \Runtime\rtl::getContext()->provider("Runtime.Web.BusLocal");
-		try
-		{
-			
-			$api_result = $bus->send(\Runtime\Map::from(["service"=>$service,"api_name"=>$api_name,"method_name"=>$method_name,"layout"=>$container->layout,"data"=>$container->request->payload->get("data"),"container"=>$container]));
-		}
-		catch (\Exception $_ex)
-		{
-			if ($_ex instanceof \Runtime\Exceptions\AbstractException)
-			{
-				$e = $_ex;
-				$api_result = new \Runtime\Web\ApiResult();
-				$api_result->exception($e);
-			}
-			else
-			{
-				throw $_ex;
-			}
-		}
+		$bus = \Runtime\rtl::getContext()->provider("api");
+		$payload = $container->request->payload;
+		$api_result = $bus->send(new \Runtime\Map([
+			"api_name" => $api_name,
+			"method_name" => $method_name,
+			"data" => $payload,
+			"storage" => $container->layout->storage->backend,
+		]));
 		/* Create response */
 		$container->setResponse(new \Runtime\Web\JsonResponse($api_result->getContent()));
 		/* Set cookie */
-		$api_result->cookies->each(function ($cookie) use (&$container)
+		if ($api_result instanceof \Runtime\Web\ApiResult)
 		{
-			$container->addCookie($cookie);
-		});
+			$api_result->cookies->each(function ($cookie) use (&$container)
+			{
+				$container->addCookie($cookie);
+			});
+		}
 		/* HTTP error if exception */
-		/*if (api.isException())
+		if ($api_result->isException())
 		{
-			container.response.http_code = 500;
-		}*/
+			$container->response->http_code = 500;
+		}
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.Web";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.Web.ApiRoute";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.BaseRoute";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.ApiRoute"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

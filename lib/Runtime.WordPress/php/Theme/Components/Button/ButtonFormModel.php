@@ -17,31 +17,32 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Theme\Components\Button;
+
+use Runtime\Widget\ButtonModel;
+use Runtime\WordPress\Theme\Components\Form\FormDialogModel;
+use Runtime\WordPress\Theme\Components\Form\FormModel;
+
+
 class ButtonFormModel extends \Runtime\Widget\ButtonModel
 {
-	public $dialog;
-	public $form;
-	public $dialog_settings;
-	public $form_settings;
+	var $dialog;
+	var $form;
+	var $dialog_settings;
+	var $form_settings;
+	
+	
 	/**
 	 * Init widget params
 	 */
 	function initParams($params)
 	{
 		parent::initParams($params);
-		if ($params == null)
-		{
-			return ;
-		}
-		if ($params->has("dialog_settings"))
-		{
-			$this->dialog_settings = $params->get("dialog_settings");
-		}
-		if ($params->has("form_settings"))
-		{
-			$this->form_settings = $params->get("form_settings");
-		}
+		if ($params == null) return;
+		if ($params->has("dialog_settings")) $this->dialog_settings = $params->get("dialog_settings");
+		if ($params->has("form_settings")) $this->form_settings = $params->get("form_settings");
 	}
+	
+	
 	/**
 	 * Init widget params
 	 */
@@ -49,12 +50,19 @@ class ButtonFormModel extends \Runtime\Widget\ButtonModel
 	{
 		parent::initWidget($params);
 		/* Add form */
-		$this->form = $this->addWidget("Runtime.WordPress.Theme.Components.Form.FormModel", $this->form_settings->concat(\Runtime\Map::from(["widget_name"=>"form"])));
+		$this->form = $this->addWidget("Runtime.WordPress.Theme.Components.Form.FormModel", $this->form_settings->concat(new \Runtime\Map([
+			"widget_name" => "form",
+		])));
 		/* Add dialog */
-		$this->dialog = $this->addWidget("Runtime.WordPress.Theme.Components.Form.FormDialogModel", $this->dialog_settings->concat(\Runtime\Map::from(["widget_name"=>"dialog","form"=>$this->form])));
+		$this->dialog = $this->addWidget("Runtime.WordPress.Theme.Components.Form.FormDialogModel", $this->dialog_settings->concat(new \Runtime\Map([
+			"widget_name" => "dialog",
+			"form" => $this->form,
+		])));
 		/* Set form title */
 		$this->form->form_title = $this->dialog->title;
 	}
+	
+	
 	/**
 	 * Set title
 	 */
@@ -63,59 +71,28 @@ class ButtonFormModel extends \Runtime\Widget\ButtonModel
 		$this->dialog->title = $title;
 		$this->form->form_title = $title;
 	}
+	
+	
 	/**
 	 * On click
 	 */
-	function onClick($data=null)
+	function onClick($data = null)
 	{
 		$this->dialog->show();
 		parent::onClick($data);
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->dialog = null;
 		$this->form = null;
-		$this->dialog_settings = \Runtime\Map::from([]);
-		$this->form_settings = \Runtime\Map::from([]);
+		$this->dialog_settings = new \Runtime\Map();
+		$this->form_settings = new \Runtime\Map();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Theme.Components.Button";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.Components.Button.ButtonFormModel";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.ButtonModel";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Theme.Components.Button.ButtonFormModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

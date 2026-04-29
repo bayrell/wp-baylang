@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,150 +18,145 @@
 
 <class name="Runtime.Widget.Dialog.Dialog">
 
-<use name="Runtime.Widget.Button" component="true" />
-<use name="Runtime.Widget.RowButtons" component="true" />
-<use name="Runtime.Widget.WidgetResult" component="true" />
-
+<use name="Runtime.Widget.Button" />
+<use name="Runtime.Widget.Dialog.DialogModel" />
 
 <style>
-.widget_dialog{
-	text-align: left;
-}
-.widget_dialog__box, .widget_dialog__shadow{
+.dialog{
+	display: none;
 	position: fixed;
 	top: 0; left: 0;
-	width: 100%; height: 100%;
-	z-index: 1001;
-}
-.widget_dialog__box{
-	overflow: auto;
-	overflow-y: scroll;
-	display: none;
-}
-.widget_dialog--open .widget_dialog__box{
-	display: block;
-}
-.widget_dialog__shadow{
-	background-color: #000;
-	opacity: 0.2;
-	overflow: hidden;
-	display: none;
-}
-.widget_dialog--open .widget_dialog__shadow{
-	display: block;
-}
-.widget_dialog__wrap{
 	width: 100%;
-	min-height: 100%;
-}
-.widget_dialog__wrap > tr > td{
-	padding: 20px;
-}
-.widget_dialog__container{
-	position: relative;
-	padding: calc(var(--widget-space) * 3);
-	background-color: white;
-	border-radius: 4px;
-	max-width: 600px;
-	margin: calc(var(--widget-space) * 5) auto;
-	width: auto;
-	z-index: 1002;
-	box-shadow: 2px 4px 10px 0px rgba(0,0,0,0.5);
-	font-size: var(--widget-font-size);
-}
-.widget_dialog__title{
-	font-weight: bold;
-	font-size: var(--widget-font-size-h2);
-	text-align: left;
-	margin: var(--widget-margin-h2);
-	margin-top: 0;
-}
-%(RowButtons)widget_dialog__buttons{
-	margin: var(--widget-margin-h2);
-	margin-bottom: 0;
-}
-%(RowButtons)widget_dialog__buttons %(Button)widget_button{
-	min-width: 70px;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.2);
+	z-index: 99999;
+	align-items: center;
+	justify-content: center;
+	overflow-y: auto;
+	
+	&--open{
+		display: grid;
+	}
+	
+	&__container{
+		background-color: var(--color-background);
+		border-radius: var(--border-radius);
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+		width: 600px;
+		margin: calc(var(--space) * 2) auto;
+	}
+	
+	&__content{
+		padding: calc(var(--space) * 2);
+	}
+	
+	&__header{
+		padding: var(--space) calc(var(--space) * 2);
+		border-bottom: 1px solid var(--color-border);
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		font-weight: bold;
+		font-size: 1.2em;
+		
+		.button{
+			font-size: 1.5em;
+			line-height: 0;
+			border: none;
+		}
+	}
+
+	/* Footer dialog */
+	&__footer{
+		padding: calc(var(--space) * 2);
+		padding-top: var(--space);
+		display: flex;
+		justify-content: flex-end;
+		gap: var(--space);
+	}
+	
+	@media (max-width: 768px){
+		&__content_wrapper{
+			width: 95%;
+		}
+		&__header{
+			font-size: 1.1em;
+			padding: 10px 15px;
+		}
+		&__content{
+			padding: 15px;
+		}
+		&__footer{
+			padding: 10px 15px;
+		}
+	}
 }
 </style>
 
-
 <template name="renderTitle">
-	%if (this.model.title != "")
-	{
-		<div class='widget_dialog__title'>{{ this.model.title }}</div>
-	}
+	%render this.renderSlot("title");
 </template>
 
-
-<template name="renderContent">
-	<div class='widget_dialog__content'>{{ this.model.content }}</div>
-</template>
-
-
-<template name="renderButtons">
-	%render this.renderWidget(this.model.buttons);
-</template>
-
-
-<template name="renderResult">
-	%render this.renderWidget(this.model.result);
-</template>
-
-
-<template name="renderDialog">
-	%render this.renderTitle();
-	%render this.renderContent();
-	%render this.renderButtons();
-	%render this.renderResult();
-</template>
-
-
-<template name="renderDialogContainer">
-	%set Map props = this.getProps();
-	<div class="widget_dialog__container" ...props>
-		%render this.renderDialog();
+<template name="renderHeader">
+	<div class="dialog__header">
+		<div class="dialog__header_title">
+			%render this.renderTitle();
+		</div>
+		<Button
+			class="dialog__header_close button--small"
+			@event:click="this.onCloseClick()"
+		>
+			<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<path d="M12 4L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+				<path d="M4 4L12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+			</svg>
+		</Button>
 	</div>
 </template>
 
+<template name="renderContent">
+	<div class="dialog__content">
+		%render this.renderSlot("content");
+	</div>
+</template>
 
-<template name="render">
-	<div class="widget_dialog"
-		class={{ this.model.is_open ? "widget_dialog--open" : "widget_dialog--hide" }}
-		class={{ static::mergeStyles("widget_dialog", this.model.styles) }}
-		@event:click={{ this.onDialogClick }}
+<template name="renderFooter">
+	%if (this.slot("footer"))
+	{
+		<div class="dialog__footer">
+			%render this.renderSlot("footer");
+		</div>
+	}
+</template>
+
+<template>
+	<div
+		class={{ "dialog" ~ (this.class ? " " ~ this.class : "") }}
+		class={{ this.model.is_open ? "dialog--open" : "" }}
+		@event:click="this.onOverlayClick()"
 	>
-		<div class="widget_dialog__shadow"></div>
-		<div class="widget_dialog__box" @ref="dialog_box">
-			<table class="widget_dialog__wrap"><tbody><tr><td class="widget_dialog__td">
-				%render this.renderDialogContainer();
-			</td></tr></tbody></table>
+		<div class="dialog__container"
+			@event:click="event.stopPropagation();"
+		>
+			%render this.renderHeader();
+			%render this.renderContent();
+			%render this.renderFooter();
 		</div>
 	</div>
 </template>
 
-
 <script>
 
-Map getProps()
-{
-	Vector styles = [];
-	if (this.model.width != "")
-	{
-		styles.push("max-width: " ~ this.model.width);
-	}
-	return {
-		"style": styles.join(";"),
-	};
-}
+props DialogModel model = null;
+props bool modal = true;
 
 
 /**
- * On shadow click
+ * Overlay click
  */
-void onShadowClick()
+void onOverlayClick()
 {
-	if (not this.model.modal)
+	if (not this.modal)
 	{
 		this.model.hide();
 	}
@@ -169,46 +164,45 @@ void onShadowClick()
 
 
 /**
- * On dialog click
+ * Close button click
  */
-void onDialogClick(var e)
+void onCloseClick()
 {
-	if (e.target.classList.contains("widget_dialog__td"))
-	{
-		this.onShadowClick();
-	}
+	this.model.hide();
 }
 
 
 /**
- * Updated
+ * Update component
  */
-void onUpdated()
+void updated()
 {
-	var elem = document.documentElement;
-	bool is_scroll_lock = elem.classList.contains("scroll-lock");
+	var body = document.getElementsByTagName("body")[0];
 	if (this.model.is_open)
 	{
-		if (not is_scroll_lock)
+		if (not body.classList.contains("scroll-lock"))
 		{
-			elem.classList.add('scroll-lock');
-			this.nextTick(void(){
-				var dialog_box = this.getRef("dialog_box");
-				dialog_box.scrollTop = 0;
-			});
+			body.classList.add("scroll-lock");
+		}
+		bool is_scroll_padding = document.documentElement.scrollHeight > document.documentElement.clientHeight;
+		if (is_scroll_padding)
+		{
+			body.classList.add("scroll-padding");
 		}
 	}
 	else
 	{
-		if (is_scroll_lock)
+		if (body.classList.contains("scroll-lock"))
 		{
-			elem.classList.remove('scroll-lock');
+			body.classList.remove("scroll-lock");
+		}
+		if (body.classList.contains("scroll-padding"))
+		{
+			body.classList.remove("scroll-padding");
 		}
 	}
 }
 
-
 </script>
-
 
 </class>

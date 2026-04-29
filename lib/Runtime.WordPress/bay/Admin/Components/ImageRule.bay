@@ -21,13 +21,15 @@ namespace Runtime.WordPress.Admin.Components;
 use Runtime.lib;
 use Runtime.BaseStruct;
 use Runtime.ORM.Connection;
-use Runtime.ORM.Relation;
-use Runtime.Widget.Crud.Rules.CrudRule;
-use Runtime.Widget.Crud.CrudService;
+use Runtime.ORM.Record;
+use Runtime.Widget.Api.SaveApi;
+use Runtime.Widget.Api.SearchApi;
+use Runtime.Widget.Api.Rules.BaseRule;
 use Runtime.WordPress.WP_Helper;
+use Runtime.WordPress.Theme.Components.ImageType;
 
 
-struct ImageRule extends CrudRule
+class ImageRule extends BaseRule
 {
 	string name = "";
 	string key = "";
@@ -36,38 +38,37 @@ struct ImageRule extends CrudRule
 	/**
 	 * Save item
 	 */
-	async void onSaveBefore(CrudService service)
+	async void onSaveBefore(SaveApi api)
 	{
-		if (not service.data.has(this.name)) return;
+		if (not api.update_data.has(this.name)) return;
 		
 		/* Get image id */
-		Dict image = service.data.get(this.name);
-		int image_id = image.get("id");
+		ImageType image = api.update_data.get(this.name);
+		int image_id = image.id;
 		
 		/* Set image id */
-		service.data.set(this.key, image_id);
+		api.item.set(this.key, image_id);
 	}
 	
 	
 	/**
 	 * Search after
 	 */
-	void onSearchAfter(CrudService service)
+	void onSearchAfter(SearchApi api)
 	{
-		Collection<Dict> items = service.items;
-		Collection images = service.items
-			.map(int (Relation item) => item.get(this.key))
+		Vector<Map> items = api.items;
+		Vector images = api.items
+			.map(int (Record item) => item.get(this.key))
 			.filter(bool (int id) => id > 0)
 		;
 		
 		/* Load images */
-		Connection connection = service.getConnection();
-		Dict result = WP_Helper::loadImages(connection, images);
+		Map result = await WP_Helper::loadImages(images);
 		
 		/* Map items */
-		for (int i=0; i<service.items.count(); i++)
+		for (int i=0; i<api.items.count(); i++)
 		{
-			Dict item = service.items.get(i);
+			Map item = api.items.get(i);
 			int image_id = item.get(this.key);
 			item.set(this.name, result.get(image_id));
 		}

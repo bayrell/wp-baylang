@@ -18,33 +18,38 @@
 
 namespace Runtime.WordPress.Database;
 
-use Runtime.BaseStruct;
+use Runtime.BaseObject;
+use Runtime.Serializer.BaseType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.Required;
 use Runtime.ORM.Relation;
+use Runtime.ORM.Record;
 use Runtime.ORM.Annotations.AutoIncrement;
 use Runtime.ORM.Annotations.BigIntType;
 use Runtime.ORM.Annotations.BooleanType;
+use Runtime.ORM.Annotations.JsonType;
 use Runtime.ORM.Annotations.Primary;
 use Runtime.ORM.Annotations.StringType;
 
 
-class Form extends Relation
+class Form extends Record
 {
-    /**
-     * Returns table name
-     */
-    pure string getTableName() => "forms";
-    
-    
-    /**
-     * Returns table schema
-     */
-    pure memorize Collection<BaseStruct> schema() =>
+	/**
+	 * Returns table name
+	 */
+	pure string getTableName() => "forms";
+	
+	
+	/**
+	 * Returns table schema
+	 */
+	pure memorize Collection<BaseObject> schema() =>
 	[
 		/* Fields */
 		new BigIntType{"name": "id"},
 		new StringType{"name": "name"},
 		new StringType{"name": "api_name"},
-		new StringType{"name": "settings"},
+		new JsonType{"name": "settings"},
 		new StringType{"name": "email_to"},
 		new BooleanType{"name": "is_deleted"},
 		
@@ -52,4 +57,35 @@ class Form extends Relation
 		new AutoIncrement{"name": "id"},
 		new Primary{"keys": ["id"]},
 	];
+	
+	
+	/**
+	 * Returns rules
+	 */
+	BaseType getRules()
+	{
+		Map settings = this.get("settings");
+		Vector fields = settings.get("fields");
+		
+		BaseType rules = new MapType();
+		for (int i=0; i<fields.count(); i++)
+		{
+			Map field = fields.get(i);
+			string field_name = field.get("name");
+			string field_type = field.get("type");
+			if (field_type == "input" or field_type == "textarea")
+			{
+				rules.addType(field_name, new StringType());
+			}
+			bool field_required = rtl::toInt(field.get("required")) or
+				field.get("required") == "true"
+			;
+			if (field_required)
+			{
+				rules.addType(field_name, new Required());
+			}
+		}
+		
+		return rules;
+	}
 }

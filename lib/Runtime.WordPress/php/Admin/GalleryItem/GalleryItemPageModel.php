@@ -17,42 +17,131 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin\GalleryItem;
-class GalleryItemPageModel extends \Runtime\Web\BasePageModel
+
+use Runtime\BaseModel;
+use Runtime\Method;
+use Runtime\Serializer\IntegerType;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\ObjectType;
+use Runtime\Serializer\StringType;
+use Runtime\Web\RenderContainer;
+use Runtime\Widget\Table\TableManager;
+use Runtime\WordPress\Admin\GalleryItem\GalleryItemPage;
+use Runtime\WordPress\Theme\Components\ImageType;
+
+
+class GalleryItemPageModel extends \Runtime\BaseModel
 {
-	public $component;
-	public $form;
-	public $table;
-	public $top_buttons;
+	var $component;
+	var $manager;
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static function serialize($rules)
+	{
+		parent::serialize($rules);
+		$rules->addType("manager", new \Runtime\Serializer\ObjectType());
+	}
+	
+	
 	/**
 	 * Init widget settings
 	 */
 	function initWidget($params)
 	{
 		parent::initWidget($params);
-		/* Add form */
-		$this->form = $this->addWidget("Runtime.Widget.Form.FormModel", \Runtime\Map::from(["widget_name"=>"form","primary_key"=>\Runtime\Vector::from(["id"]),"foreign_key"=>\Runtime\Map::from(["gallery_id"=>$this->layout->request_query->get("id")]),"storage"=>new \Runtime\Entity\Factory("Runtime.Widget.Form.FormSaveStorage", \Runtime\Map::from(["api_name"=>"admin.wordpress.gallery.item.save"])),"fields"=>\Runtime\Vector::from([\Runtime\Map::from(["name"=>"name","label"=>"Name","component"=>"Runtime.Widget.Input"]),\Runtime\Map::from(["name"=>"image","label"=>"Image","component"=>"Runtime.WordPress.Admin.Components.Image","props"=>\Runtime\Map::from(["upload"=>true])]),\Runtime\Map::from(["name"=>"pos","label"=>"Position","default"=>"100","component"=>"Runtime.Widget.Input"])])]));
-		/* Add table */
-		$this->table = $this->addWidget("Runtime.Widget.Table.TableDialogModel", \Runtime\Map::from(["widget_name"=>"table","styles"=>\Runtime\Vector::from(["border"]),"get_title"=>function ($params)
-		{
-			$action = $params->get("action");
-			$item = $params->get("item");
-			if ($action == "add")
-			{
-				return "Add item";
-			}
-			if ($action == "edit")
-			{
-				return "Edit item";
-			}
-			if ($action == "delete")
-			{
-				return "Delete item";
-			}
-			return "";
-		},"storage"=>new \Runtime\Entity\Factory("Runtime.Widget.Table.TableStorage", \Runtime\Map::from(["api_name"=>"admin.wordpress.gallery.item.search"])),"foreign_key"=>\Runtime\Map::from(["gallery_id"=>$this->layout->request_query->get("id")]),"page"=>$this->layout->request_query->get("p", 1) - 1,"pagination_props"=>\Runtime\Map::from(["name"=>"p"]),"add_form"=>$this->form,"edit_form"=>$this->form,"delete_form"=>new \Runtime\Web\ModelFactory("Runtime.Widget.Form.FormModel", \Runtime\Map::from(["widget_name"=>"delete_form","primary_key"=>\Runtime\Vector::from(["id"]),"foreign_key"=>\Runtime\Map::from(["gallery_id"=>$this->layout->request_query->get("id")]),"storage"=>new \Runtime\Entity\Factory("Runtime.Widget.Form.FormDeleteStorage", \Runtime\Map::from(["api_name"=>"admin.wordpress.gallery.item.save"]))])),"fields"=>\Runtime\Vector::from([\Runtime\Map::from(["name"=>"row_number"]),\Runtime\Map::from(["name"=>"name","label"=>"Name","component"=>"Runtime.Widget.Label"]),\Runtime\Map::from(["name"=>"image","label"=>"Image","component"=>"Runtime.WordPress.Admin.Components.Image","props"=>\Runtime\Map::from(["center"=>true])]),\Runtime\Map::from(["name"=>"pos","label"=>"Position","component"=>"Runtime.Widget.Label"]),\Runtime\Map::from(["name"=>"row_buttons","model"=>new \Runtime\Web\ModelFactory("Runtime.Widget.Table.TableRowButtonsModel")])])]));
-		/* Add top buttons */
-		$this->top_buttons = $this->addWidget("Runtime.Widget.RowButtonsModel", \Runtime\Map::from(["widget_name"=>"top_buttons","styles"=>\Runtime\Vector::from(["top_buttons","no_gap"]),"buttons"=>\Runtime\Vector::from([new \Runtime\Web\ModelFactory("Runtime.Widget.BackButtonModel", \Runtime\Map::from(["href"=>$this->layout->url("admin:gallery:index")])),new \Runtime\Web\ModelFactory("Runtime.Widget.Table.AddButtonModel", \Runtime\Map::from(["table"=>$this->table]))])]));
+		$this->manager = $this->createWidget("Runtime.Widget.Table.TableManager", new \Runtime\Map([
+			"autoload" => true,
+			"api_name" => "admin.wordpress.gallery.item",
+			"page_name" => "p",
+			"title" => new \Runtime\Method($this, "getItemTitle"),
+			"primary_rules" => new \Runtime\Serializer\MapType(new \Runtime\Map([
+				"id" => new \Runtime\Serializer\IntegerType(),
+			])),
+			"item_rules" => new \Runtime\Serializer\MapType(new \Runtime\Map([
+				"id" => new \Runtime\Serializer\IntegerType(),
+				"name" => new \Runtime\Serializer\StringType(),
+				"image" => new \Runtime\Serializer\ObjectType(new \Runtime\Map([
+					"class_name" => "Runtime.WordPress.Theme.Components.ImageType",
+				])),
+				"pos" => new \Runtime\Serializer\IntegerType(),
+			])),
+			"foreign_rules" => new \Runtime\Serializer\MapType(new \Runtime\Map([
+				"item_id" => new \Runtime\Serializer\IntegerType(),
+			])),
+			"form_fields" => new \Runtime\Vector(
+				new \Runtime\Map([
+					"name" => "name",
+					"label" => "Name",
+					"component" => "Runtime.Widget.Input",
+				]),
+				new \Runtime\Map([
+					"name" => "image",
+					"label" => "Image",
+					"component" => "Runtime.WordPress.Admin.Components.Image",
+					"props" => new \Runtime\Map([
+						"upload" => true,
+					]),
+				]),
+				new \Runtime\Map([
+					"name" => "pos",
+					"label" => "Pos",
+					"component" => "Runtime.Widget.Input",
+				]),
+			),
+			"table_fields" => new \Runtime\Vector(
+				new \Runtime\Map([
+					"name" => "row_number",
+				]),
+				new \Runtime\Map([
+					"name" => "name",
+					"label" => "Name",
+				]),
+				new \Runtime\Map([
+					"name" => "image",
+					"label" => "Image",
+					"component" => "Runtime.WordPress.Admin.Components.Image",
+				]),
+				new \Runtime\Map([
+					"name" => "pos",
+					"label" => "pos",
+				]),
+				new \Runtime\Map([
+					"name" => "buttons",
+					"slot" => "row_buttons",
+				]),
+			),
+		]));
 	}
+	
+	
+	/**
+	 * Returns item title
+	 */
+	function getItemTitle($action, $item)
+	{
+		if ($action == "add") return "Add item";
+		else if ($action == "edit") return "Edit item";
+		else if ($action == "delete") return "Delete item";
+		else if ($action == "delete_message") return "Delete item";
+		return "";
+	}
+	
+	
+	/**
+	 * Load data
+	 */
+	function loadData($container)
+	{
+		$this->manager->setForeignKey(new \Runtime\Map([
+			"item_id" => $container->request->query->get("id"),
+		]));
+		parent::loadData($container);
+	}
+	
+	
 	/**
 	 * Build title
 	 */
@@ -60,51 +149,16 @@ class GalleryItemPageModel extends \Runtime\Web\BasePageModel
 	{
 		$this->layout->setPageTitle("Gallery items");
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->component = "Runtime.WordPress.Admin.GalleryItem.GalleryItemPage";
-		$this->form = null;
-		$this->table = null;
-		$this->top_buttons = null;
+		$this->manager = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Admin.GalleryItem";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.BasePageModel";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.GalleryItem.GalleryItemPageModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

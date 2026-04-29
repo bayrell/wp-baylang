@@ -1,0 +1,70 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Serializer;
+
+use Runtime.BaseObject;
+use Runtime.Serializer.BaseType;
+use Runtime.Serializer.TypeError;
+
+
+class BooleanType extends BaseObject implements BaseType
+{
+	bool convert = true;
+	bool default_value = false;
+	
+	
+	/**
+	 * Constructor
+	 */
+	void constructor(Map params = null)
+	{
+		parent();
+		if (not params) return;
+		if (params.has("convert")) this.convert = params.get("convert");
+		if (params.has("default")) this.default_value = params.get("default");
+	}
+	
+	
+	/**
+	 * Filter value
+	 */
+	bool filter(var value, Vector errors)
+	{
+		if (value === null)
+		{
+			if (!this.convert) errors.push(new TypeError("Does not boolean"));
+			return this.default_value;
+		}
+		if (this.convert and (rtl::isInteger(value) or rtl::isBoolean(value)))
+		{
+			if (value == 1) return true;
+			return false;
+		}
+		if (value == "true" or value == "1") return true;
+		if (value == "false" or value == "0") return false;
+		errors.push(new TypeError("Does not boolean"));
+		return false;
+	}
+	
+	
+	/**
+	 * Returns data
+	 */
+	var encode(var value) => value;
+}

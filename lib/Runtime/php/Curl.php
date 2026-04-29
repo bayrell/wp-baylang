@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,26 +17,43 @@
  *  limitations under the License.
  */
 namespace Runtime;
+
+use Runtime\BaseObject;
+
 class Curl extends \Runtime\BaseObject
 {
-	public $url;
-	public $post;
-	public $code;
-	public $response;
-	function __construct($url, $params=null)
+	var $url;
+	var $post;
+	var $headers;
+	var $code;
+	var $response;
+	var $response_headers;
+	
+	
+	/**
+	 * Constructor
+	 */
+	function __construct($url, $params = null)
 	{
 		parent::__construct();
 		$this->url = $url;
 		/* Setup params */
-		if ($params == null)
-		{
-			return ;
-		}
+		if ($params == null) return;
 		if ($params->has("post"))
 		{
+			$this->method = "POST";
 			$this->post = $params->get("post");
 		}
+		if ($params->has("headers")) $this->headers = $params->get("headers");
 	}
+	
+	
+	/**
+	 * Returns true if curl is success
+	 */
+	function isSuccess(){ return $this->code == 200; }
+	
+	
 	/**
 	 * Send
 	 */
@@ -46,51 +63,20 @@ class Curl extends \Runtime\BaseObject
 		$this->response = "";
 		return $this->response;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->url = "";
 		$this->post = null;
+		$this->headers = null;
 		$this->code = 0;
 		$this->response = "";
+		$this->response_headers = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Curl";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Curl"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

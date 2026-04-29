@@ -1,0 +1,334 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Test.Serialize;
+
+use Runtime.BaseLayout;
+use Runtime.BaseStorage;
+use Runtime.Serializer.BaseType;
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.TypeError;
+use Runtime.Serializer.VectorType;
+use Runtime.Exceptions.AssertException;
+use Runtime.Unit.AssertHelper;
+use Runtime.Unit.Test;
+use Runtime.Test.Serialize.Data.Contact;
+use Runtime.Test.Serialize.Data.ContactEmail;
+use Runtime.Test.Serialize.Data.ContactList;
+use Runtime.Test.Serialize.Data.ContactPhone;
+use Runtime.Test.Serialize.Data.PageModel;
+use Runtime.Test.Serialize.Data.User;
+use Runtime.Widget.Table.TableModel;
+
+
+class Object
+{
+	@Test{}
+	void assignObject1()
+	{
+		Map data = {
+			"name": "User"
+		};
+		
+		Vector errors = [];
+		User user = new User();
+		rtl::assign(user, data, errors);
+		
+		errors = TypeError::getMessages(errors);
+		AssertHelper::equalValue(errors.count(), 0, rs::join(", ", errors));
+		
+		AssertHelper::equalType(user.name, "string");
+		AssertHelper::equalValue(user.name, "User");
+	}
+	
+	
+	@Test{}
+	void assignObject2()
+	{
+		Map data = {
+			"name": []
+		};
+		
+		Vector errors = [];
+		User user = new User();
+		rtl::assign(user, data, errors);
+		
+		AssertHelper::equalValue(errors.count(), 1, "Should be errors");
+	}
+	
+	
+	@Test{}
+	void assignObject3()
+	{
+		Map data = {
+			"name": "User",
+			"roles": [
+				"admin",
+				"user",
+			],
+		};
+		
+		Vector errors = [];
+		User user = new User();
+		rtl::assign(user, data, errors);
+		
+		errors = TypeError::getMessages(errors);
+		AssertHelper::equalValue(errors.count(), 0, rs::join(", ", errors));
+		
+		AssertHelper::equalType(user.name, "string");
+		AssertHelper::equalValue(user.name, "User");
+		
+		AssertHelper::equalType(user.roles, "vector");
+		AssertHelper::equalValue(user.roles, ["admin", "user"]);
+	}
+	
+	
+	@Test{}
+	void assignObject4()
+	{
+		Map data = {
+			"name": "User",
+			"contact": {
+				"kind": "email",
+				"email": "info@example.com",
+			},
+		};
+		
+		Vector errors = [];
+		User user = new User();
+		rtl::assign(user, data, errors);
+		
+		errors = TypeError::getMessages(errors);
+		AssertHelper::equalValue(errors.count(), 0, rs::join(", ", errors));
+		
+		AssertHelper::equalType(user.name, "string");
+		AssertHelper::equalValue(user.name, "User");
+		
+		Contact contact = user.contact;
+		AssertHelper::equalType(contact, "object");
+		AssertHelper::equalValue(contact::getClassName(), classof ContactEmail);
+		AssertHelper::equalValue(contact.email, "info@example.com");
+	}
+	
+	
+	@Test{}
+	void assignObject5()
+	{
+		Map data = {
+			"name": "User",
+			"contact": {},
+		};
+		
+		Vector errors = [];
+		User user = new User();
+		rtl::assign(user, data, errors);
+		
+		errors = TypeError::getMessages(errors);
+		AssertHelper::equalValue(errors.count(), 0, rs::join(", ", errors));
+		
+		AssertHelper::equalType(user.name, "string");
+		AssertHelper::equalValue(user.name, "User");
+		AssertHelper::equalValue(user.contact, null);
+	}
+	
+	
+	@Test{}
+	void assignObject6()
+	{
+		Map data = {
+			"items": [
+				{
+					"kind": "email",
+					"email": "info@example.com",
+				},
+				{
+					"kind": "phone",
+					"phone": "+70000000000",
+				}
+			]
+		};
+		
+		Vector errors = [];
+		ContactList item = new ContactList();
+		rtl::assign(item, data, errors);
+		
+		errors = TypeError::getMessages(errors);
+		AssertHelper::equalValue(errors.count(), 0, rs::join(", ", errors));
+		AssertHelper::equalValue(item.items.count(), 2);
+		AssertHelper::equalClass(item.items.get(0), classof ContactEmail);
+		AssertHelper::equalClass(item.items.get(1), classof ContactPhone);
+		AssertHelper::equalValue(item.items.get(0).email, "info@example.com");
+		AssertHelper::equalValue(item.items.get(1).phone, "+70000000000");
+	}
+	
+	
+	@Test{}
+	void assignObject7()
+	{
+		Map data = {
+			"frontend": {
+				"user": {
+					"__class_name__": classof User,
+					"name": "User",
+					"contact": {
+						"kind": "email",
+						"email": "info@example.com",
+					},
+				}
+			},
+		};
+		
+		Vector errors = [];
+		BaseStorage item = new BaseStorage();
+		rtl::assign(item, data, errors);
+		
+		errors = TypeError::getMessages(errors);
+		AssertHelper::equalValue(errors.count(), 0, rs::join(", ", errors));
+		
+		User user = item.frontend.get("user");
+		AssertHelper::equalClass(user, classof User);
+		AssertHelper::equalClass(user.contact, classof ContactEmail);
+		AssertHelper::equalValue(user.contact.email, "info@example.com");
+	}
+	
+	
+	@Test{}
+	void assignObject8()
+	{
+		Map data = {
+			"user": {
+				"name": "User",
+				"contact": {
+					"kind": "email",
+					"email": "info@example.com",
+				},
+			}
+		};
+		
+		Vector errors = [];
+		PageModel item = new PageModel();
+		rtl::assign(item, data, errors);
+		
+		errors = TypeError::getMessages(errors);
+		AssertHelper::equalValue(errors.count(), 0, rs::join(", ", errors));
+		
+		User user = item.user;
+		AssertHelper::equalClass(user, classof User);
+		AssertHelper::equalClass(user.contact, classof ContactEmail);
+		AssertHelper::equalValue(user.contact.email, "info@example.com");
+	}
+	
+	
+	@Test{}
+	void assignObject9()
+	{
+		Map data = {
+			"table": {
+				"items": [
+					{"name": "User"},
+				],
+			},
+		};
+		
+		BaseLayout layout = new BaseLayout();
+		
+		Vector errors = [];
+		PageModel item = new PageModel{ "layout": layout };
+		rtl::assign(item, data, errors);
+		
+		errors = TypeError::getMessages(errors);
+		AssertHelper::equalValue(errors.count(), 0, rs::join(", ", errors));
+		
+		TableModel table = item.table;
+		AssertHelper::equalClass(table, classof TableModel);
+		AssertHelper::equalValue(table.component, "App.Table");
+		AssertHelper::equalClass(table.items, classof Vector);
+		AssertHelper::equalValue(table.items.count(), 1, "Error table count items");
+		AssertHelper::equalValue(table.layout, layout, "Layout not found");
+		
+		Map user = table.items.get(0);
+		AssertHelper::equalClass(user, classof Map);
+		AssertHelper::equalValue(user.get("name"), "User");
+	}
+	
+	
+	@Test{}
+	void assignLayout()
+	{
+		Map data = {
+			"current_page_model": "page_model",
+			"pages": {
+				"page_model": {
+					"__class_name__": "Runtime.Test.Serialize.Data.PageModel",
+					"user": {
+						"name": "User"
+					},
+				},
+			},
+		};
+		Vector errors = [];
+		BaseLayout layout = new BaseLayout();
+		rtl::assign(layout, data, errors);
+		
+		errors = TypeError::getMessages(errors);
+		AssertHelper::equalValue(errors.count(), 0, rs::join(", ", errors));
+		
+		PageModel model = layout.getPageModel();
+		AssertHelper::equalClass(model, classof PageModel);
+		AssertHelper::equalClass(model.user, classof User);
+		AssertHelper::equalValue(model.user.name, "User");
+		AssertHelper::equalValue(model.layout, layout, "Layout not found");
+	}
+	
+	
+	@Test{}
+	void serializeObject1()
+	{
+		User user = new User();
+		user.name = "User";
+		
+		Map api_value = rtl::serialize(user);
+		Map correct_value = {
+			"name": "User",
+			"roles": [],
+			"contact": null,
+		};
+		
+		AssertHelper::equalValue(api_value, correct_value);
+	}
+	
+	
+	@Test{}
+	void serializeObject2()
+	{
+		User user = new User();
+		user.name = [];
+		
+		Map api_value = rtl::serialize(user);
+		Map correct_value = {
+			"name": "",
+			"roles": [],
+			"contact": null,
+		};
+		
+		AssertHelper::equalValue(api_value, correct_value);
+	}
+}

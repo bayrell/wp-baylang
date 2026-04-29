@@ -17,50 +17,79 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin\FormData;
-class FormDataPageModel extends \Runtime\Web\BasePageModel
+
+use Runtime\ApiResult;
+use Runtime\BaseModel;
+use Runtime\DateTime;
+use Runtime\Serializer\DateTimeType;
+use Runtime\Serializer\IntegerType;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\ObjectType;
+use Runtime\Serializer\StringType;
+use Runtime\Web\RenderContainer;
+use Runtime\Widget\Table\TableModel;
+use Runtime\WordPress\Admin\FormData\FormDataPage;
+
+
+class FormDataPageModel extends \Runtime\BaseModel
 {
-	public $component;
-	public $form;
-	public $table;
+	var $component;
+	var $table;
+	var $page;
+	var $pages;
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static function serialize($rules)
+	{
+		parent::serialize($rules);
+		$rules->addType("table", new \Runtime\Serializer\ObjectType(new \Runtime\Map([
+			"class_name" => "Runtime.Widget.Table.TableModel",
+			"item_rules" => new \Runtime\Serializer\MapType(new \Runtime\Map([
+				"id" => new \Runtime\Serializer\IntegerType(),
+				"form_title" => new \Runtime\Serializer\StringType(),
+				"form_name" => new \Runtime\Serializer\StringType(),
+				"data" => new \Runtime\Serializer\MapType(new \Runtime\Serializer\StringType()),
+				"gmtime_add" => new \Runtime\Serializer\DateTimeType(),
+			])),
+		])));
+	}
+	
+	
 	/**
 	 * Init widget settings
 	 */
 	function initWidget($params)
 	{
 		parent::initWidget($params);
-		/* Calculate data */
-		$calculateData = function ($data)
-		{
-			$item = $data->get("item");
-			if ($item->get("data") == null)
-			{
-				return "";
-			}
-			$items = $item->get("data")->transition(function ($value, $key)
-			{
-				return $key . \Runtime\rtl::toStr(": ") . \Runtime\rtl::toStr($value);
-			});
-			if ($data->has("table"))
-			{
-				return $items;
-			}
-			return \Runtime\rs::join("\n", $items);
-		};
-		/* Add form */
-		$this->form = $this->addWidget("Runtime.Widget.Form.FormModel", \Runtime\Map::from(["widget_name"=>"form","primary_key"=>\Runtime\Vector::from(["id"]),"fields"=>\Runtime\Vector::from([\Runtime\Map::from(["name"=>"form_title","label"=>"Title","component"=>"Runtime.Widget.Input","props"=>\Runtime\Map::from(["readonly"=>true])]),\Runtime\Map::from(["name"=>"data","label"=>"Data","component"=>"Runtime.Widget.TextArea","calculate"=>$calculateData,"props"=>\Runtime\Map::from(["readonly"=>true])]),\Runtime\Map::from(["name"=>"gmtime_add","label"=>"Data","component"=>"Runtime.Widget.Input","calculate"=>\Runtime\lib::pipe()->add(\Runtime\lib::attr(\Runtime\Vector::from(["item","gmtime_add"])))->add(\Runtime\lib::normalizeDateTime()),"props"=>\Runtime\Map::from(["readonly"=>true])])])]));
-		/* Add table */
-		$this->table = $this->addWidget("Runtime.Widget.Table.TableDialogModel", \Runtime\Map::from(["widget_name"=>"table","styles"=>\Runtime\Vector::from(["border"]),"storage"=>new \Runtime\Entity\Factory("Runtime.Widget.Table.TableStorage", \Runtime\Map::from(["api_name"=>"admin.wordpress.forms.data.search"])),"page"=>$this->layout->request_query->get("p", 1) - 1,"pagination_props"=>\Runtime\Map::from(["name"=>"p"]),"edit_form"=>$this->form,"fields"=>\Runtime\Vector::from([\Runtime\Map::from(["name"=>"row_number"]),\Runtime\Map::from(["name"=>"form_title","label"=>"Title","component"=>"Runtime.Widget.Label"]),\Runtime\Map::from(["name"=>"metrika_id","label"=>"Form id","component"=>"Runtime.Widget.Label"]),\Runtime\Map::from(["name"=>"data","label"=>"Data","calculate"=>$calculateData,"component"=>"Runtime.Widget.Label"]),\Runtime\Map::from(["name"=>"gmtime_add","label"=>"Date","calculate"=>\Runtime\lib::pipe()->add(\Runtime\lib::attr(\Runtime\Vector::from(["item","gmtime_add"])))->add(\Runtime\lib::normalizeDateTime()),"component"=>"Runtime.Widget.Label"]),\Runtime\Map::from(["name"=>"row_buttons","model"=>new \Runtime\Web\ModelFactory("Runtime.Widget.Table.TableRowButtonsModel", \Runtime\Map::from(["delete"=>false]))])])]));
-		/* Remove save button */
-		$save_dialog = $this->table->getWidget("save_dialog");
-		$save_dialog->buttons->removeItemByName("confirm_button");
-		/* Change cancel button text */
-		$cancel_button = $save_dialog->buttons->findItemByName("cancel_button");
-		$cancel_button->content = "Close";
-		/* Table row buttons */
-		$row_buttons = $this->table->getWidget("row_buttons");
-		$edit_button = $row_buttons->findItemByName("edit_button");
-		$edit_button->content = "View";
+		/* Create table */
+		$this->table = $this->createWidget("Runtime.Widget.Table.TableModel");
 	}
+	
+	
+	/**
+	 * Load data
+	 */
+	function loadData($container)
+	{
+		$result = $this->layout->sendApi(new \Runtime\Map([
+			"api_name" => "admin.wordpress.forms.data",
+			"method_name" => "search",
+			"data" => new \Runtime\Map([
+				"page" => $this->page,
+			]),
+		]));
+		if ($result->isSuccess())
+		{
+			$this->table->items = $result->data->get("items");
+			$this->page = $result->data->get("page");
+			$this->pages = $result->data->get("pages");
+		}
+	}
+	
+	
 	/**
 	 * Build title
 	 */
@@ -68,50 +97,18 @@ class FormDataPageModel extends \Runtime\Web\BasePageModel
 	{
 		$this->layout->setPageTitle("Forms data");
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->component = "Runtime.WordPress.Admin.FormData.FormDataPage";
-		$this->form = null;
 		$this->table = null;
+		$this->page = 0;
+		$this->pages = 0;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Admin.FormData";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.FormData.FormDataPageModel";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.BasePageModel";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.FormData.FormDataPageModel"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

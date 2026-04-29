@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,13 +18,11 @@
 
 <class name="Runtime.Widget.Pagination">
 
-<use name="Runtime.Math" />
-
 
 <style>
 .pagination {
 	text-align: center;
-	padding: 10px 0;
+	padding: var(--space) 0;
 	width: 100%;
 }
 .pagination ul, .pagination li {
@@ -35,33 +33,33 @@
 	display: inline-block;
 	vertical-align: top;
 	list-style: none;
-	margin-left: 5px;
-	margin-right: 5px;
+	margin-left: calc(var(--space) * 0.5);
+	margin-right: calc(var(--space) * 0.5);
 }
 .pagination a, .pagination a:hover, .pagination span {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background-color: var(--widget-color-table-background);
-	border-color: var(--widget-color-border);
-	border-width: var(--widget-border-width);
+	background-color: var(--color-surface);
+	border-color: var(--color-border);
+	border-width: var(--border-width);
 	border-style: solid;
-	border-radius: 4px;
-	color: var(--widget-color-text);
+	border-radius: var(--border-radius);
+	color: var(--color-surface-text);
 	text-align: center;
 	width: 30px;
 	height: 30px;
 	line-height: 0;
-	font-size: 14px;
+	font-size: var(--font-size);
 	text-decoration: none;
 }
 .pagination li:first-child{
 	margin-left: 0px;
 }
 .pagination li.active a, .pagination li.active a:hover {
-	background-color: var(--widget-color-selected);
-	border-color: var(--widget-color-selected);
-	color: var(--widget-color-selected-text);
+	background-color: var(--color-selected);
+	border-color: var(--color-selected);
+	color: var(--color-selected-text);
 }
 .pagination li a:focus{
 	outline: 0;
@@ -71,8 +69,8 @@
 
 
 <template>
-	%set int page_start = Math::max(2, this.page - this.delta + 1);
-	%set int page_end = Math::min(this.page + this.delta, this.pages - 1);
+	%set int page_start = rtl::max(2, this.page - this.delta + 1);
+	%set int page_end = rtl::min(this.page + this.delta, this.pages - 1);
 	%set Map props = {};
 	
 	<nav class="pagination">
@@ -86,7 +84,7 @@
 				}
 				
 				<li class={{ this.page == 1 ? "active" : "" }} @key={{ 1 }}>
-					<a @event:onClick={{ void () => this.onClick(1) }} ...props>
+					<a @event:click="this.onClick(1)" ...props>
 						1
 					</a>
 				</li>
@@ -107,7 +105,7 @@
 							%set var _ = props.set("href", this.getPageUrl(p));
 						}
 						<li class={{ this.page == p ? "active" : "" }} @key={{ p }}>
-							<a @event:onClick={{ void () use (p) => this.onClick(p) }}
+							<a @event:click="this.onClick(p)"
 								...props
 							>
 								{{ p }}
@@ -130,7 +128,7 @@
 						%set var _ = props.set("href", this.getPageUrl(this.pages));
 					}
 					<li class={{ this.page == this.pages ? "active" : "" }} @key={{ this.pages }}>
-						<a @event:onClick={{ void () => this.onClick(this.pages) }}
+						<a @event:click="this.onClick(this.pages)"
 							...props
 						>
 							{{ this.pages }}
@@ -156,8 +154,8 @@ props string name = "";
  */
 string getPageUrl(int page)
 {
-	string uri = this.layout.request_full_uri;
-	return rs::url_get_add(uri, this.name, page);
+	var request = this.layout.get("request");
+	return rs::url_get_add(request.full_uri, this.name, page > 1 ? page : "");
 }
 
 

@@ -16,8 +16,71 @@
  *  limitations under the License.
 -->
 
-<class name="Runtime.WordPress.Theme.Components.Form.Form"
-	extends="Runtime.Widget.Form.Form"
->
+<class name="Runtime.WordPress.Theme.Components.Form.Form">
+
+<use name="Runtime.Widget.Input" component="true" />
+<use name="Runtime.Widget.TextArea" component="true" />
+<use name="Runtime.Widget.Form.Form" as="BaseForm" />
+
+<template>
+	<div class="wordpress_form" class={{ this.class }}>
+		<BaseForm fields={{ this.fields }} model={{ this.model }}>
+			<slot name="title">
+				%render this.renderSlot("title");
+			</slot>
+			<slot name="buttons">
+				%render this.renderSlot("buttons");
+			</slot>
+		</BaseForm>
+	</div>
+</template>
+
+<script>
+
+bool is_show = false;
+
+/**
+ * Returns component name
+ */
+string getFieldComponent(string name)
+{
+	if (name == "textarea") return classof TextArea;
+	return classof Input;
+}
+
+
+/**
+ * Returns fields
+ */
+computed Map fields() => this.model.fields.map(Map (Map item)
+{
+	return {
+		"name": item.get("name"),
+		"component": this.getFieldComponent(item.get("type")),
+		"label": item.get("title"),
+		"props": {
+			"placeholder": item.get("placeholder"),
+		},
+	};
+});
+
+
+/**
+ * Mounted component
+ */
+void mounted()
+{
+	this.nextTick(void(){ this.is_show = true; });
+	
+	Map item = {};
+	for (int i=0; i<this.model.fields.count(); i++)
+	{
+		Map field = this.model.fields.get(i);
+		item.set(field.get("name"), "");
+	}
+	this.model.setItem(item);
+}
+
+</script>
 
 </class>

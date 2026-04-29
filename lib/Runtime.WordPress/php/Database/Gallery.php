@@ -17,62 +17,46 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Database;
-class Gallery extends \Runtime\ORM\Relation
+
+use Runtime\BaseObject;
+use Runtime\ORM\Relation;
+use Runtime\ORM\Record;
+use Runtime\ORM\Annotations\AutoIncrement;
+use Runtime\ORM\Annotations\BigIntType;
+use Runtime\ORM\Annotations\BooleanType;
+use Runtime\ORM\Annotations\Primary;
+use Runtime\ORM\Annotations\StringType;
+
+
+class Gallery extends \Runtime\ORM\Record
 {
 	/**
 	 * Returns table name
 	 */
-	static function getTableName()
-	{
-		return "gallery";
-	}
+	static function getTableName(){ return "gallery"; }
+	
+	
 	/**
 	 * Returns table schema
 	 */
 	static function schema()
 	{
-		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.WordPress.Database.Gallery.schema", func_get_args());
-		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;$__memorize_value = \Runtime\Vector::from([new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"api_name"])),new \Runtime\ORM\Annotations\BooleanType(\Runtime\Map::from(["name"=>"is_deleted"])),new \Runtime\ORM\Annotations\AutoIncrement(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\Primary(\Runtime\Map::from(["keys"=>\Runtime\Vector::from(["id"])]))]);
-		\Runtime\rtl::_memorizeSave("Runtime.WordPress.Database.Gallery.schema", func_get_args(), $__memorize_value);
-		return $__memorize_value;
+		return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "api_name"])),
+			new \Runtime\ORM\Annotations\BooleanType(new \Runtime\Map(["name" => "is_deleted"])),
+			new \Runtime\ORM\Annotations\AutoIncrement(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\Primary(new \Runtime\Map(["keys" => new \Runtime\Vector("id")])),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Database";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Database.Gallery";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Relation";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Database.Gallery"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

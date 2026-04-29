@@ -17,114 +17,161 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin\GalleryItem;
-class GalleryItemSaveApi extends \Runtime\Widget\Crud\SaveApi
+
+use Runtime\Serializer\IntegerType;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\ObjectType;
+use Runtime\Serializer\Required;
+use Runtime\Serializer\StringType;
+use Runtime\ORM\Query;
+use Runtime\Web\Annotations\ApiMethod;
+use Runtime\Widget\Api\SaveApi;
+use Runtime\WordPress\Admin\AdminMiddleware;
+use Runtime\WordPress\Admin\Components\ImageRule;
+use Runtime\WordPress\Theme\Components\ImageType;
+use Runtime\WordPress\Database\GalleryItem;
+
+
+class GalleryItemSaveApi extends \Runtime\Widget\Api\SaveApi
 {
 	/**
 	 * Returns api name
 	 */
-	static function getApiName()
-	{
-		return "admin.wordpress.gallery.item.save";
-	}
+	static function getApiName(){ return "admin.wordpress.gallery.item"; }
+	
+	
 	/**
-	 * Returns service
+	 * Returns record name
 	 */
-	function createService()
+	static function getRecordName(){ return "Runtime.WordPress.Database.GalleryItem"; }
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	function getMiddleware()
 	{
-		return new \Runtime\WordPress\Admin\GalleryItem\GalleryItemService();
+		return new \Runtime\Vector(
+			new \Runtime\WordPress\Admin\AdminMiddleware(),
+		);
 	}
+	
+	
+	/**
+	 * Returns data rules
+	 */
+	function getDataRules($rules)
+	{
+		$rules->addType("foreign_key", new \Runtime\Serializer\Required());
+		$rules->addType("foreign_key", new \Runtime\Serializer\MapType(new \Runtime\Map([
+			"item_id" => new \Runtime\Serializer\IntegerType(),
+		])));
+	}
+	
+	
+	/**
+	 * Returns item rules
+	 */
+	function getItemRules($rules)
+	{
+		$rules->addType("name", new \Runtime\Serializer\StringType());
+		$rules->addType("image", new \Runtime\Serializer\ObjectType(new \Runtime\Map(["class_name" => "Runtime.WordPress.Theme.Components.ImageType"])));
+		$rules->addType("pos", new \Runtime\Serializer\IntegerType());
+	}
+	
+	
+	/**
+	 * Returns rules
+	 */
+	function rules()
+	{
+		return new \Runtime\Vector(
+			new \Runtime\WordPress\Admin\Components\ImageRule(new \Runtime\Map(["name" => "image", "key" => "image_id"])),
+		);
+	}
+	
+	
 	/**
 	 * Returns item fields
 	 */
-	function getItemFields()
+	function getItemFields($action)
 	{
-		return \Runtime\Vector::from(["id","name","image","image_id","pos"]);
+		return new \Runtime\Vector(
+			"id",
+			"name",
+			"image",
+			"image_id",
+			"pos",
+		);
 	}
+	
+	
+	/**
+	 * Returns save fields
+	 */
+	function getSaveFields()
+	{
+		return new \Runtime\Vector(
+			"name",
+			"pos",
+		);
+	}
+	
+	
+	/**
+	 * Build query
+	 */
+	function buildQuery($q)
+	{
+		$q->where("gallery_id", "=", $this->foreign_key->get("item_id"));
+	}
+	
+	
+	/**
+	 * Before save
+	 */
+	function onSaveBefore()
+	{
+		$this->item->gallery_id = $this->foreign_key->get("item_id");
+	}
+	
+	
 	/**
 	 * Action save
 	 */
 	function actionSave()
 	{
-		/* Create service */
-		$service = $this->createService();
-		/* Foreign key */
-		$service->loadGallery(\Runtime\rtl::attr($this->post_data, ["foreign_key", "gallery_id"]));
-		/* Load item */
-		$service->loadItem($this->post_data->get("pk"), true);
-		/* Save item */
-		$service->save($this->post_data->get("item"));
-		/* Build result */
-		$this->buildResult($service);
+		parent::actionSave();
 	}
+	
+	
 	/**
 	 * Action delete
 	 */
 	function actionDelete()
 	{
-		/* Create service */
-		$service = $this->createService();
-		/* Foreign key */
-		$service->loadGallery(\Runtime\rtl::attr($this->post_data, ["foreign_key", "gallery_id"]));
-		/* Load item */
-		$service->loadItem($this->post_data->get("pk"));
-		/* Delete item */
-		$service->delete();
-		/* Build result */
-		$this->buildResult($service);
+		parent::actionDelete();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Admin.GalleryItem";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.GalleryItem.GalleryItemSaveApi";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Crud.SaveApi";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.GalleryItem.GalleryItemSaveApi"; }
 	static function getMethodsList()
 	{
-		$a=[
-			"actionSave",
-			"actionDelete",
-		];
-		return \Runtime\Collection::from($a);
+		return new \Runtime\Vector("actionSave", "actionDelete");
 	}
 	static function getMethodInfoByName($field_name)
 	{
-		if ($field_name == "actionSave")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
-		if ($field_name == "actionDelete")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
+		if ($field_name == "actionSave") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod(new \Runtime\Map(["name" => "save"]))
+		);
+		if ($field_name == "actionDelete") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod(new \Runtime\Map(["name" => "delete"]))
+		);
 		return null;
 	}
 }

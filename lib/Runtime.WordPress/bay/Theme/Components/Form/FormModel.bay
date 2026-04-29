@@ -18,28 +18,47 @@
 
 namespace Runtime.WordPress.Theme.Components.Form;
 
-use Runtime.Serializer;
-use Runtime.Web.ApiResult;
-use Runtime.Widget.Form.FormSubmitModel;
-use Runtime.Widget.Form.FormSubmitStorage;
+use Runtime.ApiResult;
+use Runtime.Serializer.BooleanType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.VectorType;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.Form.FormModel as BaseFormModel;
+use Runtime.WordPress.Theme.Components.Form.Form;
 
 
-class FormModel extends FormSubmitModel
+class FormModel extends BaseFormModel
 {
+	string component = classof Form;
 	string form_name = "";
 	string form_title = "";
-	string metrika_event = "";
-	string metrika_form_id = "";
+	string form_event = "";
+	string form_id = "";
 	string redirect_url = "";
+	Vector fields = [];
+	Map item = null;
 	
 	
 	/**
-	 * Process frontend data
+	 * Serialize object
 	 */
-	void serialize(Serializer serializer, Map data)
+	static void serialize(ObjectType rules)
 	{
-		serializer.process(this, "fields", data);
-		parent(serializer, data);
+		parent(rules);
+		rules.addType("form_name", new StringType());
+		rules.addType("form_title", new StringType());
+		rules.addType("form_event", new StringType());
+		rules.addType("form_id", new StringType());
+		rules.addType("redirect_url", new StringType());
+		rules.addType("fields", new VectorType(new MapType{
+			"name": new StringType(),
+			"title": new StringType(),
+			"type": new StringType(),
+			"placeholder": new StringType(),
+			"required": new BooleanType(),
+		}));
 	}
 	
 	
@@ -53,8 +72,8 @@ class FormModel extends FormSubmitModel
 		if (params == null) return;
 		if (params.has("form_name")) this.form_name = params.get("form_name");
 		if (params.has("form_title")) this.form_title = params.get("form_title");
-		if (params.has("metrika_event")) this.metrika_event = params.get("metrika_event");
-		if (params.has("metrika_form_id")) this.metrika_form_id = params.get("metrika_form_id");
+		if (params.has("form_event")) this.form_event = params.get("form_event");
+		if (params.has("form_id")) this.form_id = params.get("form_id");
 		if (params.has("redirect_url")) this.redirect_url = params.get("redirect_url");
 	}
 	
@@ -65,28 +84,6 @@ class FormModel extends FormSubmitModel
 	void initWidget(Dict params)
 	{
 		parent(params);
-		
-		/* Setup storage */
-		if (this.storage == null)
-		{
-			this.storage = new FormSubmitStorage{
-				"api_name": "runtime.wordpress.form.submit",
-			};
-			this.storage.setForm(this);
-		}
-	}
-	
-	
-	/**
-	 * Merge post data
-	 */
-	Dict mergePostData(Dict post_data, string action)
-	{
-		post_data = parent(post_data, action);
-		post_data.set("form_name", this.form_name);
-		post_data.set("form_title", this.form_title);
-		post_data.set("metrika_form_id", this.metrika_form_id);
-		return post_data;
 	}
 	
 	
@@ -95,11 +92,18 @@ class FormModel extends FormSubmitModel
 	 */
 	string getFieldComponent(string field_type)
 	{
-		if (field_type == "textarea")
-		{
-			return "Runtime.Widget.TextArea";
-		}
+		if (field_type == "textarea") return "Runtime.Widget.TextArea";
 		return "Runtime.Widget.Input";
+	}
+	
+	
+	/**
+	 * Load data
+	 */
+	async void loadData(RenderContainer container)
+	{
+		await parent(container);
+		await this.loadForm();
 	}
 	
 	
@@ -108,9 +112,9 @@ class FormModel extends FormSubmitModel
 	 */
 	async void loadForm()
 	{
-		ApiResult result = await this.layout.callApi({
+		ApiResult result = await this.layout.sendApi({
 			"api_name": "runtime.wordpress.form.submit",
-			"method_name": "actionSettings",
+			"method_name": "settings",
 			"data": {
 				"form_name": this.form_name,
 			},
@@ -121,22 +125,8 @@ class FormModel extends FormSubmitModel
 			this.fields = [];
 			
 			/* Add new fields */
-			Collection fields = result.data.get("settings").get("fields");
-			if (fields)
-			{
-				for (int i=0; i<fields.count(); i++)
-				{
-					Dict field = fields.get(i);
-					this.addField({
-						"name": field.get("name"),
-						"label": field.get("title"),
-						"component": this.getFieldComponent(field.get("type")),
-						"props": {
-							"placeholder": field.get("placeholder"),
-						},
-					});
-				}
-			}
+			Map settings = result.data.get("settings");
+			this.fields = settings.get("fields");
 		}
 	}
 	
@@ -146,20 +136,33 @@ class FormModel extends FormSubmitModel
 	 */
 	async ApiResult submit()
 	{
-		ApiResult res = await parent();
+		this.setWaitMessage();
+		
+		ApiResult result = await this.layout.sendApi({
+			"api_name": "runtime.wordpress.form.submit",
+			"method_name": "save",
+			"data": {
+				"form_name": this.form_name,
+				"form_title": this.form_title,
+				"form_id": this.form_id,
+				"item": this.item,
+			},
+		});
+		
+		this.setApiResult(result);
 		
 		/* Send event */
-		await @.callHook("runtime.wordpress::form_submit", {
+		@.hook("runtime.wordpress::form_submit", {
 			"form": this,
-			"res": res,
+			"result": result,
 		});
 		
 		/* Redirect */
-		if (res.isSuccess() and this.redirect_url != "")
+		if (result.isSuccess() and this.redirect_url != "")
 		{
 			document.location = this.redirect_url;
 		}
 		
-		return res;
+		return result;
 	}
 }

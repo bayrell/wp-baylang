@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,142 +18,73 @@
 
 namespace Runtime.Widget;
 
-use Runtime.BaseObject;
-use Runtime.Serializer;
-use Runtime.Entity.Factory;
-use Runtime.Web.ApiResult;
-use Runtime.Web.BaseModel;
+use Runtime.BaseModel;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.VectorType;
 use Runtime.Web.RenderContainer;
-use Runtime.Web.Messages.ClickMessage;
-use Runtime.Widget.SelectWrap;
-use Runtime.Widget.WidgetResultModel;
-use Runtime.Widget.Table.TableStorageInterface;
-
 
 class SelectModel extends BaseModel
 {
-	string component = classof SelectWrap;
-	Collection<Dict> items = [];
-	Dict foreign_key = null;
-	TableStorageInterface storage = null;
-	WidgetResultModel result = null;
-	fn filter = null;
-	fn transform = null;
-	int page = 0;
-	int limit = -1;
+	/* Options for select */
+	Vector<Map> options = [];
 	
 	
 	/**
-	 * Init widget params
+	 * Serialize object
 	 */
-	void initParams(Dict params)
+	static void serialize(ObjectType rules)
 	{
-		parent(params);
-		
-		if (params == null) return;
-		if (params.has("filter")) this.filter = params.get("filter");
-		if (params.has("foreign_key")) this.foreign_key = params.get("foreign_key");
-		if (params.has("transform")) this.transform = params.get("transform");
-		
-		/* Setup storage */
-		if (params.has("storage"))
-		{
-			this.storage = this.createModel(params.get("storage"));
-		}
-		if (this.storage != null)
-		{
-			this.storage.setTable(this);
-		}
+		parent(rules);
+		rules.addType("options", new VectorType(new MapType{
+			"key": new StringType(),
+			"value": new StringType(),
+		}));
 	}
 	
 	
 	/**
-	 * Init widget settings
+	 * Set options
 	 */
-	void initWidget(Dict params)
+	void setOptions(Vector<Map> options)
 	{
-		parent(params);
-		
-		/* Result */
-		this.result = this.addWidget(
-			classof WidgetResultModel,
-			{
-				"widget_name": "result",
-			}
-		);
+		this.options = options;
 	}
 	
 	
 	/**
-	 * Process frontend data
+	 * Add option
 	 */
-	void serialize(Serializer serializer, Map data)
+	void addOption(Map option)
 	{
-		serializer.process(this, "items", data);
-		serializer.process(this, "result", data);
-		parent(serializer, data);
-	}
-	
-	
-	/**
-	 * Set api result
-	 */
-	void setApiResult(ApiResult res, string action)
-	{
-		if (res == null) return;
-		
-		/* Set items */
-		if (res.data.has("items"))
-		{
-			this.items = res.data.get("items");
-			if (this.transform) this.items = this.items.map( this.transform );
-		}
-		
-		/* Set result */
-		this.result.setApiResult(res);
-	}
-	
-	
-	/**
-	 * Merge post data
-	 */
-	Dict mergePostData(Dict post_data, string action)
-	{
-		if (this.foreign_key)
-		{
-			post_data.set("foreign_key", this.foreign_key);
-		}
-		return post_data;
-	}
-	
-	
-	/**
-	 * Load table data
-	 */
-	async void loadData(RenderContainer container)
-	{
-		await parent(container);
-		
-		ApiResult res = await this.storage.load();
-		this.setApiResult(res, "load");
+		this.options.push(option);
 	}
 	
 	
 	/**
 	 * Returns options
 	 */
-	Dict getOptions() => this.filter ? this.items.filter(this.filter) : this.items;
+	Vector getOptions() => this.options;
 	
 	
 	/**
-	 * Returns props
+	 * Returns value
 	 */
-	Dict getProps(Dict data)
+	string getValue(int id)
 	{
-		Dict result = {
-			"options": this.getOptions(),
-		};
-		
-		return result;
+		Map option = this.options.find(
+			bool (Map item) => item.get("key") == id
+		);
+		return option ? option.get("value") : "";
+	}
+	
+	
+	/**
+	 * Load data
+	 */
+	async void loadData(RenderContainer container)
+	{
+		await parent(container);
 	}
 }

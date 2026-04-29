@@ -17,9 +17,19 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Factory;
+
+use Runtime\BaseObject;
+use Runtime\BaseProvider;
+use Runtime\Entity\Entity;
+use Runtime\ORM\Factory\ConnectionFactory;
+use Runtime\ORM\SQLite\ConnectionSQLite;
+
+
 class SQLiteFactory extends \Runtime\ORM\Factory\ConnectionFactory
 {
-	public $__path;
+	var $path;
+	
+	
 	/**
 	 * Create connection
 	 */
@@ -31,53 +41,15 @@ class SQLiteFactory extends \Runtime\ORM\Factory\ConnectionFactory
 		$conn->executeSQL("PRAGMA journal_mode = WAL;");
 		return $conn;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->__path = "";
+		$this->path = "";
 	}
-	function takeValue($k,$d=null)
-	{
-		if ($k == "path")return $this->__path;
-	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.Factory";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Factory.SQLiteFactory";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Factory.ConnectionFactory";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		$a[]="path";
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Factory.SQLiteFactory"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

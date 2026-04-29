@@ -17,12 +17,25 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Database\ORM;
+
+use Runtime\BaseObject;
+use Runtime\BaseProvider;
+use Runtime\Entity\Entity;
+use Runtime\ORM\Provider;
+use Runtime\ORM\Factory\ConnectionFactory;
+
+
 class WP_Factory extends \Runtime\ORM\Factory\ConnectionFactory
 {
+	/**
+	 * Constructor
+	 */
 	function __construct()
 	{
 		parent::__construct();
 	}
+	
+	
 	/**
 	 * Register connections
 	 */
@@ -30,66 +43,36 @@ class WP_Factory extends \Runtime\ORM\Factory\ConnectionFactory
 	{
 		global $wpdb;
 		
-		/* Add default connection */
-		$conn = new \Runtime\WordPress\Database\ORM\WP_Connection("default");
-		$conn->host = DB_HOST;
-		$conn->login = DB_USER;
-		$conn->password = DB_PASSWORD;
-		$conn->database = DB_NAME;
-		$conn->prefix = $wpdb->base_prefix;
-		$provider->addConnection($conn);
-		
-		/* Add prefix connection */
-		$conn = $conn->fork();
-		$conn->name = "prefix";
-		$conn->prefix = $wpdb->prefix;
-		$provider->addConnection($conn);
-		
-		/* Add no prefix connection */
-		$conn = $conn->fork();
-		$conn->name = "no_prefix";
-		$provider->addConnection($conn);
-	}
-	/* ======================= Class Init Functions ======================= */
-	function takeValue($k,$d=null)
-	{
-	}
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Database.ORM";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Database.ORM.WP_Factory";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Factory.ConnectionFactory";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
+		$class_name = "Runtime.WordPress.Database.ORM.WP_Connection";
+		$params = new \Runtime\Map([
+			"host" => DB_HOST,
+			"login" => DB_USER,
+			"password" => DB_PASSWORD,
+			"database" => DB_NAME,
+			"prefix" => $wpdb->base_prefix,
 		]);
+		
+		/* Add default pool */
+		$pool = new \Runtime\ORM\ConnectionPool("default", $params->copy(), $class_name);
+		$provider->add($pool);
+		
+		/* Add prefix pool */
+		$pool = new \Runtime\ORM\ConnectionPool("prefix", $params->copy(), $class_name);
+		$pool->params->set("prefix", $wpdb->prefix);
+		$provider->add($pool);
+		
+		/* Add no prefix pool */
+		$pool = new \Runtime\ORM\ConnectionPool("no_prefix", $params->copy(), $class_name);
+		$provider->add($pool);
 	}
-	static function getFieldsList()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		$a = [];
-		return \Runtime\Collection::from($a);
+		parent::_init();
 	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Database.ORM.WP_Factory"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

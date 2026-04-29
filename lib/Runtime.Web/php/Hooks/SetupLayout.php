@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,42 +17,53 @@
  *  limitations under the License.
  */
 namespace Runtime\Web\Hooks;
-class SetupLayout extends \Runtime\Web\Hooks\AppHook
+
+use Runtime\lib;
+use Runtime\Entity\Hook;
+use Runtime\Hooks\RuntimeHook;
+use Runtime\Web\RedirectResponse;
+use Runtime\Web\RenderContainer;
+use Runtime\Web\RouteInfo;
+
+
+class SetupLayout extends \Runtime\Hooks\RuntimeHook
 {
-	public $names;
+	var $names;
+	
+	
 	/**
 	 * Hook factory
 	 */
-	static function create($params)
+	static function hook($params)
 	{
-		return new \Runtime\Entity\Hook(static::getClassName(), \Runtime\Map::from(["names"=>$params]));
+		return new \Runtime\Entity\Hook(static::getClassName(), new \Runtime\Map(["names" => $params]));
 	}
+	
+	
 	/**
-	 * Setup
+	 * Init params
 	 */
-	function setup($params)
+	function initParams($params)
 	{
-		parent::setup($params);
-		if ($params == null)
-		{
-			return ;
-		}
-		if ($params->has("names"))
-		{
-			$this->names = $params->get("names");
-		}
+		parent::initParams($params);
+		if ($params == null) return;
+		if ($params->has("names")) $this->names = $params->get("names");
 	}
+	
+	
 	/**
 	 * Register hooks
 	 */
 	function register_hooks()
 	{
-		$this->register(static::LAYOUT_MODEL_NAME);
+		$this->register(static::LAYOUT_NAME, "getLayoutName");
 	}
+	
+	
 	/**
 	 * Layout model name
 	 */
-	function layout_model_name($params)
+	function getLayoutName($params)
 	{
 		/* Setup custom model */
 		$layout_name = $params->get("layout_name");
@@ -61,48 +72,15 @@ class SetupLayout extends \Runtime\Web\Hooks\AppHook
 			$params->set("class_name", $this->names->get($layout_name));
 		}
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->names = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Web.Hooks";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.Hooks.SetupLayout";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Hooks.AppHook";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.Hooks.SetupLayout"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

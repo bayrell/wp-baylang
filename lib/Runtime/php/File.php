@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,38 +17,45 @@
  *  limitations under the License.
  */
 namespace Runtime;
+
+use Runtime\BaseObject;
+
 class File extends \Runtime\BaseObject
 {
-	public $name;
-	public $path;
-	public $size;
-	function __construct($params)
+	var $name;
+	var $path;
+	var $size;
+	
+	
+	/**
+	 * Constructor
+	 */
+	function __construct($params = null)
 	{
 		parent::__construct();
 		$this->_assign_values($params);
 	}
+	
+	
 	/**
 	 * Returns file name
 	 */
-	function getName()
-	{
-		return $this->name;
-	}
+	function getName(){ return $this->name; }
+	
+	
 	/**
 	 * Returns file path
 	 */
-	function getPath()
-	{
-		return $this->path;
-	}
+	function getPath(){ return $this->path; }
+	
+	
 	/**
 	 * Returns file size
 	 */
-	function getSize()
-	{
-		return $this->size;
-	}
-	/* ======================= Class Init Functions ======================= */
+	function getSize(){ return $this->size; }
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -56,42 +63,7 @@ class File extends \Runtime\BaseObject
 		$this->path = "";
 		$this->size = 0;
 	}
-	static function getNamespace()
-	{
-		return "Runtime";
-	}
-	static function getClassName()
-	{
-		return "Runtime.File";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.File"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

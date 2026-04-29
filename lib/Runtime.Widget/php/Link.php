@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,81 +17,42 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
-class Link extends \Runtime\Web\Component
+
+
+class Link extends \Runtime\Component
 {
-	public $href;
-	public $text;
-	public $target;
 	function render()
 	{
-		$__v = new \Runtime\Vector();
-		$attrs = \Runtime\Map::from([]);
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		if ($this->target != "")
-		{
-			$attrs = $attrs->set("target", $this->target);
-		}
+		/* Element a */
+		$__v0 = $__v->element("a", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector($this->class, $componentHash)), "href" => $this->href]))->concat($this->attrs));
+		$__v0->push($this->renderSlot("default"));
 		
-		/* Element 'a' */
-		$__v0 = new \Runtime\Vector();
-		
-		/* Text */
-		$this->_t($__v0, $this->_escape($this->text));
-		
-		/* Element 'a' */
-		$this->_e($__v, "a", $this->_merge_attrs(["href" => $this->href,"class" => $this->_class_name([$this->class])], $attrs), $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
-	static function css($vars)
+	var $href;
+	var $target;
+	/**
+	 * Get attrs
+	 */
+	function attrs()
 	{
-		$res = "";
-		return $res;
+		$attrs = new \Runtime\Map();
+		if ($this->target != "") $attrs->set("target", $this->target);
+		return $attrs;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->href = "";
-		$this->text = "";
 		$this->target = "_self";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Link";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ""; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.Link"; }
 }

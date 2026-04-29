@@ -1,0 +1,125 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+-->
+
+<class name="Runtime.DefaultLayout">
+
+<use name="Runtime.BaseLayout" />
+<use name="Runtime.BaseModel" />
+<use name="Runtime.VirtualDom" />
+<use name="Runtime.Hooks.RuntimeHook" />
+
+<template name="renderCurrentPage">
+	%if (this.layout.current_component != "")
+	{
+		%set string component = this.layout.current_component;
+		<{component} ...this.layout.component_props />
+	}
+	%else
+	{
+		%var BaseModel model = this.layout.getPageModel();
+		%var string class_name = model ? model.component : "";
+		%if (class_name)
+		{
+			<{class_name} model={{ model }} />
+		}
+	}
+</template>
+
+<template>
+	%render this.renderCurrentPage();
+</template>
+
+<template name="renderComponents" args="Vector components">
+	%for (int i=0; i<components.count(); i++)
+	{
+		%set string class_name = components.get(i);
+		%if (class_name instanceof VirtualDom)
+		{
+			%render class_name;
+		}
+		%else if (rtl::isString(class_name))
+		{
+			<{class_name} />
+		}
+	}
+</template>
+
+<template name="renderHeader">
+	<title>{{ this.layout.title }}</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	%render this.renderComponents(this.getComponents(RuntimeHook::LAYOUT_HEADER));
+</template>
+
+<template name="renderFooter">
+	%render this.renderComponents(this.getComponents(RuntimeHook::LAYOUT_FOOTER));
+</template>
+
+<template name="renderMountApp">
+	<script>
+		var app_data = "{{ rs::base64_encode_url(rtl::jsonEncode(this.container.getData())) }}";
+		document.addEventListener("DOMContentLoaded", function(){
+			app_data = Runtime.rtl.jsonDecode(Runtime.rs.base64_decode_url(app_data));
+			Runtime.rtl.mount(app_data, document.querySelector(".root_container"), function (result){
+				window["app"] = result.get("app");
+				window["app_layout"] = result.get("layout");
+			});
+		});
+	</script>
+</template>
+
+<template name="renderStyle">
+	<style class="style_components">{{ BaseLayout::getStyle(this.layout.getComponents()) }}</style>
+</template>
+
+<template name="renderApp">
+	<html lang={{ this.layout.lang }}>
+		<head>
+			%render this.renderHeader();
+			%render this.renderStyle();
+		</head>
+		<body class={{ "theme_" ~ this.layout.theme }}
+			class={{ rs::join(" ", this.layout.body_class) }}
+		>
+			<div class="root_container">
+				%render this.render();
+			</div>
+			%render this.renderFooter();
+			%render this.renderMountApp();
+		</body>
+	</html>
+</template>
+
+<script>
+
+#ifdef BACKEND then
+var container = null;
+#endif
+
+Vector getComponents(string name)
+{
+	Map d = @.hook(name, {
+		"layout": this.layout,
+		"components": [],
+	});
+	return d.get("components");
+}
+
+</script>
+
+</class>

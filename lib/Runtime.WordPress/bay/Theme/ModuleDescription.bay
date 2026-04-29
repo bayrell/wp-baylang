@@ -23,6 +23,7 @@ use Runtime.Entity.Provider;
 use Runtime.Web.Annotations.Api;
 use Runtime.Web.Annotations.Route;
 use Runtime.Web.Hooks.Components;
+use Runtime.Web.Hooks.SetupLayout;
 use Runtime.WordPress.ORM.WP_Factory;
 
 
@@ -49,11 +50,6 @@ class ModuleDescription
 		'Runtime': '>=0.12',
 		'Runtime.Web': '>=0.12',
 		'Runtime.Widget': '>=0.12',
-		'Runtime.WordPress': '>=0.12',
-		
-		#ifdef BACKEND then
-		'Runtime.ORM': '>=0.12',
-		#endif
 	};
 	
 	
@@ -62,18 +58,19 @@ class ModuleDescription
 	 */
 	pure Collection<Dict> entities() =>
 	[
-		new Hook("Runtime.WordPress.Theme.AssetHook"),
+		/*new Hook("Runtime.WordPress.Theme.AssetHook"),*/
+		
+		/* Setup layout */
+		SetupLayout::hook({
+			"email": "Runtime.WordPress.Theme.Components.EmailModel",
+		}),
 		
 		#ifdef BACKEND then
+		new Hook("Runtime.WordPress.Theme.Hooks.LayoutHook"),
 		new Api("Runtime.WordPress.Theme.Api.FormSubmitApi"),
-		new Api("Runtime.WordPress.Theme.Api.GalleryApi"),
-		new Route("Runtime.WordPress.Theme.Robots"),
-		Components::header([
-			"Runtime.WordPress.Theme.WP_Head",
-		]),
-		Components::footer([
-			"Runtime.WordPress.Theme.WP_Footer",
-		]),
+		new Api("Runtime.WordPress.Theme.Api.PostApi"),
+		/*new Api("Runtime.WordPress.Theme.Api.GalleryApi"),
+		new Route("Runtime.WordPress.Theme.Robots"),*/
 		#endif
 	];
 }

@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,20 +18,243 @@
  
 namespace Runtime;
 
-use Runtime.rtl;
-use Runtime.Vector;
 use Runtime.Exceptions.KeyNotFound;
 
 
-class Map<T> extends Dict<T>
+abstract class Map{}
+
+
+#switch
+
+#case ifcode JAVASCRIPT then
+
+Runtime.Map = class extends Map
 {
 	/**
-	 * Returns new Instance
-	 * @return Object
+	 * Costructor
 	 */
-	static Collection<T> Instance(var val = null)
+	constructor(obj = null)
 	{
-		return new Map(val);
+		super(obj ? Object.entries(obj) : null);
+	}
+	
+	
+	/**
+	 * Copy map
+	 */
+	copy()
+	{
+		return new Runtime.Map(this.toObject());
+	}
+	
+	
+	/**
+	 * Convert to Object
+	 */
+	toObject()
+	{
+		return Object.fromEntries(this);
+	}
+	
+	
+	/**
+	 * Concat Map
+	 */
+	concat(map)
+	{
+		var obj = this.toObject();
+		return new Runtime.Map(Object.assign(obj, map.toObject()));
+	}
+	
+	
+	/**
+	 * Returns value
+	 */
+	get(key, default_value)
+	{
+		if (default_value == undefined) default_value = null;
+		var value = super.get(key);
+		return value != undefined ? value : default_value;
+	}
+	
+	
+	/**
+	 * Call function map
+	 */
+	map(f)
+	{
+		var map = new Runtime.Map();
+		for (var key of this.keys())
+		{
+			map.set(key, f(this.get(key), key, this));
+		}
+		return map;
+	}
+	
+	
+	/**
+	 * Call function map
+	 */
+	mapWithKeys(f)
+	{
+		var map = new Runtime.Map();
+		for (var key of this.keys())
+		{
+			var item = f(this.get(key), key, this);
+			map.set(item[1], item[0]);
+		}
+		return map;
+	}
+	
+	
+	/**
+	 * Reduce
+	 */
+	reduce(f, result)
+	{
+		for (var key of this.keys())
+		{
+			result = f(result, this.get(key), key, this);
+		}
+		return result;
+	}
+	
+	
+	/**
+	 * Filter
+	 */
+	filter(f)
+	{
+		var map = new Runtime.Map();
+		for (var key of this.keys())
+		{
+			var value = this.get(key);
+			var flag = f(value, key, this);
+			if (flag) map.set(key, value);
+		}
+		return map;
+	}
+	
+	
+	/**
+	 * Call function for each item
+	 * @param fn f
+	 */
+	each(f)
+	{
+		for (var key of this.keys())
+		{
+			var value = this.get(key);
+			f(value, key, this);
+		}
+	}
+	
+	
+	/**
+	 * Transition
+	 */
+	transition(f)
+	{
+		const Vector = use("Runtime.Vector");
+		var arr = new Vector();
+		for (var key of this.keys())
+		{
+			var value = this.get(key);
+			arr.push(f(value, key, this));
+		}
+		return arr;
+	}
+	
+	
+	/**
+	 * Intersect
+	 */
+	intersect(fields)
+	{
+		const h = fields.transition((value, key) => [key, value]);
+		return this.filter((value, key) => h.has(key));
+	}
+	
+	
+	/**
+	 * Create map from Object
+	 */
+	static create(obj)
+	{
+		return new Runtime.Map(obj);
+	}
+	
+	
+	/**
+	 * Create map from Object
+	 */
+	static from(obj)
+	{
+		return new Runtime.Map(obj);
+	}
+	
+	
+	/* Returns namespace */
+	static getNamespace() { return "Runtime"; }
+	
+	/* Returns class name */
+	static getClassName() { return "Runtime.Map"; }
+};
+
+#case ifcode ES6 then
+window["Runtime.Map"] = Runtime.Map;
+
+#case ifcode NODEJS then
+use.add(Runtime.Map);
+
+#case ifcode PHP then
+
+class Map implements \JsonSerializable
+{
+	var $_map = [];
+	
+	
+	/**
+	 * Constructor
+	 */
+	function __construct($map = null)
+	{
+		if ($map != null)
+		{
+			if ($map instanceof \stdClass) $map = (array)$map;
+			if (is_array($map)) $this->_map = $map;
+			else $this->_map = $map->_map;
+		}
+	}
+	
+	
+	/**
+	 * Create map from Object
+	 */
+	static function create($obj)
+	{
+		return new Map($obj);
+	}
+	
+	
+	/**
+	 * Convert to Object
+	 */
+	function toObject()
+	{
+		return $this->_map;
+	}
+	
+	
+	/**
+	 * Returns value from position
+	 * @param string key
+	 * @param T default_value
+	 * @return T
+	 */
+	function get($key, $default_value = null)
+	{
+		return isset($this->_map[$key]) ? $this->_map[$key] : $default_value;
 	}
 	
 	
@@ -41,18 +264,20 @@ class Map<T> extends Dict<T>
 	 * @param T value 
 	 * @return self
 	 */
-	public Map<T> set(string key, T value)
+	function set($key, $value)
 	{
-		#switch
-		#case ifcode JAVASCRIPT then
-		key = this.toStr(key);
-		this._map["|" + key] = value;
-		return this;
-		#case ifcode PHP then
-		$key = rtl::toStr($key);
 		$this->_map[$key] = $value;
-		return $this;
-		#endswitch
+	}
+	
+	
+	/**
+	 * Return true if key exists
+	 * @param string key
+	 * @return bool var
+	 */
+	function has($key)
+	{
+		return isset($this->_map[$key]);
 	}
 	
 	
@@ -61,22 +286,12 @@ class Map<T> extends Dict<T>
 	 * @param string key
 	 * @return self
 	 */
-	public Map<T> remove(string key)
+	function remove($key)
 	{
-		#switch
-		#case ifcode JAVASCRIPT then
-		key = this.toStr(key);
-		if (typeof this._map["|" + key] != "undefined")
-		{
-			delete this._map["|" + key];
-		}
-		return this;
-		#case ifcode PHP then
-		$key = rtl::toStr($key);
 		if (isset($this->_map[$key]))
+		{
 			unset($this->_map[$key]);
-		return $this;
-		#endswitch
+		}
 	}
 	
 	
@@ -84,16 +299,174 @@ class Map<T> extends Dict<T>
 	 * Clear all values from vector
 	 * @return self
 	 */
-	public Map<T> clear()
+	function clear()
 	{
-		#switch
-		#case ifcode JAVASCRIPT then
-		this._map = {};
-		return this;
-		#case ifcode PHP then
 		$this->_map = [];
-		return $this;
-		#endswitch
+	}
+	
+	
+	/**
+	 * Copy map
+	 */
+	function copy()
+	{
+		return new static($this);
+	}
+	
+	
+	/**
+	 * Add values from other map
+	 * @param Dict<T> map
+	 * @return self
+	 */
+	function concat($map = null)
+	{
+		if ($map == null) return;
+		
+		$instance = new static($this);
+		$instance->_map = array_merge($this->_map, $map->_map);
+		return $instance;
+	}
+	
+	
+	/**
+	 * Returns vector of the keys
+	 * @return Collection<string>
+	 */
+	function keys()
+	{
+		foreach ($this->_map as $key => $value)
+		{
+			yield $key;
+		}
+	}
+	
+	
+	/**
+	 * Returns vector of the values
+	 * @return Collection<T>
+	 */
+	function values()
+	{
+		foreach ($this->_map as $value)
+		{
+			yield $value;
+		}
+	}
+	
+	
+	/**
+	 * Call function map
+	 * @param fn f
+	 * @return Dict
+	 */
+	function map($f)
+	{
+		$map = new static();
+		foreach ($this->_map as $key => $value)
+		{
+			$map->set($key, $f($value, $key, $this));
+		}
+		return $map;
+	}
+	
+	
+	/**
+	 * Call function map
+	 * @param fn f
+	 * @return Dict
+	 */
+	function mapWithKeys($f)
+	{
+		$map = new static();
+		foreach ($this->_map as $key => $value)
+		{
+			$item = $f($value, $key, $this);
+			$map->set($item[1], $item[0]);
+		}
+		return $map;
+	}
+	
+	
+	/**
+	 * Reduce
+	 * @param fn f
+	 * @param var init_value
+	 * @return init_value
+	 */
+	function reduce($f, $result)
+	{
+		foreach ($this->_map as $key => $value)
+		{
+			$result = $f($result, $value, $key, $this);
+		}
+		return $result;
+	}
+	
+	
+	/**
+	 * Filter items
+	 * @param fn f
+	 * @return Collection
+	 */
+	function filter($f)
+	{
+		$map = new static();
+		foreach ($this->_map as $key => $value)
+		{
+			$flag = $f($value, $key, $this);
+			if ($flag) $map->set($key, $value);
+		}
+		return $map;
+	}
+	
+	
+	/**
+	 * Call function for each item
+	 * @param fn f
+	 */
+	function each($f)
+	{
+		foreach ($this->_map as $key => $value)
+		{
+			$f($value, $key, $this);
+		}
+	}
+	
+	
+	/**
+	 * Transition Dict to Vector
+	 * @param fn f
+	 * @return Vector
+	 */
+	function transition($f)
+	{
+		$arr = new \Runtime\Vector();
+		foreach ($this->_map as $key => $value)
+		{
+			$arr->push($f($value, $key, $this));
+		}
+		return $arr;
+	}
+	
+	
+	/**
+	 * Intersect
+	 */
+	function intersect($fields)
+	{
+		$h = $fields->transition(function ($value, $key){ return [$key, $value]; });
+		return $this->filter(function($value, $key) use ($h){ return $h->has($key); });
+	}
+	
+	
+	/**
+	 * Json Serialize
+	 */
+	function jsonSerialize() : mixed
+	{
+		return (object)$this->_map;
 	}
 }
 
+#endswitch

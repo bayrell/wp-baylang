@@ -16,13 +16,87 @@
  *  limitations under the License.
 -->
 
-
 <class name="Runtime.WordPress.Admin.FormData.FormDataPage">
+
+<use name="Runtime.DateTime" />
+<use name="Runtime.Widget.Button" component="true" />
+<use name="Runtime.Widget.Form.FormRow" component="true" />
+<use name="Runtime.Widget.Dialog.Dialog" component="true" />
+<use name="Runtime.Widget.Dialog.DialogModel" />
+<use name="Runtime.Widget.Table.Table" component="true" />
+
+<template name="renderData" args="Map data">
+	%set Vector keys = rtl::list(data.keys());
+	%for (int i=0; i<keys.count(); i++)
+	{
+		%set string key = keys.get(i);
+		<div>{{ key ~ ": " ~ data.get(key) }}</div>
+	}
+</template>
 
 <template>
 	<div class="form_data_page">
-		%render this.renderWidget(this.model.table);
+		<Table model={{ this.model.table }}>
+			<slot name="header">
+				<th></th>
+				<th>Title</th>
+				<th>Form name</th>
+				<th>Data</th>
+				<th>Date</th>
+				<th></th>
+			</slot>
+			<slot name="row" args="Map item, int row_number">
+				<td>{{ row_number + 1 }}</td>
+				<td>{{ item.get("form_title") }}</td>
+				<td>{{ item.get("form_name") }}</td>
+				<td>%render this.renderData(item.get("data"));</td>
+				<td>
+					%set DateTime date = item.get("gmtime_add");
+					{{ date ? date.normalize().format() : "" }}
+				</td>
+				<td>
+					<Button class="button--default button--small"
+						@event:click="this.showItem(row_number)"
+					>View</Button>
+				</td>
+			</slot>
+		</Table>
+		<Dialog model={{ this.dialog }}>
+			<slot name="title">
+				Show item
+			</slot>
+			<slot name="content">
+				%if (this.current_item)
+				{
+					<FormRow label="Title">{{ this.current_item.get("form_title") }}</FormRow>
+					<FormRow label="Name">{{ this.current_item.get("form_name") }}</FormRow>
+					<FormRow label="Date">
+						%set DateTime date = this.current_item.get("gmtime_add");
+						{{ date ? date.normalize().format() : "" }}
+					</FormRow>
+					<FormRow label="Data">
+						%render this.renderData(this.current_item.get("data"));
+					</FormRow>
+				}
+			</slot>
+			<slot name="footer">
+				<Button @event:click="this.dialog.hide()">Close</Button>
+			</slot>
+		</Dialog>
 	</div>
 </template>
+
+<script>
+
+DialogModel dialog = new DialogModel();
+Map current_item = null;
+
+void showItem(int index)
+{
+	this.current_item = this.model.table.items.get(index);
+	this.dialog.show();
+}
+
+</script>
 
 </class>

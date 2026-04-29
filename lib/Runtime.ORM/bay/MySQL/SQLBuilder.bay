@@ -20,7 +20,10 @@ namespace Runtime.ORM.MySQL;
 
 use Runtime.re;
 use Runtime.BaseObject;
+use Runtime.ORM.Annotations.BaseType;
+use Runtime.ORM.Annotations.EmbeddingType;
 use Runtime.ORM.Connection;
+use Runtime.ORM.Provider;
 use Runtime.ORM.Query;
 use Runtime.ORM.QueryField;
 use Runtime.ORM.QueryFilter;
@@ -32,6 +35,7 @@ class SQLBuilder extends BaseObject
 	Map data = null;
 	Query q = null;
 	string sql = null;
+	Vector annotations = null;
 	
 	
 	/**
@@ -39,6 +43,7 @@ class SQLBuilder extends BaseObject
 	 */
 	void constructor(Connection conn, Query q)
 	{
+		parent();
 		this.conn = conn;
 		this.q = q;
 	}
@@ -81,7 +86,10 @@ class SQLBuilder extends BaseObject
 				}
 				else
 				{
-					value = this.quote(value);
+					if (not rtl::isInteger(value))
+					{
+						value = this.quote(value);
+					}
 					sql = rs::replace(this.formatKey(key), value, sql);
 				}
 			}
@@ -102,6 +110,9 @@ class SQLBuilder extends BaseObject
 	 */
 	string prepareField(string item)
 	{
+		if (rs::charAt(item, 0) == "@")
+			return rs::substr(item, 1);
+		
 		Collection res1 = rs::split(",", item);
 		res1 = res1.map( string (string s) => rs::trim(s) );
 		res1 = res1.map(
@@ -147,6 +158,7 @@ class SQLBuilder extends BaseObject
 	{
 		#ifcode PHP then
 		$value = $this->conn->pdo->quote($value);
+		$value = "'" . $value . "'";
 		#endif
 		return value;
 	}
@@ -159,9 +171,45 @@ class SQLBuilder extends BaseObject
 	{
 		if (rs::substr(this.q._table_name, 0, 1) != "`")
 		{
-			return "`" ~ this.conn.prefix ~ this.q._table_name ~ "`";
+			return "`" ~ this.conn.pool.params.get("prefix") ~ this.q._table_name ~ "`";
 		}
 		return this.q._table_name;
+	}
+	
+	
+	/**
+	 * Returns table annotations
+	 */
+	Vector<BaseObject> getAnotations()
+	{
+		Provider provider = @.provider(classof Provider);
+		return provider.getAnotations(this.q._table_name);
+	}
+	
+	
+	/**
+	 * Find annotation
+	 */
+	BaseType findAnnotation(string key) =>
+		this.annotations.find(
+			bool (BaseType annotation) =>
+				annotation instanceof BaseType and
+				annotation.name == key
+		)
+	;
+	
+	
+	/**
+	 * Wrap key
+	 */
+	string wrapKey(string key, string value)
+	{
+		BaseType annotation = this.findAnnotation(key);
+		if (annotation instanceof EmbeddingType)
+		{
+			return "VEC_FromText(" ~ value ~ ")";
+		}
+		return value;
 	}
 	
 	
@@ -173,6 +221,7 @@ class SQLBuilder extends BaseObject
 		if (this.q == null) return this;
 		
 		Query q = this.q;
+		this.annotations = this.getAnotations();
 		
 		/* Select query */
 		if (q._kind == Query::QUERY_SELECT)
@@ -213,7 +262,7 @@ class SQLBuilder extends BaseObject
 									field_name ~= " as `" ~ item.alias ~ "`";
 								}
 							}
-							else if (rtl::isCallable(item))
+							else if (rtl::isFunction(item))
 							{
 								return item(this);
 							}
@@ -246,19 +295,22 @@ class SQLBuilder extends BaseObject
 				{
 					Dict join = q._join[i];
 					
-					string kind = join["kind"];
-					string table_name = join["table_name"];
-					string alias_name = join["alias_name"];
+					string kind = join.get("kind");
+					string table_name = join.get("table_name");
+					string alias_name = join.get("alias_name");
 					
-					Collection filter = join["filter"];
-					list res = this.convertFilter(filter, data, field_index);
-					string where = res[0];
-					field_index = res[1];
+					string where = join.get("filter");
+					if (where instanceof Vector)
+					{
+						list res = this.convertFilter(where, data, field_index);
+						where = res[0];
+						field_index = res[1];
+					}
 					
 					if (kind == "left") sql ~= " LEFT JOIN ";
 					else sql ~= " INNER JOIN ";
 					
-					sql ~= "`" ~ this.conn.prefix ~ table_name ~ "`";
+					sql ~= "`" ~ this.conn.pool.params.get("prefix") ~ table_name ~ "`";
 					if (alias_name != "") sql ~= " AS `" ~ alias_name ~ "`";
 					sql ~= " ON (" ~ where ~ ")";
 					
@@ -275,6 +327,33 @@ class SQLBuilder extends BaseObject
 				field_index = res[1];
 				
 				if (where != "") sql ~= " WHERE " ~ where;
+				
+				/* New line */
+				sql ~= "\n";
+			}
+			
+			/* Add group by */
+			if (q._group_by != null and q._group_by.count() > 0)
+			{
+				Collection group_by = q._group_by.map
+				(
+					string (string field) => this.prepareField(field)
+				);
+				
+				sql ~= " GROUP BY " ~ rs::join(",", group_by);
+				
+				/* New line */
+				sql ~= "\n";
+			}
+			
+			/* Add having */
+			if (q._having != null and q._having.count() > 0)
+			{
+				list res = this.convertFilter(q._having, data, field_index);
+				string having_str = res[0];
+				field_index = res[1];
+				
+				if (having_str != "") sql ~= " HAVING " ~ having_str;
 				
 				/* New line */
 				sql ~= "\n";
@@ -313,7 +392,7 @@ class SQLBuilder extends BaseObject
 					void (var value, string key) use (keys, values)
 					{
 						keys.push( "`" ~ key ~ "`" );
-						values.push( this.formatKey(key) );
+						values.push( this.wrapKey(key, this.formatKey(key)) );
 					}
 				);
 			}
@@ -322,7 +401,7 @@ class SQLBuilder extends BaseObject
 			this.sql = "INSERT INTO " ~ this.getTableName() ~
 				" (" ~ rs::join(",", keys) ~ ") VALUES (" ~ rs::join(",", values) ~ ")"
 			;
-			this.data = q._data.clone();
+			this.data = q._data.copy();
 		}
 		
 		else if (q._kind == Query::QUERY_UPDATE)
@@ -339,8 +418,8 @@ class SQLBuilder extends BaseObject
 					{
 						string field_key = "update_" ~ key;
 						string field_name = this.prepareField(key)
-						update_arr.push(field_name ~ " = " ~ this.formatKey(field_key));
-						data = data.set(field_key, value);
+						update_arr.push(field_name ~ " = " ~ this.wrapKey(key, this.formatKey(field_key)));
+						data.set(field_key, value);
 					}
 				);
 			}
@@ -393,7 +472,8 @@ class SQLBuilder extends BaseObject
 		Collection allow_operations = [
 			"=", "!=", ">=", "<=", "<", ">",
 			"like", "%like%", "like%", "%like",
-			"match", "match_boolean"
+			"match", "match_boolean", "distance",
+			"distance_cosine", "distance_euclidean"
 		];
 		
 		fn convert_key = string (string s)
@@ -415,9 +495,7 @@ class SQLBuilder extends BaseObject
 		}
 		else
 		{
-			field_name = item[0];
-			op = item[1];
-			value = item[2];
+			return ["", field_index];
 		}
 		
 		/* OR */
@@ -434,6 +512,20 @@ class SQLBuilder extends BaseObject
 			
 			string s = "(" ~ rs::join(" OR ", where_or) ~ ")";
 			return [s, field_index];
+		}
+		
+		if (op == "is")
+		{
+			if (value != "" and value != null)
+			{
+				string s = this.prepareField(field_name) ~ " is not null";
+				return [s, field_index];
+			}
+			else
+			{
+				string s = this.prepareField(field_name) ~ " is null";
+				return [s, field_index];
+			}
 		}
 		
 		/* Check operation */
@@ -456,38 +548,35 @@ class SQLBuilder extends BaseObject
 			}
 		}
 		
-		else if (value instanceof Collection)
+		else if (value instanceof Vector and op == "=")
 		{
-			if (op == "=")
+			if (value.count() == 0)
 			{
-				if (value.count() == 0)
+				return ["1 = 0", field_index];
+			}
+			else
+			{
+				Vector res = new Vector();
+				
+				for (int j=0; j<value.count(); j++)
 				{
-					return ["1 = 0", field_index];
+					string field_key = convert_key("where_" ~ field_name ~ "_" ~ field_index);
+					data.set( field_key, value[j] );
+					res.push( this.formatKey(field_key) );
+					field_index++;
 				}
-				else
-				{
-					Vector res = new Vector();
-					
-					for (int j=0; j<value.count(); j++)
-					{
-						string field_key = convert_key( field_index ~ "_where_" ~ field_name );
-						data.set( field_key, value[j] );
-						res.push( this.formatKey(field_key) );
-						field_index++;
-					}
-					
-					string s = this.prepareField(field_name) ~
-						" in (" ~ rs::join(",", res) ~ ")"
-					;
-					return [s, field_index];
-				}
+				
+				string s = this.prepareField(field_name) ~
+					" in (" ~ rs::join(",", res) ~ ")"
+				;
+				return [s, field_index];
 			}
 		}
 		
 		else
 		{
 			string s = "";
-			string field_key = convert_key(field_index ~ "_where_" ~ field_name);
+			string field_key = convert_key("where_" ~ field_name ~ "_" ~ field_index);
 			field_name = this.prepareField(field_name);
 			
 			list res = this.prepareValue(value, op);
@@ -505,6 +594,25 @@ class SQLBuilder extends BaseObject
 				s = "MATCH(" ~ field_name ~ ") AGAINST (:" ~
 					this.formatKey(field_key) ~ " IN BOOLEAN MODE)"
 				;
+			}
+			else if (
+				op == "distance" or
+				op == "distance_cosine" or
+				op == "distance_euclidean"
+			)
+			{
+				string distance_type = "VEC_DISTANCE_COSINE";
+				if (op == "distance_euclidean")
+					distance_type = "VEC_DISTANCE_EUCLIDEAN";
+				s = distance_type ~ "(" ~ field_name ~
+					", VEC_FromText(" ~
+					this.formatKey(field_key) ~ "))";
+				
+				BaseType annotation = this.findAnnotation(field_key);
+				if (annotation)
+				{
+					value = annotation.toDatabase(value);
+				}
 			}
 			else
 			{

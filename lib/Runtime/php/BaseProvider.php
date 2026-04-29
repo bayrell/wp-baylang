@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,43 +17,66 @@
  *  limitations under the License.
  */
 namespace Runtime;
+
+use Runtime\BaseObject;
+use Runtime\Context;
+use Runtime\Method;
+use Runtime\Providers\HookProvider;
+
+
 class BaseProvider extends \Runtime\BaseObject
 {
-	public $started;
-	public $params;
-	function __construct($params=null)
-	{
-		parent::__construct();
-		$this->params = ($params != null) ? ($params->toDict()) : (null);
-	}
+	var $started;
+	var $params;
+	
+	
 	/**
 	 * Returns true if started
 	 */
-	function isStarted()
-	{
-		return $this->started;
-	}
+	function isStarted(){ return $this->started; }
+	
+	
 	/**
-	 * Return param
+	 * Constructor
 	 */
-	function getParam($param_name, $def_value)
+	function __construct($params = null)
 	{
-		if ($this->param == null)
-		{
-			return $def_value;
-		}
-		if ($this->param->has($param_name))
-		{
-			return $def_value;
-		}
-		return $this->param->get($param_name);
+		parent::__construct();
+		$this->initParams($params != null ? $params : new \Runtime\Map());
 	}
+	
+	
+	/**
+	 * Register hook
+	 */
+	function register($hook_name, $method_name, $priority = 100)
+	{
+		$hook = \Runtime\rtl::getContext()->provider("hook");
+		$hook->register($hook_name, new \Runtime\Method($this, $method_name), $priority);
+	}
+	
+	
+	/**
+	 * Register hooks
+	 */
+	function register_hooks(){}
+	
+	
+	/**
+	 * Init params
+	 */
+	function initParams($params){}
+	
+	
 	/**
 	 * Init provider
 	 */
 	function init()
 	{
+		$this->register_hooks();
 	}
+	
+	
 	/**
 	 * Start provider
 	 */
@@ -61,49 +84,16 @@ class BaseProvider extends \Runtime\BaseObject
 	{
 		$this->started = true;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->started = false;
 		$this->params = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime";
-	}
-	static function getClassName()
-	{
-		return "Runtime.BaseProvider";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.BaseProvider"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -17,49 +17,23 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Exceptions;
-class OrmException extends \Runtime\Exceptions\AbstractException
+
+use Runtime\Exceptions\RuntimeException;
+
+class OrmException extends \Runtime\Exceptions\RuntimeException
 {
-	function __construct($message="", $code=-1, $prev=null)
+	function __construct($message = "", $code = -1, $prev = null)
 	{
 		parent::__construct($message, $code, $prev);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.ORM.Exceptions";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Exceptions.OrmException";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Exceptions.AbstractException";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Exceptions.OrmException"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

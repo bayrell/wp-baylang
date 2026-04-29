@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,31 +17,39 @@
  *  limitations under the License.
  */
 namespace Runtime\Web\Hooks;
+
+use Runtime\Callback;
+use Runtime\Entity\Hook;
+use Runtime\Web\BaseModel;
+use Runtime\Web\RenderContainer;
+use Runtime\Web\Hooks\AppHook as BaseAppHook;
+
+
 class WidgetModelFactory extends \Runtime\Web\Hooks\AppHook
 {
-	public $model_name;
+	var $model_name;
+	
+	
 	/**
 	 * Create hook
 	 */
 	static function hook($model_name)
 	{
-		return new \Runtime\Entity\Hook(static::getClassName(), \Runtime\Map::from(["model_name"=>$model_name]));
+		return new \Runtime\Entity\Hook(static::getClassName(), new \Runtime\Map(["model_name" => $model_name]));
 	}
+	
+	
 	/**
-	 * Setup
+	 * Init params
 	 */
-	function setup($params)
+	function initParams($params)
 	{
-		parent::setup($params);
-		if ($params == null)
-		{
-			return ;
-		}
-		if ($params->has("model_name"))
-		{
-			$this->model_name = $params->get("model_name");
-		}
+		parent::initParams($params);
+		if ($params == null) return;
+		if ($params->has("model_name")) $this->model_name = $params->get("model_name");
 	}
+	
+	
 	/**
 	 * Register hooks
 	 */
@@ -49,61 +57,27 @@ class WidgetModelFactory extends \Runtime\Web\Hooks\AppHook
 	{
 		$this->register(static::ROUTE_BEFORE);
 	}
+	
+	
 	/**
 	 * Route before
 	 */
 	function route_before($params)
 	{
 		$container = $params->get("container");
-		if ($container->response != null)
-		{
-			return ;
-		}
+		if ($container->response != null) return;
 		/* Add widget */
 		$container->layout->addWidget($this->model_name);
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->model_name = "";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Web.Hooks";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.Hooks.WidgetModelFactory";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Hooks.AppHook";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.Hooks.WidgetModelFactory"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

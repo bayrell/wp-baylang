@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,38 +17,35 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
+
+use Runtime\Widget\Messages\ValueChangeMessage;
+
 class Select extends \Runtime\Widget\Field
 {
-	public $name;
-	public $value;
-	public $default;
-	public $options;
-	public $show_select_value;
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'select' */
-		$__v0 = new \Runtime\Vector();
+		$props = $this->getProps();
+		
+		/* Element select */
+		$__v0 = $__v->element("select", (new \Runtime\Map(["name" => $this->name, "class" => \Runtime\rs::className(new \Runtime\Vector("select", $this->class, $componentHash))]))->concat($props));
+		
 		$value = $this->getValue();
 		$options = $this->getOptions();
-		$selected = \Runtime\Map::from([]);
-		
+		$selected = new \Runtime\Map();
 		if ($this->show_select_value === true || $this->show_select_value == "true")
 		{
 			if ($value === "" || $value === null)
 			{
-				$selected = \Runtime\Map::from(["selected"=>"selected"]);
+				$selected = new \Runtime\Map(["selected" => "selected"]);
 			}
 			
-			/* Element 'option' */
-			$__v1 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v1, "Select value");
-			
-			/* Element 'option' */
-			$this->_e($__v0, "option", $this->_merge_attrs(["value" => ""], $selected), $__v1);
+			/* Element option */
+			$__v1 = $__v0->element("option", (new \Runtime\Map(["value" => ""]))->concat($selected));
+			$__v1->push("Select value");
 		}
 		
 		if ($options != null)
@@ -56,70 +53,55 @@ class Select extends \Runtime\Widget\Field
 			for ($i = 0; $i < $options->count(); $i++)
 			{
 				$item = $options->get($i);
-				$selected = \Runtime\Map::from([]);
-				
+				$selected = new \Runtime\Map();
 				if ($item->get("key") == $value && $value !== "" && $value !== null)
 				{
-					$selected = \Runtime\Map::from(["selected"=>"selected"]);
+					$selected = new \Runtime\Map(["selected" => "selected"]);
 				}
 				
-				/* Element 'option' */
-				$__v1 = new \Runtime\Vector();
-				
-				/* Text */
-				$this->_t($__v1, $this->_escape($item->get("value")));
-				
-				/* Element 'option' */
-				$this->_e($__v0, "option", $this->_merge_attrs(["value" => "" . \Runtime\rtl::toStr($item->get("key"))], $selected), $__v1);
+				/* Element option */
+				$__v2 = $__v0->element("option", (new \Runtime\Map(["value" => "" . $item->get("key")]))->concat($selected));
+				$__v2->push($item->get("value"));
 			}
 		}
 		
-		/* Element 'select' */
-		$this->_e($__v, "select", ["name" => $this->name,"class" => $this->_class_name(["widget_select"])], $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
+	var $name;
+	var $value;
+	var $default;
+	var $options;
+	var $show_select_value;
 	/**
- * Returns value
- */
+	 * Returns value
+	 */
 	function getValue()
 	{
-		if ($this->value !== "" && $this->value !== null)
-		{
-			return $this->value;
-		}
+		if ($this->value !== "" && $this->value !== null) return $this->value;
 		return $this->default;
 	}
 	/**
- * Returns options
- */
+	 * Returns options
+	 */
 	function getOptions()
 	{
-		if ($this->model == null)
-		{
-			return $this->options;
-		}
+		if ($this->model == null) return $this->options;
 		return $this->model->getOptions();
 	}
 	/**
- * Change event
- */
+	 * Change event
+	 */
 	function onChange($e)
 	{
 		/* Send value change */
-		$this->emit("valueChange", new \Runtime\Web\Messages\ValueChangeMessage(\Runtime\Map::from(["value"=>$e->target->value,"old_value"=>$this->value,"data"=>$this->data])));
+		$this->emit(new \Runtime\Widget\Messages\ValueChangeMessage(new \Runtime\Map([
+			"value" => $e->target->value,
+			"old_value" => $this->value,
+			"data" => $this->data,
+		])));
 	}
-	static function components()
-	{
-		return \Runtime\Vector::from(["Runtime.Widget.Field"]);
-	}
-	static function css($vars)
-	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_select.h-d72d,.widget_select.h-d72d:focus{width: 100%;font-family: var(--widget-font-family);font-size: var(--widget-font-size);padding: var(--widget-input-padding-y) var(--widget-input-padding-x);background-color: var(--widget-color-default);border-width: var(--widget-border-width);border-color: var(--widget-color-border);border-style: solid;border-radius: 4px;box-shadow: none;outline: transparent;line-height: normal;color: inherit;max-width: 100%;min-height: 32px}.widget_select.h-d72d:hover{color: inherit}");
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -129,42 +111,7 @@ class Select extends \Runtime\Widget\Field
 		$this->options = null;
 		$this->show_select_value = true;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Select";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Field";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".select.h-d72c, .select.h-d72c:focus{width: 100%;font-family: var(--font-family);font-size: var(--font-input-size);padding: calc(var(--space) * 0.75) calc(var(--space) * 1.5);background-color: var(--color-background);border-width: var(--border-width);border-color: var(--color-border);border-style: solid;border-radius: var(--border-radius);box-shadow: none;outline: transparent;line-height: normal;color: inherit;max-width: 100%;min-height: 32px;transition: background-color var(--transition) var(--transition-type),\n\t\tborder-color var(--transition) var(--transition-type),\n\t\tcolor var(--transition) var(--transition-type)}.widget_select.h-d72c:hover{color: inherit}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.Select"; }
 }

@@ -17,60 +17,31 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Annotations;
+
+use Runtime\Serializer\StringType as RuntimeType;
+use Runtime\ORM\Annotations\BaseType;
+
+
 class StringType extends \Runtime\ORM\Annotations\BaseType
 {
-	public $__length;
-	public $__default;
-	/* ======================= Class Init Functions ======================= */
+	var $length;
+	var $default;
+	
+	
+	/**
+	 * Returns rule
+	 */
+	function getRule(){ return new \Runtime\Serializer\StringType(); }
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->__length = 255;
-		$this->__default = "";
+		$this->length = 255;
+		$this->default = "";
 	}
-	function takeValue($k,$d=null)
-	{
-		if ($k == "length")return $this->__length;
-		else if ($k == "default")return $this->__default;
-	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.Annotations";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Annotations.StringType";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Annotations.BaseType";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		$a[]="length";
-		$a[]="default";
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Annotations.StringType"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -3,6 +3,7 @@
 	"assets":
 	[
 		"Tab.bay",
+		"TabMessage.bay",
 		"Tabs.bay",
 		"TabsModel.bay"
 	],
@@ -16,7 +17,8 @@
 	"dest":
 	{
 		"php": "./../../php/Tab",
-		"es6": "./../../es6/Tab"
+		"es6": "./../../es6/Tab",
+		"nodejs": "./../../nodejs/Tab"
 	},
 	"allow":
 	[

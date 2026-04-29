@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,91 +17,46 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
-class Label extends \Runtime\Web\Component
+
+
+class Label extends \Runtime\Component
 {
-	public $value;
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'span' */
-		$__v0 = new \Runtime\Vector();
+		/* Element label */
+		$__v0 = $__v->element("label", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("label", $componentHash))])));
 		
-		if (\Runtime\rtl::isScalarValue($this->value))
+		if (\Runtime\rtl::isString($this->value))
 		{
-			/* Text */
-			$this->_t($__v0, $this->_escape((!\Runtime\rtl::isEmpty($this->value)) ? ($this->value) : ("")));
+			$__v0->push(!\Runtime\rtl::isEmpty($this->value) ? $this->value : "");
 		}
-		else if (\Runtime\rtl::is_instanceof($this->value, "Runtime.Collection"))
+		else if (\Runtime\rtl::is_instanceof($this->value, "Runtime.Vector"))
 		{
 			for ($i = 0; $i < $this->value->count(); $i++)
 			{
 				$item = $this->value->get($i);
 				
-				/* Element 'div' */
-				$__v1 = new \Runtime\Vector();
-				
-				/* Text */
-				$this->_t($__v1, $this->_escape((!\Runtime\rtl::isEmpty($item)) ? ($item) : ("")));
-				
-				/* Element 'div' */
-				$this->_e($__v0, "div", [], $__v1);
+				/* Element span */
+				$__v1 = $__v0->element("span");
+				$__v1->push(!\Runtime\rtl::isEmpty($item) ? $item : "");
 			}
 		}
 		
-		/* Element 'span' */
-		$this->_e($__v, "span", ["class" => $this->_class_name(["widget_label"])], $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
-	static function css($vars)
-	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr("");
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
+	var $value;
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->value = "";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Label";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ""; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.Label"; }
 }

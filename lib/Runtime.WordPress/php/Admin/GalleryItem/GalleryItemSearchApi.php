@@ -17,88 +17,115 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin\GalleryItem;
-class GalleryItemSearchApi extends \Runtime\Widget\Crud\SearchApi
+
+use Runtime\Serializer\IntegerType;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\Required;
+use Runtime\ORM\Query;
+use Runtime\Web\Annotations\ApiMethod;
+use Runtime\Widget\Api\SearchApi;
+use Runtime\WordPress\Admin\AdminMiddleware;
+use Runtime\WordPress\Admin\Components\ImageRule;
+use Runtime\WordPress\Database\GalleryItem;
+
+
+class GalleryItemSearchApi extends \Runtime\Widget\Api\SearchApi
 {
 	/**
 	 * Returns api name
 	 */
-	static function getApiName()
-	{
-		return "admin.wordpress.gallery.item.search";
-	}
+	static function getApiName(){ return "admin.wordpress.gallery.item"; }
+	
+	
 	/**
-	 * Returns service
+	 * Returns record name
 	 */
-	function createService()
+	static function getRecordName(){ return "Runtime.WordPress.Database.GalleryItem"; }
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	function getMiddleware()
 	{
-		return new \Runtime\WordPress\Admin\GalleryItem\GalleryItemService();
+		return new \Runtime\Vector(
+			new \Runtime\WordPress\Admin\AdminMiddleware(),
+		);
 	}
+	
+	
+	/**
+	 * Returns data rules
+	 */
+	function getDataRules($rules)
+	{
+		$rules->addType("foreign_key", new \Runtime\Serializer\Required());
+		$rules->addType("foreign_key", new \Runtime\Serializer\MapType(new \Runtime\Map([
+			"item_id" => new \Runtime\Serializer\IntegerType(),
+		])));
+	}
+	
+	
+	/**
+	 * Returns rules
+	 */
+	function rules()
+	{
+		return new \Runtime\Vector(
+			new \Runtime\WordPress\Admin\Components\ImageRule(new \Runtime\Map(["name" => "image", "key" => "image_id"])),
+		);
+	}
+	
+	
 	/**
 	 * Returns item fields
 	 */
-	function getItemFields()
+	function getItemFields($action)
 	{
-		return \Runtime\Vector::from(["id","name","image","image_id","pos"]);
+		return new \Runtime\Vector(
+			"id",
+			"name",
+			"image",
+			"image_id",
+			"pos",
+		);
 	}
+	
+	
+	/**
+	 * Build query
+	 */
+	function buildQuery($q)
+	{
+		$q->where("gallery_id", "=", $this->foreign_key->get("item_id"));
+		$q->orderBy("pos", "desc");
+	}
+	
+	
 	/**
 	 * Action search
 	 */
 	function actionSearch()
 	{
-		/* Create service */
-		$service = $this->createService();
-		/* Foreign key */
-		$service->loadGallery(\Runtime\rtl::attr($this->post_data, ["foreign_key", "gallery_id"]));
-		/* Search items */
-		$service->search($this->post_data);
-		/* Build result */
-		$this->buildResult($service);
+		parent::actionSearch();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Admin.GalleryItem";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.GalleryItem.GalleryItemSearchApi";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Crud.SearchApi";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.GalleryItem.GalleryItemSearchApi"; }
 	static function getMethodsList()
 	{
-		$a=[
-			"actionSearch",
-		];
-		return \Runtime\Collection::from($a);
+		return new \Runtime\Vector("actionSearch");
 	}
 	static function getMethodInfoByName($field_name)
 	{
-		if ($field_name == "actionSearch")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
+		if ($field_name == "actionSearch") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod(new \Runtime\Map(["name" => "search"]))
+		);
 		return null;
 	}
 }

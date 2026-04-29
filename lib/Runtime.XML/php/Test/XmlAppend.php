@@ -17,6 +17,13 @@
  *  limitations under the License.
  */
 namespace Runtime\XML\Test;
+
+use Runtime\io;
+use Runtime\Unit\Test;
+use Runtime\XML\XML;
+use Runtime\XML\Test\XmlTest;
+
+
 class XmlAppend
 {
 	static function testAppend1()
@@ -26,6 +33,9 @@ class XmlAppend
 		$xml->append($xml_item);
 		\Runtime\XML\Test\XmlTest::assertEqualXml("Append xml error", $xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\t\t\t<root>\n\t\t\t\t<item>1</item>\n\t\t\t\t<item>2</item>\n\t\t\t\t<item>3</item>\n\t\t\t\t<test>123</test>\n\t\t\t\t<item>4</item>\n\t\t\t</root>");
 	}
+	
+	
+	
 	static function testAppend2()
 	{
 		$xml = \Runtime\XML\XML::loadXml("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\t\t\t<root>\n\t\t\t\t<item>1</item>\n\t\t\t\t<item>2</item>\n\t\t\t\t<item>3</item>\n\t\t\t\t<test>123</test>\n\t\t\t</root>");
@@ -33,6 +43,9 @@ class XmlAppend
 		$xml->append($xml_item);
 		\Runtime\XML\Test\XmlTest::assertEqualXml("Append xml error", $xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\t\t\t<root>\n\t\t\t\t<item>1</item>\n\t\t\t\t<item>2</item>\n\t\t\t\t<item>3</item>\n\t\t\t\t<test>123</test>\n\t\t\t\t<item>\n\t\t\t\t\t<subitem>1</subitem>\n\t\t\t\t\t<subitem>2</subitem>\n\t\t\t\t</item>\n\t\t\t</root>");
 	}
+	
+	
+	
 	static function testAppend3()
 	{
 		$xml = \Runtime\XML\XML::loadXml("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\t\t\t<root>\n\t\t\t\t<item>1</item>\n\t\t\t\t<item>2</item>\n\t\t\t\t<item>3</item>\n\t\t\t\t<test>123</test>\n\t\t\t</root>");
@@ -40,6 +53,9 @@ class XmlAppend
 		$xml->append($xml_item);
 		\Runtime\XML\Test\XmlTest::assertEqualXml("Append xml error", $xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\t\t\t<root>\n\t\t\t\t<item>1</item>\n\t\t\t\t<item>2</item>\n\t\t\t\t<item>3</item>\n\t\t\t\t<test>123</test>\n\t\t\t\t<item name=\"test\" color=\"white\">\n\t\t\t\t\t<subitem>1</subitem>\n\t\t\t\t\t<subitem>2</subitem>\n\t\t\t\t</item>\n\t\t\t</root>");
 	}
+	
+	
+	
 	static function testAppend4()
 	{
 		$xml = \Runtime\XML\XML::loadXml("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\t\t\t<root>\n\t\t\t\t<item>1</item>\n\t\t\t\t<item>2</item>\n\t\t\t\t<item>3</item>\n\t\t\t\t<test>123</test>\n\t\t\t</root>");
@@ -47,6 +63,9 @@ class XmlAppend
 		$xml->prepend($xml_item);
 		\Runtime\XML\Test\XmlTest::assertEqualXml("Prepend xml error", $xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\t\t\t<root>\n\t\t\t\t<first name=\"test\" color=\"white\">4</first>\n\t\t\t\t<item>1</item>\n\t\t\t\t<item>2</item>\n\t\t\t\t<item>3</item>\n\t\t\t\t<test>123</test>\n\t\t\t</root>");
 	}
+	
+	
+	
 	static function testAppend5()
 	{
 		$xml = \Runtime\XML\XML::loadXml("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\t\t\t<root>\n\t\t\t\t<item>1</item>\n\t\t\t\t<item>2</item>\n\t\t\t\t<item>3</item>\n\t\t\t\t<test>123</test>\n\t\t\t</root>");
@@ -54,78 +73,34 @@ class XmlAppend
 		$xml->prepend($xml_item);
 		\Runtime\XML\Test\XmlTest::assertEqualXml("Prepend xml error", $xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\t\t\t<root>\n\t\t\t\t<first name=\"test\" color=\"white\">\n\t\t\t\t\t<subitem>1</subitem>\n\t\t\t\t\t<subitem>2</subitem>\n\t\t\t\t</first>\n\t\t\t\t<item>1</item>\n\t\t\t\t<item>2</item>\n\t\t\t\t<item>3</item>\n\t\t\t\t<test>123</test>\n\t\t\t</root>");
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.XML.Test";
 	}
-	static function getClassName()
-	{
-		return "Runtime.XML.Test.XmlAppend";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.XML.Test.XmlAppend"; }
 	static function getMethodsList()
 	{
-		$a=[
-			"testAppend1",
-			"testAppend2",
-			"testAppend3",
-			"testAppend4",
-			"testAppend5",
-		];
-		return \Runtime\Collection::from($a);
+		return new \Runtime\Vector("testAppend1", "testAppend2", "testAppend3", "testAppend4", "testAppend5");
 	}
 	static function getMethodInfoByName($field_name)
 	{
-		if ($field_name == "testAppend1")
-			return \Runtime\Dict::from([
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Unit\Test([]),
-				]),
-			]);
-		if ($field_name == "testAppend2")
-			return \Runtime\Dict::from([
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Unit\Test([]),
-				]),
-			]);
-		if ($field_name == "testAppend3")
-			return \Runtime\Dict::from([
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Unit\Test([]),
-				]),
-			]);
-		if ($field_name == "testAppend4")
-			return \Runtime\Dict::from([
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Unit\Test([]),
-				]),
-			]);
-		if ($field_name == "testAppend5")
-			return \Runtime\Dict::from([
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Unit\Test([]),
-				]),
-			]);
+		if ($field_name == "testAppend1") return new \Runtime\Vector(
+			new \Runtime\Unit\Test(new \Runtime\Map())
+		);
+		if ($field_name == "testAppend2") return new \Runtime\Vector(
+			new \Runtime\Unit\Test(new \Runtime\Map())
+		);
+		if ($field_name == "testAppend3") return new \Runtime\Vector(
+			new \Runtime\Unit\Test(new \Runtime\Map())
+		);
+		if ($field_name == "testAppend4") return new \Runtime\Vector(
+			new \Runtime\Unit\Test(new \Runtime\Map())
+		);
+		if ($field_name == "testAppend5") return new \Runtime\Vector(
+			new \Runtime\Unit\Test(new \Runtime\Map())
+		);
 		return null;
 	}
 }

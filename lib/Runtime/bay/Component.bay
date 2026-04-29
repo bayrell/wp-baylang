@@ -1,0 +1,181 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+-->
+
+<class name="Runtime.Component">
+
+<use name="Runtime.BaseModel" />
+<use name="Runtime.Message" />
+
+<template name="renderWidget" args="BaseModel model, Map attrs = null">
+	%if (model)
+	{
+		%set string component = model.component;
+		%if (not attrs){
+			%set attrs = {};
+		}
+		<{component} model={{ model }} ...attrs />
+	}
+</template>
+
+<template>
+</template>
+
+<script>
+
+props BaseModel model = null;
+props string class = "";
+var parent_component = null;
+
+#ifdef BACKEND then
+props string key = "";
+#endif
+
+#ifdef PHP then
+BaseModel layout = null;
+props Map _slots = {};
+#endif
+
+
+/**
+ * Returns layout
+ */
+computed var layout()
+{
+	#ifcode JAVASCRIPT then
+	return this.$layout;
+	#endif
+}
+
+
+/**
+ * Returns true if slot is exists
+ */
+bool slot(string name)
+{
+	#switch
+	#case ifcode PHP then
+	return $this->_slots->has($name);
+	#case ifcode NODEJS then
+	return this._slots.has(name);
+	#case ifcode ES6 then
+	return this.$slots[name] != undefined;
+	#endswitch
+}
+
+
+/**
+ * Render slot
+ */
+var renderSlot(string slot_name, Vector args = null)
+{
+	#switch
+	#case ifcode PHP then
+	$f = $this->_slots->get($slot_name);
+	if (!$f) return null;
+	return $args ? call_user_func_array($f, $args->toArray()) : $f();
+	#case ifcode NODEJS then
+	var f = this._slots.get(slot_name);
+	return f ? f.apply(null, args) : null;
+	#case ifcode ES6 then
+	if (!args) args = [];
+	var f = this.$slots[slot_name];
+	return f ? f.apply(null, args) : null;
+	#endswitch
+}
+
+
+/**
+ * Returns parent
+ */
+var getParent()
+{
+	#switch
+	#case ifcode PHP then
+	return $this->parent_component;
+	#case ifcode JAVASCRIPT then
+	return this.$parent;
+	#endswitch
+}
+
+
+/**
+ * Returns ref
+ */
+var getRef(string name)
+{
+	#ifcode JAVASCRIPT then
+	return this.$refs[name];
+	#endif
+}
+
+
+/**
+ * Emit message
+ */
+void emit(Message message)
+{
+	#ifcode JAVASCRIPT then
+	message.src = this;
+	this.$emit(message.name, message);
+	#endif
+}
+
+
+/**
+ * Next tick
+ */
+void nextTick(fn f)
+{
+	#ifcode JAVASCRIPT then
+	this.$nextTick(f);
+	#endif
+}
+
+
+/**
+ * Returns widget params
+ */
+static Vector<Map> widgetParams() => [];
+
+
+#switch
+#case ifdef PHP then
+
+void __get(var name)
+{
+	#ifcode PHP then
+	if (method_exists($this, $name)) return $this->$name();
+	#endif
+	return null;
+}
+
+#case ifdef JAVASCRIPT then
+
+var hash(int s, fn f = null) => f;
+
+static var render()
+{
+	var vdom = this.render();
+	return @.provider("render").render(vdom);
+}
+#endswitch
+
+</script>
+
+</class>

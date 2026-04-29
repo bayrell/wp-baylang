@@ -17,6 +17,28 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Database;
+
+use Runtime\re;
+use Runtime\BaseObject;
+use Runtime\DateTime;
+use Runtime\ORM\DatabaseSchema;
+use Runtime\ORM\Relation;
+use Runtime\ORM\Annotations\AutoIncrement;
+use Runtime\ORM\Annotations\BigIntType;
+use Runtime\ORM\Annotations\BooleanType;
+use Runtime\ORM\Annotations\CollectionType;
+use Runtime\ORM\Annotations\DateTimeType;
+use Runtime\ORM\Annotations\DictType;
+use Runtime\ORM\Annotations\ForeignKey;
+use Runtime\ORM\Annotations\Index;
+use Runtime\ORM\Annotations\JsonType;
+use Runtime\ORM\Annotations\Primary;
+use Runtime\ORM\Annotations\StringType;
+use Runtime\ORM\Annotations\Table;
+use Runtime\ORM\Annotations\TinyIntType;
+use Runtime\ORM\Annotations\Unique;
+
+
 class Schema extends \Runtime\ORM\DatabaseSchema
 {
 	/**
@@ -24,123 +46,131 @@ class Schema extends \Runtime\ORM\DatabaseSchema
 	 */
 	static function forms()
 	{
-		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.WordPress.Database.Schema.forms", func_get_args());
-		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;$__memorize_value = \Runtime\Vector::from([new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"name"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"api_name"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"settings"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"email_to"])),new \Runtime\ORM\Annotations\BooleanType(\Runtime\Map::from(["name"=>"is_deleted"])),new \Runtime\ORM\Annotations\AutoIncrement(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\Primary(\Runtime\Map::from(["keys"=>\Runtime\Vector::from(["id"])]))]);
-		\Runtime\rtl::_memorizeSave("Runtime.WordPress.Database.Schema.forms", func_get_args(), $__memorize_value);
-		return $__memorize_value;
+		return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "name"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "api_name"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "settings"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "email_to"])),
+			new \Runtime\ORM\Annotations\BooleanType(new \Runtime\Map(["name" => "is_deleted"])),
+			new \Runtime\ORM\Annotations\AutoIncrement(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\Primary(new \Runtime\Map(["keys" => new \Runtime\Vector("id")])),
+		);
 	}
+	
+	
 	/**
 	 * Forms data
 	 */
 	static function forms_data()
 	{
-		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.WordPress.Database.Schema.forms_data", func_get_args());
-		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;$__memorize_value = \Runtime\Vector::from([new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"form_id"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"form_title"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"form_position"])),new \Runtime\ORM\Annotations\JsonType(\Runtime\Map::from(["name"=>"data"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"utm"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"send_email_uuid"])),new \Runtime\ORM\Annotations\TinyIntType(\Runtime\Map::from(["name"=>"send_email_code"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"send_email_error"])),new \Runtime\ORM\Annotations\BooleanType(\Runtime\Map::from(["name"=>"spam"])),new \Runtime\ORM\Annotations\DateTimeType(\Runtime\Map::from(["name"=>"gmtime_add"])),new \Runtime\ORM\Annotations\AutoIncrement(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\Primary(\Runtime\Map::from(["keys"=>\Runtime\Vector::from(["id"])]))]);
-		\Runtime\rtl::_memorizeSave("Runtime.WordPress.Database.Schema.forms_data", func_get_args(), $__memorize_value);
-		return $__memorize_value;
+		return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "form_id"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "form_title"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "form_position"])),
+			new \Runtime\ORM\Annotations\JsonType(new \Runtime\Map(["name" => "data"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "utm"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "send_email_uuid"])),
+			new \Runtime\ORM\Annotations\TinyIntType(new \Runtime\Map(["name" => "send_email_code"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "send_email_error"])),
+			new \Runtime\ORM\Annotations\BooleanType(new \Runtime\Map(["name" => "spam"])),
+			new \Runtime\ORM\Annotations\DateTimeType(new \Runtime\Map(["name" => "gmtime_add"])),
+			new \Runtime\ORM\Annotations\AutoIncrement(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\Primary(new \Runtime\Map(["keys" => new \Runtime\Vector("id")])),
+		);
 	}
+	
+	
 	/**
 	 * Forms ip
 	 */
 	static function forms_ip()
 	{
-		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.WordPress.Database.Schema.forms_ip", func_get_args());
-		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;$__memorize_value = \Runtime\Vector::from([new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"ip"])),new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"count"])),new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"last"])),new \Runtime\ORM\Annotations\Primary(\Runtime\Map::from(["keys"=>\Runtime\Vector::from(["ip"])]))]);
-		\Runtime\rtl::_memorizeSave("Runtime.WordPress.Database.Schema.forms_ip", func_get_args(), $__memorize_value);
-		return $__memorize_value;
+		return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "ip"])),
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "count"])),
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "last"])),
+			new \Runtime\ORM\Annotations\Primary(new \Runtime\Map(["keys" => new \Runtime\Vector("ip")])),
+		);
 	}
+	
+	
 	/**
 	 * Mail settings
 	 */
 	static function mail_settings()
 	{
-		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.WordPress.Database.Schema.mail_settings", func_get_args());
-		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;$__memorize_value = \Runtime\Vector::from([new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\TinyIntType(\Runtime\Map::from(["name"=>"enable"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"plan"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"host"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"port"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"login"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"password"])),new \Runtime\ORM\Annotations\TinyIntType(\Runtime\Map::from(["name"=>"ssl_enable"])),new \Runtime\ORM\Annotations\BooleanType(\Runtime\Map::from(["name"=>"is_deleted"])),new \Runtime\ORM\Annotations\AutoIncrement(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\Primary(\Runtime\Map::from(["keys"=>\Runtime\Vector::from(["id"])]))]);
-		\Runtime\rtl::_memorizeSave("Runtime.WordPress.Database.Schema.mail_settings", func_get_args(), $__memorize_value);
-		return $__memorize_value;
+		return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\TinyIntType(new \Runtime\Map(["name" => "enable"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "plan"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "host"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "port"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "login"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "password"])),
+			new \Runtime\ORM\Annotations\TinyIntType(new \Runtime\Map(["name" => "ssl_enable"])),
+			new \Runtime\ORM\Annotations\BooleanType(new \Runtime\Map(["name" => "is_deleted"])),
+			new \Runtime\ORM\Annotations\AutoIncrement(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\Primary(new \Runtime\Map(["keys" => new \Runtime\Vector("id")])),
+		);
 	}
+	
+	
 	/**
 	 * Mail log
 	 */
 	static function mail_delivery()
 	{
-		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.WordPress.Database.Schema.mail_delivery", func_get_args());
-		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;$__memorize_value = \Runtime\Vector::from([new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"worker"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"plan"])),new \Runtime\ORM\Annotations\TinyIntType(\Runtime\Map::from(["name"=>"status"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"dest"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"uuid"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"title"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"message"])),new \Runtime\ORM\Annotations\DateTimeType(\Runtime\Map::from(["name"=>"gmtime_plan"])),new \Runtime\ORM\Annotations\DateTimeType(\Runtime\Map::from(["name"=>"gmtime_send"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"send_email_error"])),new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"send_email_code"])),new \Runtime\ORM\Annotations\DateTimeType(\Runtime\Map::from(["name"=>"gmtime_add"])),new \Runtime\ORM\Annotations\BooleanType(\Runtime\Map::from(["name"=>"is_delete"])),new \Runtime\ORM\Annotations\AutoIncrement(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\Primary(\Runtime\Map::from(["keys"=>\Runtime\Vector::from(["id"])])),new \Runtime\ORM\Annotations\Unique(\Runtime\Map::from(["keys"=>\Runtime\Vector::from(["uuid"])]))]);
-		\Runtime\rtl::_memorizeSave("Runtime.WordPress.Database.Schema.mail_delivery", func_get_args(), $__memorize_value);
-		return $__memorize_value;
+		return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "worker"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "plan"])),
+			new \Runtime\ORM\Annotations\TinyIntType(new \Runtime\Map(["name" => "status"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "dest"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "uuid"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "title"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "message"])),
+			new \Runtime\ORM\Annotations\DateTimeType(new \Runtime\Map(["name" => "gmtime_plan"])),
+			new \Runtime\ORM\Annotations\DateTimeType(new \Runtime\Map(["name" => "gmtime_send"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "send_email_error"])),
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "send_email_code"])),
+			new \Runtime\ORM\Annotations\DateTimeType(new \Runtime\Map(["name" => "gmtime_add"])),
+			new \Runtime\ORM\Annotations\BooleanType(new \Runtime\Map(["name" => "is_delete"])),
+			new \Runtime\ORM\Annotations\AutoIncrement(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\Primary(new \Runtime\Map(["keys" => new \Runtime\Vector("id")])),
+			new \Runtime\ORM\Annotations\Unique(new \Runtime\Map(["keys" => new \Runtime\Vector("uuid")])),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Database";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Database.Schema";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.DatabaseSchema";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Database.Schema"; }
 	static function getMethodsList()
 	{
-		$a=[
-			"forms",
-			"forms_data",
-			"forms_ip",
-			"mail_settings",
-			"mail_delivery",
-		];
-		return \Runtime\Collection::from($a);
+		return new \Runtime\Vector("forms", "forms_data", "forms_ip", "mail_settings", "mail_delivery");
 	}
 	static function getMethodInfoByName($field_name)
 	{
-		if ($field_name == "forms")
-			return \Runtime\Dict::from([
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\ORM\Annotations\Table(["name"=>"forms"]),
-				]),
-			]);
-		if ($field_name == "forms_data")
-			return \Runtime\Dict::from([
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\ORM\Annotations\Table(["name"=>"forms_data"]),
-				]),
-			]);
-		if ($field_name == "forms_ip")
-			return \Runtime\Dict::from([
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\ORM\Annotations\Table(["name"=>"forms_ip"]),
-				]),
-			]);
-		if ($field_name == "mail_settings")
-			return \Runtime\Dict::from([
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\ORM\Annotations\Table(["name"=>"mail_settings"]),
-				]),
-			]);
-		if ($field_name == "mail_delivery")
-			return \Runtime\Dict::from([
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\ORM\Annotations\Table(["name"=>"mail_delivery"]),
-				]),
-			]);
+		if ($field_name == "forms") return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\Table(new \Runtime\Map(["name" => "forms"]))
+		);
+		if ($field_name == "forms_data") return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\Table(new \Runtime\Map(["name" => "forms_data"]))
+		);
+		if ($field_name == "forms_ip") return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\Table(new \Runtime\Map(["name" => "forms_ip"]))
+		);
+		if ($field_name == "mail_settings") return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\Table(new \Runtime\Map(["name" => "mail_settings"]))
+		);
+		if ($field_name == "mail_delivery") return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\Table(new \Runtime\Map(["name" => "mail_delivery"]))
+		);
 		return null;
 	}
 }

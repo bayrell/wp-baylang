@@ -18,37 +18,27 @@
 
 namespace Runtime.ORM;
 
-use Runtime.BaseStruct;
+use Runtime.BaseObject;
 use Runtime.Exceptions.RuntimeException;
 use Runtime.ORM.Factory.CursorFactory;
+use Runtime.ORM.ConnectionPool;
 use Runtime.ORM.Cursor;
 use Runtime.ORM.Provider;
 use Runtime.ORM.Query;
 use Runtime.ORM.QueryFilter;
 use Runtime.ORM.QueryLog;
 use Runtime.ORM.QueryResult;
+use Runtime.ORM.Record;
 use Runtime.ORM.Relation;
 
 
-class Connection
+class Connection extends BaseObject
 {
-	string name = "";
+	ConnectionPool pool = null;
 	CursorFactory cursor = null;
 	QueryLog log = null;
-	
-	
-	/**
-	 * Returns connection
-	 */
-	static Connection get(string name="default") => static::getConnection(name);
-	static Connection getConnection(string name = "default")
-	{
-		if (name == "") name = "default";
-		
-		Provider provider = @.provider(classof Provider);
-		Connection conn = provider.getConnection(name);
-		return conn;
-	}
+	var adapter = null;
+	bool in_transaction = false;
 	
 	
 	/**
@@ -78,18 +68,24 @@ class Connection
 	/**
 	 * Constructor
 	 */
-	public void constructor(string name = "")
+	public void constructor(ConnectionPool pool)
 	{
-		this.name = name;
+		parent();
+		this.pool = pool;
+		this.adapter = pool.adapter ? pool.adapter.copy() : null;
 	}
 	
 	
 	/**
-	 * Connect
+	 * Convert item from database
 	 */
-	async Connection connect()
-	{
-	}
+	var fromDatabase(BaseObject annotation, Dict item, string field_name) => item;
+	
+	
+	/**
+	 * Convert item to database
+	 */
+	var toDatabase(BaseObject annotation, Dict item, string field_name) => item;
 	
 	
 	/**
@@ -146,13 +142,65 @@ class Connection
 	/**
 	 * Returns table name
 	 */
-	string getTableName(string table_name) => this.prefix ~ table_name;
+	string getTableName(string table_name) =>
+		this.pool.params.get("prefix") ~ table_name;
+		
+		
+	/**
+	 * Start transaction
+	 */
+	async void beginTransaction()
+	{
+		if (not this.in_transaction)
+		{
+			await this.adapter.beginTransaction();
+			this.in_transaction = true;
+		}
+	}
+	
+	
+	/**
+	 * Commit transaction
+	 */
+	async void commit()
+	{
+		if (this.in_transaction)
+		{
+			await this.adapter.commit();
+			this.in_transaction = false;
+		}
+	}
+	
+	
+	/**
+	 * Rollback transaction
+	 */
+	async void rollback()
+	{
+		if (this.in_transaction)
+		{
+			await this.adapter.rollback();
+			this.in_transaction = false;
+		}
+	}
 	
 	
 	/**
 	 * Execute Query
 	 */
 	async Cursor execute(Query q, Dict params = null) => null;
+	
+	
+	/**
+	 * Release connection
+	 */
+	async void release()
+	{
+		if (this.adapter)
+		{
+			await this.adapter.release();
+		}
+	}
 	
 	
 	/**
@@ -177,14 +225,22 @@ class Connection
 			.values(insert_data)
 		;
 		
-		Cursor c = await this.execute(q, params);
-		
-		if (get_last_id)
+		Cursor cursor = null;
+		try
 		{
-			last_id = await c.lastInsertId();
+			cursor = await this.execute(q, params);
+			if (get_last_id)
+			{
+				last_id = await cursor.lastInsertId();
+			}
 		}
-		
-		await c.close();
+		finally
+		{
+			if (cursor)
+			{
+				await cursor.close();
+			}
+		}
 		
 		return last_id;
 	}
@@ -211,8 +267,18 @@ class Connection
 			.setFilter(filter)
 		;
 		
-		Cursor c = await this.execute(q, params);
-		await c.close();
+		Cursor cursor = null;
+		try
+		{
+			cursor = await this.execute(q, params);
+		}
+		finally
+		{
+			if (cursor)
+			{
+				await cursor.close();
+			}
+		}
 	}
 	
 	
@@ -231,25 +297,23 @@ class Connection
 		}
 		
 		Query q = new Query()
-			|> .delete(table_name)
-			|> .setFilter(filter)
+			.delete(table_name)
+			.setFilter(filter)
 		;
 		
-		Cursor c = await this.execute(q, params);
-		await c.close();
+		Cursor cursor = null;
+		try
+		{
+			cursor = await this.execute(q, params);
+		}
+		finally
+		{
+			if (cursor)
+			{
+				await cursor.close();
+			}
+		}
 	}
-	
-	
-	/**
-	 * Convert item from database
-	 */
-	var fromDatabase(BaseStruct annotation, Dict item, string field_name) => item;
-	
-	
-	/**
-	 * Convert item to database
-	 */
-	var toDatabase(BaseStruct annotation, Dict item, string field_name) => item;
 	
 	
 	/**
@@ -257,24 +321,43 @@ class Connection
 	 */
 	async QueryResult fetchAll(Query q, Dict params = null)
 	{
-		Cursor c = await this.execute(q, params);
-		QueryResult items = await c.fetchAll();
-		await c.close();
-		return items;
+		Cursor cursor = null;
+		try
+		{
+			cursor = await this.execute(q, params);
+			return await cursor.fetchAll();
+		}
+		finally
+		{
+			if (cursor)
+			{
+				await cursor.close();
+			}
+		}
 	}
 	
 	
 	/**
 	 * Fetch
 	 */
-	async QueryResult fetch(Query q, Dict params = null)
+	async Record fetch(Query q, Dict params = null)
 	{
-		Cursor c = await this.execute(q, params);
-		QueryResult items = await c.fetch();
-		await c.close();
-		return items;
+		Cursor cursor = null;
+		try
+		{
+			cursor = await this.execute(q, params);
+			return await cursor.fetch();
+		}
+		finally
+		{
+			if (cursor)
+			{
+				await cursor.close();
+			}
+		}
 	}
-	async Dict fetchOne(Query q, Dict params = null) => await this.fetch(q, params);
+	async Record fetchOne(Query q, Dict params = null) =>
+		await this.fetch(q, params);
 	
 	
 	/**
@@ -282,33 +365,18 @@ class Connection
 	 */
 	async var fetchVar(Query q, string var_name, Dict params = null)
 	{
-		Cursor cursor = await this.execute(q, params);
-		var item = await cursor.fetchVar(var_name);
-		await cursor.close();
-		return item;
-	}
-	
-	
-	/**
-	 * Find relation by query
-	 */
-	async Relation findRelation(Query q, Dict params = null)
-	{
-		Cursor c = await this.execute(q, params);
-		Relation item = await c.fetchRelation(q, params);
-		await c.close();
-		return item;
-	}
-	
-	
-	/**
-	 * Find relations by query
-	 */
-	async Relation findRelations(Query q, Dict params = null)
-	{
-		Cursor c = await this.execute(q, params);
-		QueryResult items = await c.fetchAll(q, params);
-		await c.close();
-		return items.toRelation();
+		Cursor cursor = null;
+		try
+		{
+			cursor = await this.execute(q, params);
+			return await cursor.fetchVar(var_name);
+		}
+		finally
+		{
+			if (cursor)
+			{
+				await cursor.close();
+			}
+		}
 	}
 }

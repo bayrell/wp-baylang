@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,49 +17,25 @@
  *  limitations under the License.
  */
 namespace Runtime\Exceptions;
-class KeyNotFound extends \Runtime\Exceptions\AbstractException
+
+use Runtime\RuntimeConstant;
+use Runtime\Exceptions\RuntimeException;
+
+
+class KeyNotFound extends \Runtime\Exceptions\RuntimeException
 {
-	function __construct($key, $prev=null)
+	function __construct($key, $prev = null)
 	{
-		parent::__construct(\Runtime\rtl::getContext()->translate("Runtime", "Key '%key%' not found", \Runtime\Map::from(["key"=>$key])), \Runtime\rtl::ERROR_KEY_NOT_FOUND, $prev);
+		parent::__construct(\Runtime\rtl::translate("Key '%key%' not found", new \Runtime\Map(["key" => $key])), \Runtime\rtl::ERROR_KEY_NOT_FOUND, $prev);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.Exceptions";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.Exceptions.KeyNotFound";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Exceptions.AbstractException";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Exceptions.KeyNotFound"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

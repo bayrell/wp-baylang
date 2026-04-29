@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,25 +18,14 @@
 
 <class name="Runtime.Widget.Text">
 
+<use name="Runtime.VirtualDom" />
 
 <style>
-.widget_text{
+.text{
 	padding: 0;
 	margin: 0;
 }
 </style>
-
-
-<template name="renderText" args="string content">
-	%if (this.raw == "true")
-	{
-		@raw{{ content }}
-	}
-	%else
-	{
-		{{ content }}
-	}
-</template>
 
 
 <template name="renderContent">
@@ -59,43 +48,43 @@
 <template>
 	%if (this.tag == "p")
 	{
-		<p class="widget_text" class={{ this.class }} @key={{ this.getKey() }}>
+		<p class="text" class={{ this.class }} @key={{ this.getKey() }}>
 			%render this.renderContent();
 		</p>
 	}
 	%elseif (this.tag == "h1")
 	{
-		<h1 class="widget_text" class={{ this.class }} @key={{ this.getKey() }}>
+		<h1 class="text" class={{ this.class }} @key={{ this.getKey() }}>
 			%render this.renderContent();
 		</h1>
 	}
 	%elseif (this.tag == "h2")
 	{
-		<h2 class="widget_text" class={{ this.class }} @key={{ this.getKey() }}>
+		<h2 class="text" class={{ this.class }} @key={{ this.getKey() }}>
 			%render this.renderContent();
 		</h2>
 	}
 	%elseif (this.tag == "h3")
 	{
-		<h3 class="widget_text" class={{ this.class }} @key={{ this.getKey() }}>
+		<h3 class="text" class={{ this.class }} @key={{ this.getKey() }}>
 			%render this.renderContent();
 		</h3>
 	}
 	%elseif (this.tag == "h4")
 	{
-		<h4 class="widget_text" class={{ this.class }} @key={{ this.getKey() }}>
+		<h4 class="text" class={{ this.class }} @key={{ this.getKey() }}>
 			%render this.renderContent();
 		</h4>
 	}
 	%elseif (this.tag == "html")
 	{
-		<div class="widget_text" class={{ this.class }} @key={{ this.getKey() }}>
+		<div class="text" class={{ this.class }} @key={{ this.getKey() }}>
 			%render this.renderContent();
 		</div>
 	}
 	%else
 	{
-		<div class="widget_text" class={{ this.class }} @key={{ this.getKey() }}>
+		<div class="text" class={{ this.class }} @key={{ this.getKey() }}>
 			%render this.renderContent();
 		</div>
 	}
@@ -120,7 +109,18 @@ string getKey()
 }
 
 
-</script>
+/**
+ * Render content
+ */
+VirtualDom renderText(string content)
+{
+	VirtualDom vdom = new VirtualDom();
+	vdom.push(content);
+	vdom.is_raw = this.raw == "true";
+	return vdom;
+}
 
+
+</script>
 
 </class>

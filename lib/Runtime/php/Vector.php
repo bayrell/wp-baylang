@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,233 +17,422 @@
  *  limitations under the License.
  */
 namespace Runtime;
-class Vector extends \Runtime\Collection
+
+use Runtime\Exceptions\IndexOutOfRange;
+
+class Vector implements \ArrayAccess, \JsonSerializable, \IteratorAggregate
 {
+	var $_arr = [];
+	
+	
 	/**
-	 * Returns new Instance
-	 * @return Object
+	 * Create vector
 	 */
-	static function Instance()
+	static function create($arr)
 	{
-		return new \Runtime\Vector();
+		$res = new static();
+		$res->_arr = $arr;
+		return $res;
 	}
+	
+	
 	/**
-	 * Returns new Vector
-	 * @param int offset
-	 * @param int lenght
-	 * @return Vector<T>
+	 * Returns array
 	 */
-	function removeRange($offset, $length=null)
+	function toArray()
 	{
-		array_splice($this->_arr, $offset, $length);
-		return $this;
+		return $this->_arr;
 	}
+	
+	
 	/**
-	 * Remove item
+	 * Constructor
 	 */
-	function remove($pos)
+	function __construct()
 	{
-		if ($pos == -1)
-		{
-			return $this;
-		}
-		array_splice($this->_arr, $pos, 1);
-		return $this;
+		$this->_arr = func_get_args();
 	}
-	function removeItem($item)
-	{
-		return $this->remove($this->indexOf($item));
-	}
+	
+	
 	/**
-	 * Append value to the end of array
-	 * @param T value
-	 */
-	function append($value)
-	{
-		$this->_arr[] = $value;
-		return $this;
-	}
-	function push($value)
-	{
-		return $this->append($value);
-	}
-	/**
-	 * Insert first value size_to array
-	 * @return T value
-	 */
-	function prepend($value)
-	{
-		array_unshift($this->_arr, $value);
-		return $this;
-	}
-	/**
-	 * Extract last value from array
-	 * @return T value
-	 */
-	function pop()
-	{
-		return array_pop($this->_arr);
-	}
-	/**
-	 * Extract first value from array
-	 * @return T value
-	 */
-	function shift()
-	{
-		array_shift($this->_arr);
-		return $this;
-	}
-	/**
-	 * Insert value to position
+	 * Returns value from position
 	 * @param int pos - position
-	 * @param T value
 	 */
-	function insert($pos, $value)
+	function get($pos, $default_value = null)
 	{
-		array_splice($this->_arr, $pos, 0, [$value]);
-		return $this;
+		return ($pos >= 0 && $pos < count($this->_arr)) ? $this->_arr[$pos] : $default_value;
 	}
+	
+	
 	/**
-	 * Add value to position
-	 * @param int pos - position
-	 * @param T value
-	 * @param string kind - after or before
-	 */
-	function add($value, $pos=-1, $kind="after")
-	{
-		if ($pos == -1)
-		{
-			if ($kind == "before")
-			{
-				$this->prepend($value);
-				return 0;
-			}
-			else
-			{
-				$this->append($value);
-				return $this->count() - 1;
-			}
-		}
-		if ($kind == "after")
-		{
-			$pos = $pos + 1;
-		}
-		$this->insert($pos, $value, $kind);
-		return $pos;
-	}
-	/**
-	 * Add value to position
-	 * @param int pos - position
-	 * @param T value
-	 * @param string kind - after or before
-	 */
-	function addItem($value, $dest_item, $kind="after")
-	{
-		$pos = $this->indexOf($dest_item);
-		return $this->add($value, $pos, $kind);
-	}
-	/**
-	 * Set value size_to position
+	 * Set value to position
 	 * @param int pos - position
 	 * @param T value 
 	 */
 	function set($pos, $value)
 	{
-		$pos = $pos % $this->count();
-		$this->_arr[$pos] = $value;
-		return $this;
-	}
-	/**
-	 * Remove value
-	 */
-	function removeValue($value)
-	{
-		$index = $this->indexOf($value);
-		if ($index != -1)
+		if ($pos >= 0 && $pos < count($this->_arr))
 		{
-			$this->remove($index, 1);
+			$this->_arr[$pos] = $value;
 		}
-		return $this;
 	}
+	
+	
 	/**
-	 * Find value and remove
+	 * Insert first value size_to array
+	 * @return T value
 	 */
-	function findAndRemove($f)
+	function insert($pos, $value)
 	{
-		$index = $this->find($f);
-		if ($index != -1)
+		array_splice($this->_arr, $pos, 0, [$value]);
+	}
+	
+	
+	/**
+	 * Remove item from array
+	 */
+	function remove($pos)
+	{
+		array_splice($this->_arr, $pos, 1);
+	}
+	
+	
+	/**
+	 * Remove item
+	 */
+	function removeItem($item)
+	{
+		$pos = $this->find(function ($elem) use ($item){ return $elem == $item; });
+		if ($pos >=0) $this->remove($pos);
+	}
+	
+	
+	/**
+	 * Append value to the end of array
+	 * @param T value
+	 */
+	function push($value)
+	{
+		array_push($this->_arr, $value);
+	}
+	
+	
+	/**
+	 * Array pop
+	 */
+	function pop()
+	{
+		return array_pop($this->_arr);
+	}
+	
+	
+	/**
+	 * Flatten Vector
+	 */
+	function flatten()
+	{
+		$res = new Vector();
+		foreach ($this->_arr as $item)
 		{
-			$this->remove($index);
+			if ($item instanceof Vector)
+			{
+				array_splice($res->_arr, $res->count(), 0, $item->flatten()->_arr);
+			}
+			else
+			{
+				$res->push($item);
+			}
 		}
-		return $this;
+		return $res;
 	}
+	
+	
 	/**
-	 * Clear all values from vector
+	 * Find value in array. Returns -1 if value not found.
+	 * @param T value
+	 * @return  int
 	 */
-	function clear()
+	function indexOf($value)
 	{
-		$this->_arr = [];
-		return $this;
+		$pos = array_search($value, $this->_arr, true);
+		if ($pos === false) return -1;
+		return $pos;
 	}
+	
+	
+	/**
+	 * Find item
+	 * @param fn f - Find function
+	 * @return item
+	 */
+	function find($f)
+	{
+		$index = $this->findIndex($f);
+		if ($index === -1) return null;
+		return $this[$index];
+	}
+	
+	
+	/**
+	 * Find item pos
+	 * @param fn f - Find function
+	 * @return int - position
+	 */
+	function findIndex($f)
+	{
+		foreach ($this->_arr as $key => $value)
+		{
+			if ($f($value, $key, $this)) return $key;
+		}
+		return -1;
+	}
+	
+	
+	/**
+	 * Get first item
+	 */
+	function first($default_value = null)
+	{
+		if ($this->count() == 0) return $default_value;
+		return $this->_arr[0];
+	}
+	
+	
+	/**
+	 * Get last item
+	 */
+	function last($default_value = null)
+	{
+		$count = $this->count();
+		if ($count == 0) return $default_value;
+		return $this->_arr[$count - 1];
+	}
+	
+	
+	/**
+	 * Map
+	 * @param fn f
+	 * @return Vector
+	 */
+	function map($f)
+	{
+		$res = new static();
+		$res->_arr = array_map(function($item, $index) use ($f){
+			return $f($item, $index, $this);
+		}, $this->_arr, array_keys($this->_arr));
+		return $res;
+	}
+	
+	
+	/**
+	 * Reduce
+	 * @param fn f
+	 * @param var value
+	 * @return value
+	 */
+	function reduce($f, $value)
+	{
+		foreach ($this->_arr as $key => $item)
+		{
+			$value = $f($value, $item, $key, $this);
+		}
+		return $value;
+	}
+	
+	
+	/**
+	 * Filter items
+	 * @param fn f
+	 * @return Vector
+	 */
+	function filter($f)
+	{
+		$res = new static();
+		$res->_arr = array_values(array_filter($this->_arr, function($value, $key) use ($f){
+			return $f($value, $key, $this);
+		}, ARRAY_FILTER_USE_BOTH));
+		return $res;
+	}
+	
+	
+	/**
+	 * Call function for each item
+	 * @param fn f
+	 */
+	function each($f)
+	{
+		foreach ($this->_arr as $key => $value)
+		{
+			$f($value, $key, $this);
+		}
+	}
+	
+	
+	/**
+	 * Transition Collection to Dict
+	 * @param fn f
+	 * @return Dict
+	 */
+	function transition($f = null)
+	{
+		$map = new \Runtime\Map();
+		foreach ($this->_arr as $key => $value)
+		{
+			if ($f) $res = $f($value, $key, $this);
+			else $res = [$value, $key];
+			$map->set($res[1], $res[0]);
+		}
+		return $map;
+	}
+	
+	
 	/**
 	 * Append vector to the end of the vector
 	 * @param Collection<T> arr
 	 */
-	function appendItems($items)
+	function concat($arr)
 	{
-		$items->each(function ($item)
-		{
-			$this->push($item);
-		});
+		$res = new static();
+		$res->_arr = array_merge($this->_arr, $arr->_arr);
+		return $res;
 	}
+	
+	
 	/**
-	 * Prepend vector to the end of the vector
-	 * @param Collection<T> arr
+	 * Append items
 	 */
-	function prependItems($items)
+	function appendItems($arr)
 	{
-		$items->each(function ($item)
+		$this->_arr = array_merge($this->_arr, $arr->_arr);
+	}
+	
+	
+	/**
+	 * Prepend
+	 */
+	function prepend($item)
+	{
+		$this->insert(0, $item);
+	}
+	
+	
+	/**
+	 * Prepend items
+	 */
+	function prependItems($arr)
+	{
+		$this->_arr = array_merge($arr->_arr, $this->_arr);
+	}
+	
+	
+	/**
+	 * Returns count items in vector
+	 */
+	function count()
+	{
+		return count($this->_arr);
+	}
+	
+	
+	/**
+	 * Clear vector
+	 */
+	function clear()
+	{
+		$this->_arr = [];
+	}
+	
+	
+	/**
+	 * Returns new Collection
+	 * @param int offset
+	 * @param int length
+	 * @return Collection<T>
+	 */
+	function slice($offset = 0, $length = null)
+	{
+		if ($length == null) $length = $this->count() - $offset;
+		$res = new static();
+		$res->_arr = array_slice($this->_arr, $offset, $length);
+		return $res;
+	}
+	
+	
+	/**
+	 * Sort Collection
+	 * @param fn f - Sort user function
+	 */
+	function sort($f = null)
+	{
+		if ($f) usort($this->_arr, $f);
+		else sort($this->_arr);
+		return $this;
+	}
+	
+	
+	/**
+	 * Reverse Collection
+	 */
+	function reverse()
+	{
+		$this->_arr = array_reverse($this->_arr);
+		return $this;
+	}
+	
+	
+	/**
+	 * Remove dublicate values
+	 */
+	function removeDuplicates()
+	{
+		$res = new static();
+		for ($i=0; $i<$this->count(); $i++)
 		{
-			$this->prepend($item);
-		});
+			$pos = array_search($this[$i], $res->_arr, true);
+			if ($pos === false)
+			{
+				$res->_arr[] = $this[$i];
+			}
+		}
+		return $res;
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	/**
+	 * Check if value is in the vector
+	 * @param T item - item to find
+	 * @return bool
+	 */
+	function contains($item)
 	{
-		return "Runtime";
+		return $this->indexOf($item) !== -1;
 	}
-	static function getClassName()
+	
+	
+	/**
+	 * Json Serialize
+	 */
+	function jsonSerialize() : mixed
 	{
-		return "Runtime.Vector";
+		return $this->_arr;
 	}
-	static function getParentClassName()
+	
+	
+	/**
+	 * Returns iterator
+	 */
+	function getIterator(): \Traversable
 	{
-		return "Runtime.Collection";
+		return new \ArrayIterator($this->_arr);
 	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
+	
+	
+	/**
+	 * Get and set methods
+	 */
+	function offsetExists(mixed $k): bool{return isset($this->_arr[$k]);}
+	function offsetGet(mixed $k): mixed{return $this->get($k);}
+	function offsetSet(mixed $k, mixed $v): void{$this->set($k, $v);}
+	function offsetUnset(mixed $k): void{
+		throw new \Runtime\Exceptions\RuntimeException("Can't to remove item");
 	}
 }

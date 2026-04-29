@@ -17,29 +17,80 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin\MailLog;
-class MailLogSearchApi extends \Runtime\Widget\Crud\SearchApi
+
+use Runtime\ORM\Query;
+use Runtime\Web\ApiResult;
+use Runtime\Web\ApiRequest;
+use Runtime\Web\Annotations\ApiMethod;
+use Runtime\Widget\Api\SearchApi;
+use Runtime\WordPress\Admin\AdminMiddleware;
+use Runtime\WordPress\Database\MailDelivery;
+
+
+class MailLogSearchApi extends \Runtime\Widget\Api\SearchApi
 {
 	/**
 	 * Returns api name
 	 */
-	static function getApiName()
-	{
-		return "admin.wordpress.mail.log.search";
-	}
+	static function getApiName(){ return "admin.wordpress.mail.log.search"; }
+	
+	
 	/**
-	 * Returns service
+	 * Returns record name
 	 */
-	function createService()
+	static function getRecordName(){ return "Runtime.WordPress.Database.MailDelivery"; }
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	function getMiddleware()
 	{
-		return new \Runtime\WordPress\Admin\MailLog\MailLogCrudService();
+		return new \Runtime\Vector(
+			new \Runtime\WordPress\Admin\AdminMiddleware(),
+		);
 	}
+	
+	
+	/**
+	 * Returns save rules
+	 */
+	function rules(){ return new \Runtime\Vector(); }
+	
+	
 	/**
 	 * Returns item fields
 	 */
-	function getItemFields()
+	function getItemFields($action)
 	{
-		return \Runtime\Vector::from(["id","worker","plan","status","dest","uuid","title","message","gmtime_plan","gmtime_send","send_email_error","send_email_code","gmtime_add","is_deleted"]);
+		return new \Runtime\Vector(
+			"id",
+			"worker",
+			"plan",
+			"status",
+			"dest",
+			"uuid",
+			"title",
+			"message",
+			"gmtime_plan",
+			"gmtime_send",
+			"send_email_error",
+			"send_email_code",
+			"gmtime_add",
+			"is_deleted",
+		);
 	}
+	
+	
+	/**
+	 * Build query
+	 */
+	function buildQuery($q)
+	{
+		$q->orderBy("gmtime_add", "desc");
+	}
+	
+	
 	/**
 	 * Action search
 	 */
@@ -47,51 +98,23 @@ class MailLogSearchApi extends \Runtime\Widget\Crud\SearchApi
 	{
 		parent::actionSearch();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Admin.MailLog";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.MailLog.MailLogSearchApi";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Crud.SearchApi";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.MailLog.MailLogSearchApi"; }
 	static function getMethodsList()
 	{
-		$a=[
-			"actionSearch",
-		];
-		return \Runtime\Collection::from($a);
+		return new \Runtime\Vector("actionSearch");
 	}
 	static function getMethodInfoByName($field_name)
 	{
-		if ($field_name == "actionSearch")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
+		if ($field_name == "actionSearch") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod(new \Runtime\Map(["name" => "search"]))
+		);
 		return null;
 	}
 }

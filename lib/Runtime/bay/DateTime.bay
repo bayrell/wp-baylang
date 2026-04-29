@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,9 +18,7 @@
  
 namespace Runtime;
 
-use Runtime.rtl;
 use Runtime.BaseObject;
-use Runtime.Dict;
 use Runtime.Math;
 use Runtime.StringInterface;
 
@@ -43,6 +41,16 @@ class DateTime extends BaseObject implements StringInterface
 	void constructor(Dict data = null)
 	{
 		parent();
+		this.setData(data);
+	}
+	
+	
+	/**
+	 * Set data
+	 */
+	DateTime setData(Map data)
+	{
+		if (data instanceof DateTime) data = data.toMap();
 		if (data != null)
 		{
 			if (data.has("y")) this.y = data.get("y");
@@ -54,6 +62,17 @@ class DateTime extends BaseObject implements StringInterface
 			if (data.has("ms")) this.ms = data.get("ms");
 			if (data.has("o")) this.o = data.get("o");
 		}
+		return this;
+	}
+	
+	
+	/**
+	 * Copy datetime
+	 */
+	DateTime copy(Map data = null)
+	{
+		DateTime date = new DateTime(this.toMap());
+		return date.setData(data);
 	}
 	
 	
@@ -77,21 +96,22 @@ class DateTime extends BaseObject implements StringInterface
 	 */
 	pure DateTime create(int time = -1)
 	{
+		var dt = null;
+		
 		#switch
 		#case ifcode PHP then
 		if ($time == -1) $time = time();
 		$dt = new \DateTime();
 		$dt->setTimestamp($time);
-		return static::fromObject($dt);
 		
 		#case ifcode JAVASCRIPT then
-		var dt = null;
 		if (time == -1) dt = new Date();
 		else dt = new Date(time*1000);
-		return this.fromObject(dt);
 		#endswitch
 		
-		return null;
+		var date = new DateTime();
+		date.fromObject(dt);
+		return date;
 	}
 	
 	
@@ -127,20 +147,95 @@ class DateTime extends BaseObject implements StringInterface
 	
 	
 	/**
+	 * Set timestamp
+	 */
+	DateTime setTimestamp(int seconds)
+	{
+		int offset = this.o;
+		DateTime date = DateTime::create(seconds);
+		this.setData(date.toMap());
+		this.setOffset(offset * 60 * 60);
+		return this;
+	}
+	
+	
+	/**
+	 * Set hour
+	 */
+	DateTime setHour(int value)
+	{
+		this.h = value;
+		return this;
+	}
+	
+	
+	/**
+	 * Set minutes
+	 */
+	DateTime setMinute(int value)
+	{
+		this.i = value;
+		return this;
+	}
+	
+	
+	/**
+	 * Set seconds
+	 */
+	DateTime setSecond(int value)
+	{
+		this.s = value;
+		return this;
+	}
+	
+	
+	/**
+	 * Set day
+	 */
+	DateTime setDay(int value)
+	{
+		this.d = value;
+		return this;
+	}
+	
+	
+	/**
+	 * Set month
+	 */
+	DateTime setMonth(int value)
+	{
+		this.m = value;
+		return this;
+	}
+	
+	
+	/**
+	 * Set year
+	 */
+	DateTime setYear(int value)
+	{
+		this.y = value;
+		return this;
+	}
+	
+	
+	/**
 	 * Returns day of week
 	 * @return int
 	 */
 	int getDayOfWeek()
 	{
+		DateTime date = this.copy({ "o": 0 });
+		
 		#switch
 		
 		#case ifcode PHP then
-		$dt = $this->toObject();
-		return $dt->format("w");
+		$dt = $date->toObject();
+		return (int)$dt->format("w");
 		
 		#case ifcode JAVASCRIPT then
 		var dt = this.toObject();
-		return dt.getDay();
+		return Number(dt.getDay());
 		
 		#endswitch
 		
@@ -162,7 +257,7 @@ class DateTime extends BaseObject implements StringInterface
 		
 		/* Get offset */
 		double offset = this.o * 60;
-		int offset_h = Math::abs(Math::floor(offset / 60));
+		int offset_h = rtl::abs(rtl::floor(offset / 60));
 		int offset_m = offset % 60;
 		offset_h = (offset_h < 10) ? "0" ~ offset_h : "" ~ offset_h;
 		offset_m = (offset_m < 10) ? "0" ~ offset_m : "" ~ offset_m;
@@ -180,19 +275,19 @@ class DateTime extends BaseObject implements StringInterface
 	static DateTime fromString(string s)
 	{
 		DateTime dt = new DateTime();
-		dt.y = (int)rs::substr(s, 0, 4);
-		dt.m = (int)rs::substr(s, 5, 2);
-		dt.d = (int)rs::substr(s, 8, 2);
-		dt.h = (int)rs::substr(s, 11, 2);
-		dt.i = (int)rs::substr(s, 14, 2);
-		dt.s = (int)rs::substr(s, 17, 2);
+		dt.y = rtl::toInt(rs::substr(s, 0, 4));
+		dt.m = rtl::toInt(rs::substr(s, 5, 2));
+		dt.d = rtl::toInt(rs::substr(s, 8, 2));
+		dt.h = rtl::toInt(rs::substr(s, 11, 2));
+		dt.i = rtl::toInt(rs::substr(s, 14, 2));
+		dt.s = rtl::toInt(rs::substr(s, 17, 2));
 		dt.o = 0;
 		
 		if (rs::strlen(s) > 19)
 		{
 			string sign = rs::substr(s, 19, 1);
-			int tz_h = (int)rs::substr(s, 20, 2);
-			int tz_m = (int)rs::substr(s, 23, 2);
+			int tz_h = rtl::toInt(rs::substr(s, 20, 2));
+			int tz_m = rtl::toInt(rs::substr(s, 23, 2));
 			dt.o = (tz_h * 60 + tz_m) / 60;
 			if (sign == "-") dt.o = 0 - dt.o;
 		}
@@ -202,17 +297,22 @@ class DateTime extends BaseObject implements StringInterface
 	
 	
 	/**
+	 * Pad2
+	 */
+	static string pad2(int value) => value < 10 ? "0" ~ value : rtl::toStr(value);
+	
+	
+	/**
 	 * Returns date time string
 	 */
-	string getDateTimeString()
-	{
-		string m = (this.m < 10) ? "0" ~ this.m : "" ~ this.m;
-		string d = (this.d < 10) ? "0" ~ this.d : "" ~ this.d;
-		string h = (this.h < 10) ? "0" ~ this.h : "" ~ this.h;
-		string i = (this.i < 10) ? "0" ~ this.i : "" ~ this.i;
-		string s = (this.s < 10) ? "0" ~ this.s : "" ~ this.s;
-		return this.y ~ "-" ~ m ~ "-" ~ d ~ " " ~ h ~ ":" ~ i ~ ":" ~ s;
-	}
+	string format() =>
+		this.y ~ "-" ~ static::pad2(this.m) ~ "-" ~ static::pad2(this.d) ~ " " ~ static::pad2(this.h) ~ ":" ~ static::pad2(this.i) ~ ":" ~ static::pad2(this.s);
+	
+	
+	/**
+	 * Returns date string
+	 */
+	string getDate() => this.y ~ "-" ~ static::pad2(this.m) ~ "-" ~ static::pad2(this.d);
 	
 	
 	/**
@@ -222,7 +322,7 @@ class DateTime extends BaseObject implements StringInterface
 	{
 		DateTime dt = this;
 		double offset = @.env("TZ_OFFSET");
-		if (offset) dt = dt.setOffset(offset);
+		if (offset) dt = dt.copy().setOffset(offset);
 		return dt;
 	}
 	
@@ -232,10 +332,8 @@ class DateTime extends BaseObject implements StringInterface
 	 */
 	DateTime shift(int seconds)
 	{
-		int timestamp = this.getTimestamp();
-		DateTime dt = static::create(timestamp + seconds);
-		dt.setOffset(this.o);
-		return dt;
+		this.setTimestamp(this.getTimestamp() + seconds);
+		return this;
 	}
 	
 	
@@ -258,8 +356,8 @@ class DateTime extends BaseObject implements StringInterface
 		double delta = offset - dt_offset;
 		dt = static::modify(dt, delta);
 		
-		DateTime obj = static::fromObject(dt);
-		obj.o = offset;
+		DateTime obj = this.fromObject(dt);
+		obj.o = offset / 3600;
 		return obj;
 	}
 	
@@ -325,7 +423,7 @@ class DateTime extends BaseObject implements StringInterface
 		#case ifcode JAVASCRIPT then
 		
 		var dt = new Date(this.y, this.m - 1, this.d, this.h, this.i, this.s);
-		offset = dt.getTimezoneOffset() + this.o * 60;
+		var offset = dt.getTimezoneOffset() + this.o * 60;
 		dt = this.constructor.modify(dt, -offset * 60);
 		return dt;
 		
@@ -336,38 +434,34 @@ class DateTime extends BaseObject implements StringInterface
 	/**
 	 * Create from native object
 	 */
-	protected static var fromObject(var dt)
+	protected var fromObject(var dt)
 	{
 		#switch
 		
 		#case ifcode PHP then
 		
-		$y = (int)$dt->format("Y");
-		$m = (int)$dt->format("m");
-		$d = (int)$dt->format("d");
-		$h = (int)$dt->format("H");
-		$i = (int)$dt->format("i");
-		$s = (int)$dt->format("s");
-		$o = $dt->getOffset() / 3600;
-		return new \Runtime\DateTime($ctx,
-			Dict::from(["y"=>$y,"m"=>$m,"d"=>$d,"h"=>$h,"i"=>$i,"s"=>$s,"o"=>$o])
-		);
+		$this->y = (int)$dt->format("Y");
+		$this->m = (int)$dt->format("m");
+		$this->d = (int)$dt->format("d");
+		$this->h = (int)$dt->format("H");
+		$this->i = (int)$dt->format("i");
+		$this->s = (int)$dt->format("s");
+		$this->o = $dt->getOffset() / 3600;
 		
 		#case ifcode JAVASCRIPT then
 		
-		var Dict = use("Runtime.Dict");
-		offset = -dt.getTimezoneOffset() / 60;
-		var y = Number(dt.getFullYear());
-		var m = Number(dt.getMonth()) + 1;
-		var d = Number(dt.getDate());
-		var h = Number(dt.getHours());
-		var i = Number(dt.getMinutes());
-		var s = Number(dt.getSeconds());
-		var obj = new Runtime.DateTime(Dict.from({
-			"y":y,"m":m,"d":d,"h":h,"i":i,"s":s,"o":offset
-		}));
-		return obj;
+		var Map = use("Runtime.Map");
+		var offset = -dt.getTimezoneOffset() / 60;
+		this.y = Number(dt.getFullYear());
+		this.m = Number(dt.getMonth()) + 1;
+		this.d = Number(dt.getDate());
+		this.h = Number(dt.getHours());
+		this.i = Number(dt.getMinutes());
+		this.s = Number(dt.getSeconds());
+		this.o = offset;
 		
 		#endswitch
+		
+		return this;
 	}
 }

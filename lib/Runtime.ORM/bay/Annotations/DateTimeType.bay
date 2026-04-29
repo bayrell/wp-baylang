@@ -18,15 +18,40 @@
 
 namespace Runtime.ORM.Annotations;
 
-use Runtime.BaseStruct;
 use Runtime.DateTime;
+use Runtime.Serializer.DateTimeType as RuntimeRule;
 use Runtime.ORM.Annotations.BaseType;
 use Runtime.ORM.Connection;
 
 
-struct DateTimeType extends BaseType
+class DateTimeType extends BaseType
 {
 	string tz = "UTC";
+	bool autocreate = false;
+	bool autoupdate = false;
+	
+	
+	/**
+	 * Returns rule
+	 */
+	BaseType getRule() => new RuntimeRule();
+	
+	
+	/**
+	 * Prepare data before save
+	 */
+	Map prepare(Map item, bool is_update)
+	{
+		if (not is_update and this.autocreate)
+		{
+			if (not item.has(this.name)) item.set(this.name, DateTime::now());
+		}
+		if (this.autoupdate)
+		{
+			item.set(this.name, DateTime::now());
+		}
+		return item;
+	}
 	
 	
 	/**
@@ -35,9 +60,9 @@ struct DateTimeType extends BaseType
 	async var fromDatabase(Connection conn, Dict item)
 	{
 		if (not item.has(this.name)) return item;
-		string value = item[this.name];
-		item <= { this.name } <= static::convertFromDatabase(value);
 		item = await conn.fromDatabase(this, item, this.name);
+		string value = item.get(this.name);
+		item.set(this.name, static::convertFromDatabase(value));
 		return item;
 	}
 	
@@ -45,11 +70,11 @@ struct DateTimeType extends BaseType
 	/**
 	 * Process item to database
 	 */
-	async var toDatabase(Connection conn, Dict item, bool is_update)
+	async var toDatabase(Connection conn, Dict item)
 	{
-		if (not item.has(this.name)) return item;
-		DateTime value = item[this.name];
-		item <= { this.name } <= static::convertToDatabase(value);
+		DateTime value = item.get(this.name);
+		if (value == null) return item;
+		item.set(this.name, static::convertToDatabase(value));
 		item = await conn.toDatabase(this, item, this.name);
 		return item;
 	}
@@ -71,7 +96,7 @@ struct DateTimeType extends BaseType
 	static string convertToDatabase(DateTime value)
 	{
 		if (not(value instanceof DateTime)) return null;
-		return value.setOffset(0).getDateTimeString();
+		return value.setOffset(0).format();
 	}
 	
 }

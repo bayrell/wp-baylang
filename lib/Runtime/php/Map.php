@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,16 +17,58 @@
  *  limitations under the License.
  */
 namespace Runtime;
-class Map extends \Runtime\Dict
+
+use Runtime\Exceptions\KeyNotFound;
+
+class Map implements \JsonSerializable
 {
+	var $_map = [];
+	
+	
 	/**
-	 * Returns new Instance
-	 * @return Object
+	 * Constructor
 	 */
-	static function Instance($val=null)
+	function __construct($map = null)
 	{
-		return new \Runtime\Map($val);
+		if ($map != null)
+		{
+			if ($map instanceof \stdClass) $map = (array)$map;
+			if (is_array($map)) $this->_map = $map;
+			else $this->_map = $map->_map;
+		}
 	}
+	
+	
+	/**
+	 * Create map from Object
+	 */
+	static function create($obj)
+	{
+		return new Map($obj);
+	}
+	
+	
+	/**
+	 * Convert to Object
+	 */
+	function toObject()
+	{
+		return $this->_map;
+	}
+	
+	
+	/**
+	 * Returns value from position
+	 * @param string key
+	 * @param T default_value
+	 * @return T
+	 */
+	function get($key, $default_value = null)
+	{
+		return isset($this->_map[$key]) ? $this->_map[$key] : $default_value;
+	}
+	
+	
 	/**
 	 * Set value size_to position
 	 * @param string key - position
@@ -35,10 +77,21 @@ class Map extends \Runtime\Dict
 	 */
 	function set($key, $value)
 	{
-		$key = rtl::toStr($key);
 		$this->_map[$key] = $value;
-		return $this;
 	}
+	
+	
+	/**
+	 * Return true if key exists
+	 * @param string key
+	 * @return bool var
+	 */
+	function has($key)
+	{
+		return isset($this->_map[$key]);
+	}
+	
+	
 	/**
 	 * Remove value from position
 	 * @param string key
@@ -46,11 +99,13 @@ class Map extends \Runtime\Dict
 	 */
 	function remove($key)
 	{
-		$key = rtl::toStr($key);
 		if (isset($this->_map[$key]))
+		{
 			unset($this->_map[$key]);
-		return $this;
+		}
 	}
+	
+	
 	/**
 	 * Clear all values from vector
 	 * @return self
@@ -58,45 +113,169 @@ class Map extends \Runtime\Dict
 	function clear()
 	{
 		$this->_map = [];
-		return $this;
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/**
+	 * Copy map
+	 */
+	function copy()
 	{
-		return "Runtime";
+		return new static($this);
 	}
-	static function getClassName()
+	
+	
+	/**
+	 * Add values from other map
+	 * @param Dict<T> map
+	 * @return self
+	 */
+	function concat($map = null)
 	{
-		return "Runtime.Map";
+		if ($map == null) return;
+		
+		$instance = new static($this);
+		$instance->_map = array_merge($this->_map, $map->_map);
+		return $instance;
 	}
-	static function getParentClassName()
+	
+	
+	/**
+	 * Returns vector of the keys
+	 * @return Collection<string>
+	 */
+	function keys()
 	{
-		return "Runtime.Dict";
+		foreach ($this->_map as $key => $value)
+		{
+			yield $key;
+		}
 	}
-	static function getClassInfo()
+	
+	
+	/**
+	 * Returns vector of the values
+	 * @return Collection<T>
+	 */
+	function values()
 	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
+		foreach ($this->_map as $value)
+		{
+			yield $value;
+		}
 	}
-	static function getFieldsList()
+	
+	
+	/**
+	 * Call function map
+	 * @param fn f
+	 * @return Dict
+	 */
+	function map($f)
 	{
-		$a = [];
-		return \Runtime\Collection::from($a);
+		$map = new static();
+		foreach ($this->_map as $key => $value)
+		{
+			$map->set($key, $f($value, $key, $this));
+		}
+		return $map;
 	}
-	static function getFieldInfoByName($field_name)
+	
+	
+	/**
+	 * Call function map
+	 * @param fn f
+	 * @return Dict
+	 */
+	function mapWithKeys($f)
 	{
-		return null;
+		$map = new static();
+		foreach ($this->_map as $key => $value)
+		{
+			$item = $f($value, $key, $this);
+			$map->set($item[1], $item[0]);
+		}
+		return $map;
 	}
-	static function getMethodsList()
+	
+	
+	/**
+	 * Reduce
+	 * @param fn f
+	 * @param var init_value
+	 * @return init_value
+	 */
+	function reduce($f, $result)
 	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
+		foreach ($this->_map as $key => $value)
+		{
+			$result = $f($result, $value, $key, $this);
+		}
+		return $result;
 	}
-	static function getMethodInfoByName($field_name)
+	
+	
+	/**
+	 * Filter items
+	 * @param fn f
+	 * @return Collection
+	 */
+	function filter($f)
 	{
-		return null;
+		$map = new static();
+		foreach ($this->_map as $key => $value)
+		{
+			$flag = $f($value, $key, $this);
+			if ($flag) $map->set($key, $value);
+		}
+		return $map;
+	}
+	
+	
+	/**
+	 * Call function for each item
+	 * @param fn f
+	 */
+	function each($f)
+	{
+		foreach ($this->_map as $key => $value)
+		{
+			$f($value, $key, $this);
+		}
+	}
+	
+	
+	/**
+	 * Transition Dict to Vector
+	 * @param fn f
+	 * @return Vector
+	 */
+	function transition($f)
+	{
+		$arr = new \Runtime\Vector();
+		foreach ($this->_map as $key => $value)
+		{
+			$arr->push($f($value, $key, $this));
+		}
+		return $arr;
+	}
+	
+	
+	/**
+	 * Intersect
+	 */
+	function intersect($fields)
+	{
+		$h = $fields->transition(function ($value, $key){ return [$key, $value]; });
+		return $this->filter(function($value, $key) use ($h){ return $h->has($key); });
+	}
+	
+	
+	/**
+	 * Json Serialize
+	 */
+	function jsonSerialize() : mixed
+	{
+		return (object)$this->_map;
 	}
 }

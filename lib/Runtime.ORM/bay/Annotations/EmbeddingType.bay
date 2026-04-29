@@ -1,0 +1,88 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.ORM.Annotations;
+
+use Runtime.ORM.Connection;
+use Runtime.ORM.Annotations.BaseType;
+
+class EmbeddingType extends BaseType
+{
+	int dimension = 0;
+	
+	
+	/**
+	 * Process item from database
+	 */
+	async var fromDatabase(Connection conn, Map item)
+	{
+		if (item.has(this.name))
+		{
+			string value = item.get(this.name);
+			Vector obj = rtl::jsonDecode(value);
+			item.set(this.name, obj);
+			item = await conn.fromDatabase(this, item, this.name);
+		}
+		return item;
+	}
+	
+	
+	/**
+	 * Add padding
+	 */
+	Vector padding(Vector value)
+	{
+		int count = value.count();
+		if (count != this.dimension)
+		{
+			value = value.slice(0, rtl::min(count, this.dimension));
+			if (count < this.dimension)
+			{
+				for (int i=0; i<this.dimension - count; i++)
+				{
+					#switch
+					#case ifcode JAVASCRIPT then
+					value.push(0);
+					#case ifcode PHP then
+					$value->_arr[] = 0;
+					#endswitch
+				}
+			}
+		}
+		return value;
+	}
+	
+	
+	/**
+	 * Process item to database
+	 */
+	async var toDatabase(Connection conn, Map item)
+	{
+		Vector value = item.get(this.name);
+		
+		if (value != null)
+		{
+			value = this.padding(value);
+		}
+		
+		item.set(this.name, rtl::jsonEncode(value));
+		
+		item = await conn.toDatabase(this, item, this.name);
+		return item;
+	}
+}

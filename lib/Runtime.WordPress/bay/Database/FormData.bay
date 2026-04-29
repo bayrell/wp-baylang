@@ -18,9 +18,10 @@
 
 namespace Runtime.WordPress.Database;
 
-use Runtime.BaseStruct;
+use Runtime.BaseObject;
 use Runtime.DateTime;
 use Runtime.ORM.Connection;
+use Runtime.ORM.Record;
 use Runtime.ORM.Relation;
 use Runtime.ORM.Annotations.AutoIncrement;
 use Runtime.ORM.Annotations.BigIntType;
@@ -30,20 +31,22 @@ use Runtime.ORM.Annotations.JsonType;
 use Runtime.ORM.Annotations.Primary;
 use Runtime.ORM.Annotations.StringType;
 use Runtime.ORM.Annotations.TinyIntType;
+use Runtime.WordPress.EmailProvider;
+use Runtime.WordPress.Theme.Components.Email.FormMessage;
 
 
-class FormData extends Relation
+class FormData extends Record
 {
-    /**
-     * Returns table name
-     */
-    pure string getTableName() => "forms_data";
-    
-    
-    /**
-     * Returns table schema
-     */
-    pure memorize Collection<BaseStruct> schema() =>
+	/**
+	 * Returns table name
+	 */
+	pure string getTableName() => "forms_data";
+	
+	
+	/**
+	 * Returns table schema
+	 */
+	pure memorize Collection<BaseObject> schema() =>
 	[
 		/* Fields */
 		new BigIntType{"name": "id"},
@@ -53,23 +56,10 @@ class FormData extends Relation
 		new JsonType{"name": "data"},
 		new StringType{"name": "utm"},
 		new BooleanType{"name": "spam"},
-		new DateTimeType{"name": "gmtime_add"},
+		new DateTimeType{"name": "gmtime_add", "autocreate": true},
 		
 		/* Index */
 		new AutoIncrement{"name": "id"},
 		new Primary{"keys": ["id"]},
 	];
-	
-	
-	/**
-	 * Save
-	 */
-	async void save(Connection connection, Dict params = null)
-	{
-		if (this.get("gmtime_add") == null)
-		{
-			this.set("gmtime_add", DateTime::now());
-		}
-		await parent(connection, params);
-	}
 }

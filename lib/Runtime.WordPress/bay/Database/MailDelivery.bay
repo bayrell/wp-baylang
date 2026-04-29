@@ -18,10 +18,11 @@
 
 namespace Runtime.WordPress.Database;
 
-use Runtime.BaseStruct;
+use Runtime.BaseObject;
 use Runtime.DateTime;
 use Runtime.ORM.Connection;
 use Runtime.ORM.Relation;
+use Runtime.ORM.Record;
 use Runtime.ORM.Annotations.AutoIncrement;
 use Runtime.ORM.Annotations.BigIntType;
 use Runtime.ORM.Annotations.BooleanType;
@@ -32,7 +33,7 @@ use Runtime.ORM.Annotations.TinyIntType;
 use Runtime.ORM.Annotations.Unique;
 
 
-class MailDelivery extends Relation
+class MailDelivery extends Record
 {
     /**
      * Returns table name
@@ -43,7 +44,7 @@ class MailDelivery extends Relation
     /**
      * Returns table schema
      */
-    pure memorize Collection<BaseStruct> schema() =>
+    pure memorize Collection<BaseObject> schema() =>
 	[
 		/* Fields */
 		new BigIntType{"name": "id"},
@@ -58,7 +59,7 @@ class MailDelivery extends Relation
 		new DateTimeType{"name": "gmtime_send"},
 		new StringType{"name": "send_email_error"},
 		new BigIntType{"name": "send_email_code"},
-		new DateTimeType{"name": "gmtime_add"},
+		new DateTimeType{"name": "gmtime_add", "autocreate": true},
 		new BooleanType{"name": "is_delete"},
 		
 		/* Index */
@@ -66,17 +67,4 @@ class MailDelivery extends Relation
 		new Primary{"keys": ["id"]},
 		new Unique{"keys": ["uuid"]},
 	];
-	
-	
-	/**
-	 * Save
-	 */
-	async void save(Connection connection, Dict params = null)
-	{
-		if (this.get("gmtime_add") == null)
-		{
-			this.set("gmtime_add", DateTime::now());
-		}
-		await parent(connection, params);
-	}
 }

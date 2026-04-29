@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -30,9 +30,9 @@ class ApiPrefix extends AppHook
 	
 	
 	/**
-	 * Setup hook params
+	 * Init params
 	 */
-	void setup(Dict params)
+	void initParams(Dict params)
 	{
 		if (params == null) return;
 		if (params.has("prefix")) this.prefix = params.get("prefix");
@@ -59,7 +59,7 @@ class ApiPrefix extends AppHook
 		if (pos >= 0)
 		{
 			RouteInfo route = routes.routes_list.get(pos);
-			route <= uri <= this.prefix ~ "/api/{service}/{api_name}/{method_name}/";
+			route.uri = this.prefix ~ "/api/{service}/{api_name}/{method_name}/";
 			routes.routes_list.set(pos, route);
 		}
 	}

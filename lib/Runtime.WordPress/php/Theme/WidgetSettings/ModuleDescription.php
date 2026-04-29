@@ -17,6 +17,12 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Theme\WidgetSettings;
+
+use Runtime\Entity\Hook;
+use Runtime\WordPress\Theme\WidgetSettings\WidgetManager;
+use BayLang\Constructor\WidgetPage\WidgetManagerAnnotation;
+
+
 class ModuleDescription
 {
 	/**
@@ -27,6 +33,8 @@ class ModuleDescription
 	{
 		return "Runtime.WordPress.Settings";
 	}
+	
+	
 	/**
 	 * Returns module name
 	 * @return string
@@ -35,58 +43,35 @@ class ModuleDescription
 	{
 		return "0.12.1";
 	}
+	
+	
 	/**
 	 * Returns required modules
 	 * @return Map<string>
 	 */
 	static function requiredModules()
 	{
-		return \Runtime\Map::from([]);
+		return new \Runtime\Map([
+		]);
 	}
+	
+	
 	/**
 	 * Returns enities
 	 */
 	static function entities()
 	{
-		return \Runtime\Vector::from([new \BayLang\Constructor\WidgetPage\WidgetManagerAnnotation("Runtime.WordPress.Theme.WidgetSettings.WidgetManager")]);
+		return new \Runtime\Vector(
+			new \BayLang\Constructor\WidgetPage\WidgetManagerAnnotation("Runtime.WordPress.Theme.WidgetSettings.WidgetManager"),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Theme.WidgetSettings";
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.WidgetSettings.ModuleDescription";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Theme.WidgetSettings.ModuleDescription"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

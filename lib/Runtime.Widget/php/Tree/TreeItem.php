@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,124 +17,117 @@
  *  limitations under the License.
  */
 namespace Runtime\Widget\Tree;
+
+use Runtime\lib;
+use Runtime\BaseObject;
+use Runtime\SerializeInterface;
+use Runtime\Serializer;
+use Runtime\Serializer\ObjectType;
+use Runtime\Serializer\StringType;
+use Runtime\Serializer\VectorType;
+use Runtime\Widget\Tree\TreeModel;
+
+
 class TreeItem extends \Runtime\BaseObject implements \Runtime\SerializeInterface
 {
-	public $key;
-	public $label;
-	public $open;
-	public $items;
-	function __construct($params=null)
+	var $key;
+	var $label;
+	var $icon_path;
+	var $icon_svg;
+	var $open;
+	var $items;
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static function serialize($rules)
+	{
+		parent::serialize($rules);
+		$rules->addType("key", new \Runtime\Serializer\StringType());
+		$rules->addType("label", new \Runtime\Serializer\StringType());
+		$rules->addType("icon_path", new \Runtime\Serializer\StringType());
+		$rules->addType("icon_svg", new \Runtime\Serializer\StringType());
+		$rules->addType("items", new \Runtime\Serializer\VectorType(new \Runtime\Serializer\ObjectType(new \Runtime\Map([
+			"autocreate" => true,
+			"extends" => "Runtime.Widget.Tree.TreeItem",
+		]))));
+	}
+	
+	
+	/**
+	 * Assign rules
+	 */
+	function assignRules($rules){}
+	
+	
+	/**
+	 * Constructor
+	 */
+	function __construct($params = null)
 	{
 		parent::__construct();
 		$this->_assign_values($params);
 	}
-	/**
-	 * Serialize object
-	 */
-	function serialize($serializer, $data)
-	{
-		$serializer->process($this, "key", $data);
-		$serializer->process($this, "label", $data);
-		$serializer->process($this, "items", $data);
-	}
+	
+	
 	/**
 	 * Returns true if can insert inside
 	 */
-	function canDragInside()
-	{
-		return true;
-	}
+	function canDragInside(){ return true; }
+	
+	
 	/**
 	 * Get item
 	 */
 	function get($path)
 	{
-		if ($path == null)
-		{
-			return null;
-		}
-		if ($path->count() == 0)
-		{
-			return $this;
-		}
+		if ($path == null) return null;
+		if ($path->count() == 0) return $this;
 		$pos = $path->first();
 		$new_item = $this->items->get($pos);
-		if ($new_item == null)
-		{
-			return null;
-		}
+		if ($new_item == null) return null;
 		return $new_item->get($path->slice(1));
 	}
+	
+	
 	/**
 	 * Find item position
 	 */
-	function find($item)
-	{
-		return ($item) ? ($this->items->find(\Runtime\lib::equal($item))) : (-1);
-	}
+	function find($item){ return $item ? $this->items->find(\Runtime\lib::equal($item)) : -1; }
+	
+	
+	
 	/**
 	 * Context menu click
 	 */
-	function onContextMenu($model)
-	{
-	}
+	function onContextMenu($model){}
+	
+	
 	/**
 	 * Click
 	 */
-	function onClick($model)
-	{
-	}
+	function onClick($model){}
+	
+	
 	/**
 	 * Select item
 	 */
-	function onSelect($model)
-	{
-	}
-	/* ======================= Class Init Functions ======================= */
+	function onSelect($model){}
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->key = "";
 		$this->label = "";
-		$this->open = true;
-		$this->items = \Runtime\Vector::from([]);
+		$this->icon_path = "";
+		$this->icon_svg = "";
+		$this->open = false;
+		$this->items = new \Runtime\Vector();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget.Tree";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Tree.TreeItem";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Widget.Tree.TreeItem"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -17,63 +17,39 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Factory;
+
+use Runtime\BaseObject;
+use Runtime\ORM\Cursor;
+
+
 class CursorFactory extends \Runtime\BaseObject
 {
-	public $cursor_name;
+	var $cursor_name;
+	
+	
+	/**
+	 * Constructor
+	 */
 	function __construct($cursor_name)
 	{
 		parent::__construct();
 		$this->cursor_name = $cursor_name;
 	}
+	
+	
 	/**
 	 * Returns cursor
 	 */
-	function createCursor()
-	{
-		return \Runtime\rtl::newInstance($this->cursor_name);
-	}
-	/* ======================= Class Init Functions ======================= */
+	function createCursor(){ return \Runtime\rtl::newInstance($this->cursor_name); }
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->cursor_name = "";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.Factory";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Factory.CursorFactory";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Factory.CursorFactory"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,106 +18,70 @@
 
 namespace Runtime.Widget.Dialog;
 
-use Runtime.Callback;
-use Runtime.Web.Messages.ClickMessage;
-use Runtime.Widget.ButtonModel;
+use Runtime.ApiResult;
+use Runtime.Widget.ResultModel;
+use Runtime.Widget.Dialog.ConfirmDialog;
 use Runtime.Widget.Dialog.DialogMessage;
 use Runtime.Widget.Dialog.DialogModel;
-use Runtime.Widget.Dialog.DialogModelException;
 
 
 class ConfirmDialogModel extends DialogModel
 {
+	string component = classof ConfirmDialog;
+	string action = "";
+	string title = "";
+	string title_button = "";
+	Vector<string> title_button_styles = [];
 	string content = "";
+	ResultModel result = null;
 	
 	
 	/**
-	 * Init widget params
+	 * Init widget
 	 */
-	void initParams(Dict params)
+	void initWidget(Map params)
 	{
 		parent(params);
-		
-		if (params == null) return;
-		if (params.has("content")) this.content = params.get("content");
+		this.result = this.createWidget(classof ResultModel);
 	}
 	
 	
 	/**
-	 * Init widget settings
+	 * Set wait message
 	 */
-	void initWidget(Dict params)
+	void setWaitMessage()
 	{
-		parent(params);
-		
-		/* Setup close buttons */
-		this.buttons.addButton({
-			"content": "Cancel",
-			"widget_name": "cancel_button",
-			"styles": [
-				"gray"
-			],
-			"events": {
-				"click": new Callback(this, "onCloseButtonClick"),
-			},
-		});
-		
-		/* Setup confirm button */
-		this.buttons.addButton({
-			"content": "Ok",
-			"widget_name": "confirm_button",
-			"styles": [
-				"primary"
-			],
-			"events": {
-				"click": new Callback(this, "onConfirmButtonClick"),
-			},
-		});
+		this.result.setWaitMessage();
 	}
 	
 	
 	/**
-	 * Add close button click
+	 * Set api result
 	 */
-	void onCloseButtonClick(ClickMessage message)
+	void setApiResult(ApiResult result)
 	{
-		this.hide();
+		this.result.setApiResult(result);
+	}
+	
+	
+	/**
+	 * Show
+	 */
+	void show()
+	{
+		parent();
+		this.result.clear();
 	}
 	
 	
 	/**
 	 * Confirm
 	 */
-	async bool confirm()
+	void confirm()
 	{
-		return true;
-	}
-	
-	
-	/**
-	 * Confirm button click
-	 */
-	async void onConfirmButtonClick(ClickMessage message)
-	{
-		try
-		{
-			/* Confirm */
-			bool confirm = await this.confirm();
-			if (not confirm) return;
-			
-			/* Send message */
-			DialogMessage message = new DialogMessage{
-				"name": "confirm",
-			};
-			await this.emitAsync(message);
-			
-			/* Hide dialog */
-			if (message.hide) this.hide();
-		}
-		catch (DialogModelException e)
-		{
-			this.result.setException(e);
-			return;
-		}
+		this.listener.emit(new DialogMessage{
+			"name": "confirm",
+			"action": this.action,
+		});
 	}
 }

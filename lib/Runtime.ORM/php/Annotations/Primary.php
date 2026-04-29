@@ -17,56 +17,21 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\Annotations;
-class Primary extends \Runtime\BaseStruct
+
+use Runtime\ORM\Annotations\BaseStruct;
+
+class Primary extends \Runtime\ORM\Annotations\BaseStruct
 {
-	public $__keys;
-	/* ======================= Class Init Functions ======================= */
+	var $keys;
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->__keys = null;
+		$this->keys = null;
 	}
-	function takeValue($k,$d=null)
-	{
-		if ($k == "keys")return $this->__keys;
-	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.Annotations";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.Annotations.Primary";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseStruct";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		$a[]="keys";
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.Annotations.Primary"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

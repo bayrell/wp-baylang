@@ -1,0 +1,26 @@
+{
+	"name": "Runtime.Cabinet",
+	"assets":
+	[
+		"Components/Blocks/CabinetMenu.bay",
+		"Models/CabinetSettings.bay",
+		"Models/Menu.bay",
+		"Providers/CabinetProvider.bay",
+		"ModuleDescription.bay"
+	],
+	"groups": [
+		"runtime"
+	],
+	"src": "./bay",
+	"dest":
+	{
+		"php": "./php",
+		"es6": "./es6",
+		"nodejs": "./nodejs"
+	},
+	"allow":
+	[
+		"\\.bay$",
+		"\\.php$"
+	]
+}

@@ -17,74 +17,76 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin;
+
+use Runtime\Entity\Hook;
+use Runtime\Web\Annotations\Api;
+use Runtime\Web\Annotations\Route;
+use Runtime\Web\Hooks\Components;
+use Runtime\Web\Hooks\SetupLayout;
+
+
 class ModuleDescription
 {
 	/**
 	 * Returns module name
 	 */
-	static function getModuleName()
-	{
-		return "Runtime.WordPress.Admin";
-	}
+	static function getModuleName(){ return "Runtime.WordPress.Admin"; }
+	
+	
 	/**
 	 * Returns module version
 	 */
-	static function getModuleVersion()
-	{
-		return "0.0.1";
-	}
+	static function getModuleVersion(){ return "0.0.1"; }
+	
+	
 	/**
 	 * Returns required modules
 	 * @return Map<string>
 	 */
 	static function requiredModules()
 	{
-		return \Runtime\Map::from(["BayLang"=>">=0.12","BayLang.Constructor"=>">=0.12","Runtime.WordPress"=>">=0.1"]);
+		return new \Runtime\Map([
+			"Runtime.Widget" => ">1.0",
+			"Runtime.WordPress" => ">=1.0",
+		]);
 	}
+	
+	
 	/**
 	 * Returns enities
 	 */
 	static function entities()
 	{
-		return \Runtime\Vector::from([new \Runtime\Entity\Hook("Runtime.WordPress.Admin.AppHook"),\Runtime\Web\Hooks\SetupLayout::create(\Runtime\Map::from(["default"=>"Runtime.WordPress.Admin.AdminLayoutModel"])),\Runtime\Web\Hooks\Components::create(\Runtime\Vector::from(["Runtime.WordPress.Admin.CSS"])),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.FormData.FormDataSearchApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.FormSettings.FormSaveApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.FormSettings.FormSearchApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.Gallery.GallerySaveApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.Gallery.GallerySearchApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.GalleryItem.GalleryItemSaveApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.GalleryItem.GalleryItemSearchApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.MailLog.MailLogSearchApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.MailSettings.MailSaveApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.MailSettings.MailSearchApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.Robots.RobotsApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.Settings.MigrationApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.Settings.ProjectApi"),new \Runtime\Web\Annotations\Api("BayLang.Constructor.Backend.Api.AssetsApi"),new \Runtime\Web\Annotations\Api("BayLang.Constructor.Backend.Api.CodeApi"),new \Runtime\Web\Annotations\Api("BayLang.Constructor.Backend.Api.FontSaveApi"),new \Runtime\Web\Annotations\Api("BayLang.Constructor.Backend.Api.FontSearchApi"),new \Runtime\Web\Annotations\Api("BayLang.Constructor.Backend.Api.ModuleSearchApi"),new \Runtime\Web\Annotations\Api("BayLang.Constructor.Backend.Api.WidgetApi"),new \Runtime\Web\Annotations\Api("BayLang.Constructor.Backend.Api.WidgetSaveApi"),new \Runtime\Web\Annotations\Api("BayLang.Constructor.Backend.Api.WidgetSearchApi"),new \Runtime\Web\Annotations\Route("Runtime.WordPress.Admin.Routes")]);
+		return new \Runtime\Vector(
+			new \Runtime\Entity\Hook("Runtime.WordPress.Admin.AppHook"),
+			\Runtime\Web\Hooks\SetupLayout::hook(new \Runtime\Map([
+				"admin" => "Runtime.WordPress.Admin.AdminLayoutModel",
+			])),
+			\Runtime\Web\Hooks\Components::prependItems(new \Runtime\Vector("Runtime.WordPress.Admin.CSS")),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.Cabinet.Users.UserSaveApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.Cabinet.Users.UserSearchApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.FormData.FormDataSearchApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.FormSettings.FormSaveApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.FormSettings.FormSearchApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.Gallery.GallerySaveApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.Gallery.GallerySearchApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.GalleryItem.GalleryItemSaveApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.GalleryItem.GalleryItemSearchApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.MailLog.MailLogSearchApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.MailSettings.MailSaveApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.MailSettings.MailSearchApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.Migrations.MigrationApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Admin.Robots.RobotsApi"),
+			new \Runtime\Web\Annotations\Route("Runtime.WordPress.Admin.Routes"),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Admin";
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.ModuleDescription";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.ModuleDescription"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

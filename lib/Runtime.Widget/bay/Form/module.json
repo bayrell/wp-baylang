@@ -2,17 +2,13 @@
 	"name": "Runtime.Widget.Form",
 	"assets":
 	[
+		"FieldErrors.bay",
 		"Form.bay",
 		"FormMessage.bay",
 		"FormModel.bay",
 		"FormRow.bay",
-		"FormStorageInterface.bay",
-		"FormSaveProxyStorage.bay",
-		"FormSaveStorage.bay",
-		"FormSubmitModel.bay",
-		"FormSubmitStorage.bay",
-		"FormDeleteProxyStorage.bay",
-		"FormDeleteStorage.bay"
+		"FormSubmit.bay",
+		"FormSubmitModel.bay"
 	],
 	"require": [
 		"Runtime.Widget"
@@ -24,7 +20,8 @@
 	"dest":
 	{
 		"php": "./../../php/Form",
-		"es6": "./../../es6/Form"
+		"es6": "./../../es6/Form",
+		"nodejs": "./../../nodejs/Form"
 	},
 	"allow":
 	[

@@ -19,9 +19,30 @@
 
 <class name="Runtime.WordPress.Admin.Robots.RobotsPage">
 
+<use name="Runtime.Widget.Button" component="true" />
+<use name="Runtime.Widget.RowButtons" component="true" />
+<use name="Runtime.Widget.TextArea" component="true" />
+<use name="Runtime.Widget.Form.Form" component="true" />
+<use name="Runtime.Widget.Form.FormRow" component="true" />
+
 <template>
 	<div class="form_settings_page">
-		%render this.renderWidget(this.model.form);
+		<Form model={{ this.model.form }}>
+			<FormRow label="Robots">
+				<TextArea
+					value={{ this.model.form.item.get("content") }}
+					@event:valueChange="this.model.form.item.set('content', event.value)"
+				/>
+			</FormRow>
+			%render this.renderWidget(this.model.form.result, {
+				"class": "result--form",
+			});
+			<RowButtons>
+				<Button class="button--primary button--large"
+					@event:click="this.model.onSave();"
+				>Save</Button>
+			</RowButtons>
+		</Form>
 	</div>
 </template>
 

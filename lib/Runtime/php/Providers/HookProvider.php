@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,10 +17,24 @@
  *  limitations under the License.
  */
 namespace Runtime\Providers;
+
+use Runtime\lib;
+use Runtime\BaseHook;
+use Runtime\BaseProvider;
+use Runtime\Callback;
+use Runtime\Chain;
+use Runtime\ChainAsync;
+use Runtime\Context;
+use Runtime\Entity\Hook;
+
+
 class HookProvider extends \Runtime\BaseProvider
 {
-	public $base_hooks;
-	public $hooks;
+	var $base_hooks;
+	var $chains;
+	var $async_hooks;
+	
+	
 	/**
 	 * Init provider
 	 */
@@ -30,125 +44,131 @@ class HookProvider extends \Runtime\BaseProvider
 		$this->base_hooks = new \Runtime\Vector();
 		for ($i = 0; $i < $hooks->count(); $i++)
 		{
-			$hook = \Runtime\rtl::attr($hooks, $i);
-			$base_hook = $hook->createHook();
-			$base_hook->hook = $hook;
+			$hook = $hooks[$i];
+			$base_hook = $hook->createInstance();
 			$base_hook->provider = $this;
 			$base_hook->register_hooks();
 			$this->base_hooks->push($base_hook);
 		}
 	}
+	
+	
 	/**
 	 * Start provider
 	 */
 	function start()
 	{
 		parent::start();
+		$this->sort();
 	}
+	
+	
+	/**
+	 * Set async
+	 */
+	function setAsync($arr)
+	{
+		for ($i = 0; $i < $arr->count(); $i++)
+		{
+			$hook_name = $arr->get($i);
+			$this->async_hooks->set($hook_name, true);
+		}
+	}
+	
+	
+	/**
+	 * Returns if chain is async
+	 */
+	function isAsync($name)
+	{
+		if (!$this->async_hooks->has($name)) return false;
+		return $this->async_hooks->get($name);
+	}
+	
+	
+	/**
+	 * Find hook by name
+	 */
+	function find($name)
+	{
+		return $this->base_hooks->find(function ($hook) use (&$name){ return $hook::getClassName() == $name; });
+	}
+	
+	
 	/**
 	 * Register hook
 	 */
-	function register($hook_name, $obj, $method_name, $priority=100)
+	function register($hook_name, $f, $priority = 100)
 	{
-		if (!$this->hooks->has($hook_name))
-		{
-			$this->hooks->set($hook_name, new \Runtime\Map());
-		}
-		$priorities = \Runtime\rtl::attr($this->hooks, $hook_name);
-		if (!$priorities->has($priority))
-		{
-			$priorities->set($priority, new \Runtime\Vector());
-		}
-		$methods_list = $priorities->get($priority);
-		$methods_list->push(new \Runtime\Callback($obj, $method_name));
+		$chain = $this->getChain($hook_name);
+		if (!$chain) return;
+		$chain->add($f, $priority);
 	}
+	
+	
 	/**
-	 * Remove hook
+	 * Sort
 	 */
-	function remove($hook_name, $obj, $method_name, $priority=100)
+	function sort()
 	{
-		if (!$this->hooks->has($hook_name))
+		$this->chains->each(function ($chain)
 		{
-			$this->hooks->setValue($hook_name, new \Runtime\Map());
-		}
-		$priorities = \Runtime\rtl::attr($this->hooks, $hook_name);
-		if (!$priorities->has($priority))
-		{
-			$priorities->setValue($priority, new \Runtime\Vector());
-		}
-		$methods_list = $priorities->get($priority);
-		$index = $methods_list->find(function ($info) use (&$obj,&$method_name)
-		{
-			return $info->obj == $obj && $info->name == $method_name;
+			$chain->sort();
 		});
-		if ($index > -1)
-		{
-			$methods_list->removePosition($index);
-		}
 	}
+	
+	
 	/**
-	 * Returns method list
+	 * Create chain
 	 */
-	function getMethods($hook_name)
+	function createChain($name, $is_async)
 	{
-		if (!$this->hooks->has($hook_name))
-		{
-			return \Runtime\Vector::from([]);
-		}
-		$res = new \Runtime\Vector();
-		$priorities = \Runtime\rtl::attr($this->hooks, $hook_name);
-		$priorities_keys = $priorities->keys()->sort();
-		for ($i = 0; $i < $priorities_keys->count(); $i++)
-		{
-			$priority = \Runtime\rtl::attr($priorities_keys, $i);
-			$methods_list = $priorities->get($priority);
-			$res->appendItems($methods_list);
-		}
-		return $res->toCollection();
+		if ($this->chains->has($name)) return;
+		if ($is_async) $this->chains->set($name, new \Runtime\ChainAsync());
+		else $this->chains->set($name, new \Runtime\Chain());
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/**
+	 * Returns chain
+	 */
+	function getChain($name)
+	{
+		if (!$this->chains->has($name)) $this->createChain($name, $this->isAsync($name));
+		return $this->chains->get($name);
+	}
+	
+	
+	/**
+	 * Apply hook
+	 */
+	function apply($hook_name, $params = null)
+	{
+		$chain = $this->chains->get($hook_name);
+		if (!$chain) return $params;
+		if ($chain instanceof \Runtime\ChainAsync)
+		{
+			$f = function () use (&$chain, &$params)
+			{
+				$chain->apply(new \Runtime\Vector($params));
+				return $params;
+			};
+			return $f();
+		}
+		$chain->apply(new \Runtime\Vector($params));
+		return $params;
+	}
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->base_hooks = \Runtime\Vector::from([]);
-		$this->hooks = new \Runtime\Map();
+		$this->base_hooks = new \Runtime\Vector();
+		$this->chains = new \Runtime\Map();
+		$this->async_hooks = new \Runtime\Map();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Providers";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Providers.HookProvider";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseProvider";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Providers.HookProvider"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

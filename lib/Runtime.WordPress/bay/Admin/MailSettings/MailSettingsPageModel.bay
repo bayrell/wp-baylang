@@ -18,30 +18,35 @@
 
 namespace Runtime.WordPress.Admin.MailSettings;
 
-use Runtime.Entity.Factory;
-use Runtime.Web.BasePageModel;
-use Runtime.Web.ModelFactory;
+use Runtime.ApiResult;
+use Runtime.BaseModel;
+use Runtime.Method;
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
 use Runtime.Web.RenderContainer;
-use Runtime.Widget.ButtonModel;
-use Runtime.Widget.Input;
-use Runtime.Widget.Label;
-use Runtime.Widget.RowButtonsModel;
-use Runtime.Widget.Select;
-use Runtime.Widget.SelectLabel;
-use Runtime.Widget.TextArea;
-use Runtime.Widget.Form.FormModel;
-use Runtime.Widget.Table.SaveDialogModel;
-use Runtime.Widget.Table.TableDialogModel;
-use Runtime.Widget.Table.TableRowButtonsModel;
+use Runtime.Widget.BoolEnum;
+use Runtime.Widget.Table.TableManager;
+use Runtime.Widget.Table.TableModel;
+use Runtime.Widget.Table.TableLoader;
 use Runtime.WordPress.Admin.MailSettings.MailSettingsPage;
 
 
-class MailSettingsPageModel extends BasePageModel
+class MailSettingsPageModel extends BaseModel
 {
 	string component = classof MailSettingsPage;
-	FormModel form = null;
-	TableDialogModel table = null;
-	RowButtonsModel top_buttons = null;
+	TableManager manager = null;
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("manager", new ObjectType());
+	}
 	
 	
 	/**
@@ -51,212 +56,127 @@ class MailSettingsPageModel extends BasePageModel
 	{
 		parent(params);
 		
-		/* Add form */
-		this.form = this.addWidget(
-			classof FormModel,
-			{
-				"widget_name": "form",
-				"primary_key": ["id"],
-				"storage": new Factory
-				(
-					"Runtime.Widget.Form.FormSaveStorage",
-					{
-						"api_name": "admin.wordpress.mail.settings.save",
-					}
-				),
-				"fields":
-				[
-					{
-						"name": "enable",
-						"label": "Enable",
-						"component": classof Select,
-						"props": {
-							"options": [
-								{"key": "0", "value": "No"},
-								{"key": "1", "value": "Yes"},
-							],
-						},
-					},
-					{
-						"name": "plan",
-						"label": "Plan",
-						"component": classof Input,
-					},
-					{
-						"name": "host",
-						"label": "Host",
-						"component": classof Input,
-					},
-					{
-						"name": "port",
-						"label": "Port",
-						"component": classof Input,
-					},
-					{
-						"name": "login",
-						"label": "Login",
-						"component": classof Input,
-					},
-					{
-						"name": "password",
-						"label": "Password",
-						"component": classof Input,
-					},
-					{
-						"name": "ssl_enable",
-						"label": "SSL",
-						"component": classof Select,
-						"props": {
-							"options": [
-								{"key": "0", "value": "No"},
-								{"key": "1", "value": "Yes"},
-								{"key": "2", "value": "Yes (Disable verify)"},
-							],
-						},
-					},
-				],
-			}
-		);
-		
-		/* Add table */
-		this.table = this.addWidget(
-			classof TableDialogModel,
-			{
-				"widget_name": "table",
-				"styles": ["border"],
-				
-				/* Table title */
-				"get_title": void (Dict params)
+		this.manager = this.createWidget(classof TableManager, {
+			"autoload": true,
+			"api_name": "admin.wordpress.mail.settings",
+			"page_name": "p",
+			"title": new Method(this, "getItemTitle"),
+			"primary_rules": new MapType{
+				"id": new IntegerType(),
+			},
+			"item_rules": new MapType{
+				"id": new IntegerType(),
+				"enable": new IntegerType(),
+				"plan": new StringType(),
+				"host": new StringType(),
+				"port": new StringType(),
+				"login": new StringType(),
+				"password": new StringType(),
+				"ssl_enable": new IntegerType(),
+			},
+			"form_fields":
+			[
 				{
-					string action = params.get("action");
-					Dict item = params.get("item");
-					if (action == "add")
-					{
-						return "Add mail";
+					"name": "enable",
+					"label": "Enable",
+					"component": "Runtime.Widget.Select",
+					"props": {
+						"options": BoolEnum::options(),
 					}
-					if (action == "edit")
-					{
-						return "Edit mail '" ~ item.get("plan") ~ "'";
-					}
-					if (action == "delete")
-					{
-						return "Delete mail '" ~ item.get("plan") ~ "'";
-					}
-					return "";
 				},
-				
-				/* Table storage */
-				"storage": new Factory
-				(
-					"Runtime.Widget.Table.TableStorage",
-					{
-						"api_name": "admin.wordpress.mail.settings.search",
-					}
-				),
-				
-				/* Set page */
-				"page": this.layout.request_query.get("p", 1) - 1,
-				"pagination_props":
 				{
-					"name": "p",
+					"name": "plan",
+					"label": "Plan",
+					"component": "Runtime.Widget.Input",
 				},
-				
-				/* Form */
-				"add_form": this.form,
-				"edit_form": this.form,
-				
-				/* Delete form */
-				"delete_form": new ModelFactory(
-					classof FormModel,
-					{
-						"widget_name": "delete_form",
-						"primary_key": ["id"],
-						"storage": new Factory(
-							"Runtime.Widget.Form.FormDeleteStorage",
-							{
-								"api_name": "admin.wordpress.mail.settings.save"
-							}
-						),
-					}
-				),
-				
-				/* Table fields */
-				"fields":
-				[
-					{
-						"name": "row_number",
+				{
+					"name": "host",
+					"label": "Host",
+					"component": "Runtime.Widget.Input",
+				},
+				{
+					"name": "port",
+					"label": "Port",
+					"component": "Runtime.Widget.Input",
+				},
+				{
+					"name": "login",
+					"label": "Login",
+					"component": "Runtime.Widget.Input",
+				},
+				{
+					"name": "password",
+					"label": "Password",
+					"component": "Runtime.Widget.Input",
+				},
+				{
+					"name": "ssl_enable",
+					"label": "SSL",
+					"component": "Runtime.Widget.Select",
+					"props": {
+						"options": BoolEnum::options(),
 					},
-					{
-						"name": "enable",
-						"label": "Enable",
-						"component": classof SelectLabel,
-						"props": {
-							"options": [
-								{"key": "0", "value": "No"},
-								{"key": "1", "value": "Yes"},
-							],
-						},
-					},
-					{
-						"name": "plan",
-						"label": "Plan",
-						"component": classof Label,
-					},
-					{
-						"name": "host",
-						"label": "Host",
-						"component": classof Label,
-					},
-					{
-						"name": "port",
-						"label": "Port",
-						"component": classof Label,
-					},
-					{
-						"name": "login",
-						"label": "Login",
-						"component": classof Label,
-					},
-					{
-						"name": "ssl_enable",
-						"label": "SSL",
-						"component": classof SelectLabel,
-						"props": {
-							"options": [
-								{"key": "0", "value": "No"},
-								{"key": "1", "value": "Yes"},
-								{"key": "2", "value": "Yes (Disable verify)"},
-							],
-						},
-					},
-					{
-						"name": "row_buttons",
-						"model": new ModelFactory(
-							"Runtime.Widget.Table.TableRowButtonsModel"
-						),
-					},
-				],
-			}
-		);
-		
-		/* Add top buttons */
-		this.top_buttons = this.addWidget(
-			classof RowButtonsModel,
-			{
-				"widget_name": "top_buttons",
-				"styles": ["top_buttons"],
-				"buttons":
-				[
-					new ModelFactory
-					(
-						"Runtime.Widget.Table.AddButtonModel",
-						{
-							"table": this.table,
-						}
-					)
-				],
-			}
-		);
+				}
+			],
+			"table_fields":
+			[
+				{
+					"name": "row_number"
+				},
+				{
+					"name": "enable",
+					"label": "Enable",
+					"value": string (Map item) => BoolEnum::label(item.get("enable")),
+				},
+				{
+					"name": "plan",
+					"label": "Plan",
+				},
+				{
+					"name": "host",
+					"label": "Host",
+				},
+				{
+					"name": "port",
+					"label": "Port",
+				},
+				{
+					"name": "login",
+					"label": "Login",
+				},
+				{
+					"name": "ssl_enable",
+					"label": "SSL",
+					"value": string (Map item) => BoolEnum::label(item.get("enable")),
+				},
+				{
+					"name": "buttons",
+					"slot": "row_buttons",
+				}
+			],
+		});
+	}
+	
+	
+	/**
+	 * Returns item title
+	 */
+	void getItemTitle(string action, Map item)
+	{
+		if (action == "add") return "Add item";
+		else if (action == "edit") return "Edit item";
+		else if (action == "delete") return "Delete item";
+		else if (action == "delete_message") return "Delete item";
+		return "";
+	}
+	
+	
+	/**
+	 * Load data
+	 */
+	async void loadData(RenderContainer container)
+	{
+		await parent(container);
 	}
 	
 	

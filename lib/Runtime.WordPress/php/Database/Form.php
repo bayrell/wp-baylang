@@ -17,62 +17,80 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Database;
-class Form extends \Runtime\ORM\Relation
+
+use Runtime\BaseObject;
+use Runtime\Serializer\BaseType;
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\Required;
+use Runtime\ORM\Relation;
+use Runtime\ORM\Record;
+use Runtime\ORM\Annotations\AutoIncrement;
+use Runtime\ORM\Annotations\BigIntType;
+use Runtime\ORM\Annotations\BooleanType;
+use Runtime\ORM\Annotations\JsonType;
+use Runtime\ORM\Annotations\Primary;
+use Runtime\ORM\Annotations\StringType;
+
+
+class Form extends \Runtime\ORM\Record
 {
 	/**
-     * Returns table name
-     */
-	static function getTableName()
-	{
-		return "forms";
-	}
+	 * Returns table name
+	 */
+	static function getTableName(){ return "forms"; }
+	
+	
 	/**
-     * Returns table schema
-     */
+	 * Returns table schema
+	 */
 	static function schema()
 	{
-		$__memorize_value = \Runtime\rtl::_memorizeValue("Runtime.WordPress.Database.Form.schema", func_get_args());
-		if ($__memorize_value != \Runtime\rtl::$_memorize_not_found) return $__memorize_value;$__memorize_value = \Runtime\Vector::from([new \Runtime\ORM\Annotations\BigIntType(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"name"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"api_name"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"settings"])),new \Runtime\ORM\Annotations\StringType(\Runtime\Map::from(["name"=>"email_to"])),new \Runtime\ORM\Annotations\BooleanType(\Runtime\Map::from(["name"=>"is_deleted"])),new \Runtime\ORM\Annotations\AutoIncrement(\Runtime\Map::from(["name"=>"id"])),new \Runtime\ORM\Annotations\Primary(\Runtime\Map::from(["keys"=>\Runtime\Vector::from(["id"])]))]);
-		\Runtime\rtl::_memorizeSave("Runtime.WordPress.Database.Form.schema", func_get_args(), $__memorize_value);
-		return $__memorize_value;
+		return new \Runtime\Vector(
+			new \Runtime\ORM\Annotations\BigIntType(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "name"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "api_name"])),
+			new \Runtime\ORM\Annotations\JsonType(new \Runtime\Map(["name" => "settings"])),
+			new \Runtime\ORM\Annotations\StringType(new \Runtime\Map(["name" => "email_to"])),
+			new \Runtime\ORM\Annotations\BooleanType(new \Runtime\Map(["name" => "is_deleted"])),
+			new \Runtime\ORM\Annotations\AutoIncrement(new \Runtime\Map(["name" => "id"])),
+			new \Runtime\ORM\Annotations\Primary(new \Runtime\Map(["keys" => new \Runtime\Vector("id")])),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/**
+	 * Returns rules
+	 */
+	function getRules()
 	{
-		return "Runtime.WordPress.Database";
+		$settings = $this->get("settings");
+		$fields = $settings->get("fields");
+		$rules = new \Runtime\Serializer\MapType();
+		for ($i = 0; $i < $fields->count(); $i++)
+		{
+			$field = $fields->get($i);
+			$field_name = $field->get("name");
+			$field_type = $field->get("type");
+			if ($field_type == "input" || $field_type == "textarea")
+			{
+				$rules->addType($field_name, new \Runtime\ORM\Annotations\StringType());
+			}
+			$field_required = \Runtime\rtl::toInt($field->get("required")) || $field->get("required") == "true";
+			if ($field_required)
+			{
+				$rules->addType($field_name, new \Runtime\Serializer\Required());
+			}
+		}
+		return $rules;
 	}
-	static function getClassName()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Database.Form";
+		parent::_init();
 	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Relation";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Database.Form"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

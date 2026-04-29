@@ -2,11 +2,10 @@
 	"name": "Runtime.Widget.Dialog",
 	"assets":
 	[
-		"BaseDialogModel.bay",
 		"Dialog.bay",
 		"DialogMessage.bay",
 		"DialogModel.bay",
-		"DialogModelException.bay",
+		"ConfirmDialog.bay",
 		"ConfirmDialogModel.bay",
 		"PromptDialog.bay",
 		"PromptDialogModel.bay"
@@ -21,7 +20,8 @@
 	"dest":
 	{
 		"php": "./../../php/Dialog",
-		"es6": "./../../es6/Dialog"
+		"es6": "./../../es6/Dialog",
+		"nodejs": "./../../nodejs/Dialog"
 	},
 	"allow":
 	[

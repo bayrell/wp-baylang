@@ -17,6 +17,13 @@
  *  limitations under the License.
  */
 namespace Runtime\XML\Test;
+
+use Runtime\io;
+use Runtime\Unit\Test;
+use Runtime\XML\XML;
+use Runtime\XML\Test\XmlTest;
+
+
 class PatcherAppend
 {
 	static function testAdd1()
@@ -26,6 +33,9 @@ class PatcherAppend
 		$xml->patch($operation);
 		\Runtime\XML\Test\XmlTest::assertEqualXml("Patch xml error", $xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\t\t\t<template>\n\t\t\t\t<yaml>\n\t\t\t\t\t<services>\n\t\t\t\t\t\t<test>\n\t\t\t\t\t\t\t<image>test</image>\n\t\t\t\t\t\t\t<dns>172.30.0.1</dns>\n\t\t\t\t\t\t</test>\n\t\t\t\t\t\t<database>\n\t\t\t\t\t\t\t<image>database</image>\n\t\t\t\t\t\t\t<dns>172.30.0.1</dns>\n\t\t\t\t\t\t</database>\n\t\t\t\t\t\t<other>\n\t\t\t\t\t\t\t<image>other</image>\n\t\t\t\t\t\t\t<dns>192.168.1.1</dns>\n\t\t\t\t\t\t</other>\n\t\t\t\t\t</services>\n\t\t\t\t</yaml>\n\t\t\t</template>");
 	}
+	
+	
+	
 	static function testAdd2()
 	{
 		$xml = \Runtime\XML\XML::loadXml("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\t\t\t<template>\n\t\t\t\t<yaml>\n\t\t\t\t\t<services>\n\t\t\t\t\t\t<test>\n\t\t\t\t\t\t\t<image>test</image>\n\t\t\t\t\t\t</test>\n\t\t\t\t\t\t<database>\n\t\t\t\t\t\t\t<image>database</image>\n\t\t\t\t\t\t</database>\n\t\t\t\t\t\t<other>\n\t\t\t\t\t\t\t<image>other</image>\n\t\t\t\t\t\t\t<dns>192.168.1.1</dns>\n\t\t\t\t\t\t</other>\n\t\t\t\t\t</services>\n\t\t\t\t</yaml>\n\t\t\t</template>");
@@ -33,57 +43,25 @@ class PatcherAppend
 		$xml->patch($operation);
 		\Runtime\XML\Test\XmlTest::assertEqualXml("Patch xml error", $xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\t\t\t<template>\n\t\t\t\t<yaml>\n\t\t\t\t\t<version>3.7</version>\n\t\t\t\t\t<services>\n\t\t\t\t\t\t<test>\n\t\t\t\t\t\t\t<image>test</image>\n\t\t\t\t\t\t</test>\n\t\t\t\t\t\t<database>\n\t\t\t\t\t\t\t<image>database</image>\n\t\t\t\t\t\t</database>\n\t\t\t\t\t\t<other>\n\t\t\t\t\t\t\t<image>other</image>\n\t\t\t\t\t\t\t<dns>192.168.1.1</dns>\n\t\t\t\t\t\t</other>\n\t\t\t\t\t</services>\n\t\t\t\t</yaml>\n\t\t\t</template>");
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.XML.Test";
 	}
-	static function getClassName()
-	{
-		return "Runtime.XML.Test.PatcherAppend";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.XML.Test.PatcherAppend"; }
 	static function getMethodsList()
 	{
-		$a=[
-			"testAdd1",
-			"testAdd2",
-		];
-		return \Runtime\Collection::from($a);
+		return new \Runtime\Vector("testAdd1", "testAdd2");
 	}
 	static function getMethodInfoByName($field_name)
 	{
-		if ($field_name == "testAdd1")
-			return \Runtime\Dict::from([
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Unit\Test([]),
-				]),
-			]);
-		if ($field_name == "testAdd2")
-			return \Runtime\Dict::from([
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Unit\Test([]),
-				]),
-			]);
+		if ($field_name == "testAdd1") return new \Runtime\Vector(
+			new \Runtime\Unit\Test(new \Runtime\Map())
+		);
+		if ($field_name == "testAdd2") return new \Runtime\Vector(
+			new \Runtime\Unit\Test(new \Runtime\Map())
+		);
 		return null;
 	}
 }

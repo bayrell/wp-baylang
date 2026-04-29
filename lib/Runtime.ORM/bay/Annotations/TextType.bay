@@ -18,10 +18,9 @@
 
 namespace Runtime.ORM.Annotations;
 
-use Runtime.BaseStruct;
 use Runtime.ORM.Annotations.BaseType;
 
 
-struct TextType extends BaseType
+class TextType extends BaseType
 {
 }

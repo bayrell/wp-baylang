@@ -21,335 +21,322 @@ namespace Runtime.ORM;
 use Runtime.lib;
 use Runtime.BaseObject;
 use Runtime.BaseStruct;
-use Runtime.MapInterface;
+use Runtime.Method;
 use Runtime.Exceptions.ItemNotFound;
 use Runtime.Exceptions.RuntimeException;
+use Runtime.Serializer.MapType;
 use Runtime.ORM.Connection;
+use Runtime.ORM.ConnectionPool;
 use Runtime.ORM.Cursor;
 use Runtime.ORM.DatabaseSchema;
 use Runtime.ORM.Provider;
 use Runtime.ORM.Query;
 use Runtime.ORM.QueryFilter;
 use Runtime.ORM.QueryResult;
+use Runtime.ORM.Record;
 use Runtime.ORM.Annotations.AutoIncrement;
 use Runtime.ORM.Annotations.BaseType;
 use Runtime.ORM.Annotations.ForeignKey;
 use Runtime.ORM.Annotations.Primary;
 
 
-class Relation extends BaseObject implements MapInterface
+class Relation extends BaseObject
 {
-	protected Map old_data = null;
-	protected Map new_data = new Map;
+	protected Connection connection = null;
+	protected ConnectionPool pool = null;
+	string record_name = "";
 	
 	
 	/**
 	 * Constructor
 	 */
-	void constructor()
+	void constructor(string record_name, Dict params = null)
 	{
 		parent();
+		this.record_name = record_name;
+		if (params and params.has("pool")) this.pool = params.get("pool");
+		else this.pool = ConnectionPool::get(
+			params ? params.get("connection_name", "default") : "default"
+		);
 	}
 	
 	
 	/**
-	 * Returns table name
+	 * Returns connection
 	 */
-	pure string getTableName() => "";
+	ConnectionPool getPool() => this.pool;
+	ConnectionPool getConnectionPool() => this.pool;
 	
 	
 	/**
-     * Returns table schema
-     */
-    pure memorize Collection<BaseStruct> schema() => "";
+	 * Set connection
+	 */
+	void setConnectionPool(ConnectionPool pool)
+	{
+		this.pool = pool;
+	}
+	
+	
+	/**
+	 * Returns connection
+	 */
+	Connection getConnection(Connection connection) =>
+		this.connection
+	
+	
+	/**
+	 * Set connection
+	 */
+	void setConnection(Connection connection)
+	{
+		this.connection = connection;
+	}
 	
 	
 	/**
 	 * Create Instance of class
 	 */
-	pure Relation newInstance(string class_name, Dict data = null)
+	Record<Relation> createRecord(Map data = null) =>
+		rtl::newInstance(this.record_name, [data, this])
+	;
+	
+	
+	/**
+	 * Returns table name
+	 */
+	string getTableName()
 	{
-		if (class_name == "")
+		if (this.record_name == "")
 		{
-			throw new RuntimeException("Class name does not exists");
+			throw new ItemNotFound("Record name");
 		}
-		Relation instance = rtl::newInstance(class_name);
-		instance._initData(data);
-		return instance;
+		Method f = new Method(this.record_name, "getTableName");
+		return f.apply();
 	}
-	
-	
-	/**
-	 * Convert to model
-	 */
-	BaseStruct toModel() => static::newInstance(static::getClassName(), this.toMap());
-	
-	
-	/**
-	 * Convert to Dict
-	 */
-	Map all() => this.new_data.clone();
-	Map old() => this.old_data.clone();
-	Map toMap() => this.new_data.clone();
-	Map intersect(Collection fields = null) => this.new_data.intersect(fields);
 	
 	
 	/**
 	 * Returns table annotations
 	 */
-	pure Collection<BaseStruct> getAnotations()
+	Vector<BaseObject> getAnotations()
 	{
 		Provider provider = @.provider(classof Provider);
-		return provider.getAnotations(static::getTableName());
+		return provider.getAnotations(this.getTableName());
 	}
 	
 	
 	/**
 	 * To database
 	 */
-	async static Dict toDatabase(Connection conn, Dict data, bool is_update)
+	async Map toDatabase(Connection conn, Map data)
 	{
-		Provider provider = @.provider(classof Provider);
-		return await provider.toDatabase(static::getTableName(), conn, data, is_update);
+		if (data == null) return null;
+		
+		Collection<BaseType> annotations = this.getAnotations();
+		for (int i=0; i<annotations.count(); i++)
+		{
+			BaseType annotation = annotations.get(i);
+			if (annotation instanceof BaseType and data.has(annotation.name))
+			{
+				data = await annotation.toDatabase(conn, data);
+			}
+		}
+		
+		return data;
 	}
 	
 	
 	/**
 	 * From database
 	 */
-	static Dict fromDatabase(Connection conn, Dict data)
+	async Map fromDatabase(Map data)
 	{
-		Provider provider = @.provider(classof Provider);
-		return await provider.fromDatabase(static::getTableName(), conn, data);
+		if (data == null) return null;
+		
+		Collection<BaseType> annotations = this.getAnotations();
+		for (int i=0; i<annotations.count(); i++)
+		{
+			BaseType annotation = annotations.get(i);
+			if (annotation instanceof BaseType and data.has(annotation.name))
+			{
+				data = await annotation.fromDatabase(this.pool, data);
+			}
+		}
+		
+		return data;
 	}
 	
 	
 	/**
 	 * Returns true if primary key is auto increment
 	 */
-	pure AutoIncrement getAutoIncrement()
+	AutoIncrement getAutoIncrement()
 	{
-		Provider provider = @.provider(classof Provider);
-		return provider.getAutoIncrement(static::getTableName());
+		Collection<BaseObject> annotations = this.getAnotations();
+		AutoIncrement annotation = annotations.find(
+			bool (BaseObject item) => item instanceof AutoIncrement
+		);
+		return annotation;
 	}
 	
 	
 	/**
-	 * Returns primary key names of table
+	 * Returns primary rules
 	 */
-	pure Collection<string> getPrimaryKeyNames()
+	MapType getPrimaryRules()
 	{
-		Provider provider = @.provider(classof Provider);
-		return provider.getPrimaryKeyNames(static::getTableName());
+		MapType rules = new MapType();
+		
+		Vector<BaseStruct> annotations = this.getAnotations();
+		Primary primary = annotations.find(bool (BaseObject item) => item instanceof Primary);
+		if (primary == null) return rules;
+		
+		annotations = annotations.filter(
+			bool (BaseObject item) use (primary)
+			{
+				if (not (item instanceof BaseType)) return false;
+				if (primary.keys.indexOf(item.name) == -1) return false;
+				return true;
+			}
+		);
+		
+		for (int i=0; i<annotations.count(); i++)
+		{
+			BaseType annotation = annotations.get(i);
+			BaseObject rule = annotation.getRule();
+			if (not rule)
+			{
+				throw new RuntimeException("Rule is not defined");
+			}
+			rules.addType(annotation.name, rule);
+		}
+		
+		return rules;
+	}
+	
+	
+	/**
+	 * Returns primary keys of table
+	 */
+	Vector<string> getPrimaryKeys()
+	{
+		/* Get primary annotation */
+		Vector<BaseStruct> annotations = this.getAnotations();
+		Primary primary = annotations.find(bool (BaseObject item) => item instanceof Primary);
+		
+		if (primary == null) return null;
+		return primary.keys;
 	}
 	
 	
 	/**
 	 * Returns primary data
 	 */
-	pure Dict getPrimaryFromData(Dict data)
+	Map getPrimaryKey(Map data)
 	{
-		Provider provider = @.provider(classof Provider);
-		return provider.getPrimaryFromData(static::getTableName(), data);
+		/* Get primary annotation */
+		Vector<string> primary_keys = this.getPrimaryKeys();
+		
+		/* Check if primary keys if exists */
+		if (primary_keys == null)
+		{
+			string table_name = this.getTableName();
+			throw new RuntimeException("Primary key does not exists in " ~ table_name);
+		}
+		
+		/* Intersect values */
+		Map pk = {};
+		for (int i=0; i<primary_keys.count(); i++)
+		{
+			string field_name = primary_keys.get(i);
+			pk.set(field_name, data ? data.get(field_name) : null);
+		}
+		return pk;
 	}
 	
 	
 	/**
 	 * Returns primary filter by data
 	 */
-	pure Vector<QueryFilter> getPrimaryFilter(Dict data, bool use_full_key = true)
+	Vector<QueryFilter> getPrimaryFilter(Dict data, bool use_full_key = true)
 	{
-		Provider provider = @.provider(classof Provider);
-		return provider.getPrimaryFilter(static::getTableName(), data, use_full_key);
-	}
-	
-	
-	/**
-	 * Returns primary key
-	 */
-	public Map getPrimaryKey()
-	{
-		Provider provider = @.provider(classof Provider);
-		return provider.getPrimaryFromData(static::getTableName(), this.new_data);
-	}
-	
-	
-	/**
-	 * Returns value
-	 */
-	var get(string name, var def_value = null) => this.new_data.get(name, def_value);
-	
-	
-	/**
-	 * Set new value
-	 */
-	void set(string name, var value)
-	{
-		this.new_data.set(name, value);
-	}
-	
-	
-	/**
-	 * Get updated data
-	 */
-	Map getUpdatedData()
-	{
-		if (this.new_data == null) return {};
-		
-		Map res = new Map;
-		
-		Collection new_data_keys = this.new_data.keys();
-		for (int i=0; i<new_data_keys.count(); i++)
-		{
-			string field_name = new_data_keys[i];
-			var new_value = this.new_data[field_name];
-			
-			if (this.old_data == null)
+		string table_name = this.getTableName();
+		Dict pk = this.getPrimaryKey(data);
+		Vector filter = pk.transition(
+			QueryFilter (var value, string key) use (table_name, use_full_key)
 			{
-				res.set(field_name, new_value);
-			}
-			else
-			{
-				if (not this.old_data.has(field_name))
+				QueryFilter item = new QueryFilter;
+				item.key = key;
+				item.op = "=";
+				item.value = value;
+				if (use_full_key)
 				{
-					res.set(field_name, new_value);
+					item.key = table_name ~ "." ~ key;
 				}
-				else
-				{
-					var old_value = this.old_data[field_name];
-					if (new_value != old_value)
-					{
-						res.set(field_name, new_value);
-					}
-				}
-			}
-		}
-		
-		return res;
-	}
-	
-	
-	/**
-	 * Init data
-	 */
-	protected void _initData(Dict data = null)
-	{
-		this.old_data = data != null ? new Map(data) : null;
-		this.new_data = data != null ? new Map(data) : new Map();
-	}
-	
-	
-	/**
-	 * Set data
-	 */
-	async void setData(Dict item)
-	{
-		item.each(
-			void (var value, string key)
-			{
-				this.set(key, value);
+				return item;
 			}
 		);
-	}
-	
-	
-	/**
-	 * Returns true if object is new
-	 */
-	bool isNew()
-	{
-		return this.old_data ? false : true;
-	}
-	
-	
-	/**
-	 * Returns true if data has loaded from database
-	 */
-	bool isUpdate()
-	{
-		return this.old_data ? true : false;
-	}
-	
-	
-	/**
-	 * Returns true if model is changed
-	 */
-	bool isChanged()
-	{
-		Dict d1 = this.old_data;
-		Dict d2 = this.new_data;
-		
-		if (d1 == null) return true;
-		if (d2 == null) return true;
-		
-		Collection d1_keys = d1.keys();
-		Collection d2_keys = d2.keys();
-		
-		for (int i=0; i<d1_keys.count(); i++)
+		if (filter.count() == 0)
 		{
-			string key1 = d1_keys.get(i);
-			
-			if (not d2.has(key1))
-			{
-				return true;
-			}
-			
-			var value1 = d1.get(key1);
-			var value2 = d2.get(key1);
-			
-			if (value1 != value2)
-			{
-				return true;
-			}
+			throw new RuntimeException("Primary key does not exists in " ~ table_name);
 		}
-		
-		for (int i=0; i<d2_keys.count(); i++)
-		{
-			string key2 = d2_keys.get(i);
-			
-			if (not d1.has(key2))
-			{
-				return true;
-			}
-		}
-		
-		return false;
+		return filter;
 	}
 	
 	
 	/**
 	 * Save model
 	 */
-	async void save(Connection conn, Dict params = null)
+	async void save(Record<Relation> item, Map params = null)
 	{
-		string table_name = static::getTableName();
-		Provider provider = @.provider(classof Provider);
+		string table_name = this.getTableName();
 		
 		/* Call before save */
-		await @.callHookAsync(DatabaseSchema::SAVE_BEFORE, {
-			"item": this,
+		await @.hook(DatabaseSchema::SAVE_BEFORE, {
+			"table_name": table_name,
+			"relation": this,
+			"item": item,
 		});
 		
-		bool is_update = this.isUpdate();
-		Dict updated_data = this.getUpdatedData();
+		bool is_update = item.isUpdate();
+		Map updated_data = item.getUpdatedData();
+		
+		/* Prepare */
+		Vector annotations = this.getAnotations();
+		for (int i=0; i<annotations.count(); i++)
+		{
+			BaseType annotation = annotations.get(i);
+			if (annotation instanceof BaseType)
+			{
+				updated_data = annotation.prepare(updated_data, is_update);
+			}
+		}
 		
 		if (is_update)
 		{
-			Collection updated_data_keys = updated_data.keys();
+			Collection updated_data_keys = rtl::list(updated_data.keys());
 			if (updated_data_keys.count() > 0)
 			{
-				Collection filter = provider.getPrimaryFilter(table_name, this.old_data, false);
+				Collection filter = this.getPrimaryFilter(item.old(), false);
 				if (filter.count() > 0)
 				{
-					Dict db_updated_data = await provider.toDatabase
-						(table_name, conn, updated_data, is_update);
-					
-					await conn.update(
-						table_name,
-						filter,
-						db_updated_data,
-						params
-					);
+					Connection connection = this.connection;
+					if (not connection) connection = await this.pool.getConnection();
+					try
+					{
+						Map db_updated_data = await this.toDatabase(connection, updated_data);
+						await connection.update(
+							table_name,
+							filter,
+							db_updated_data,
+							params
+						);
+					}
+					finally
+					{
+						if (not this.connection)
+							await connection.release();
+					}
 				}
 				else
 				{
@@ -359,35 +346,45 @@ class Relation extends BaseObject implements MapInterface
 				for (int i=0; i<updated_data_keys.count(); i++)
 				{
 					string field_name = updated_data_keys[i];
-					this.old_data.set(field_name, updated_data[field_name]);
+					item.set(field_name, updated_data.get(field_name));
 				}
 			}
 		}
 		else
 		{
-			Dict db_updated_data = provider.toDatabase
-				(table_name, conn, updated_data, is_update);
-			
-			var last_id = await conn.insert(
-				table_name,
-				db_updated_data,
-				true,
-				params
-			);
-			
-			this._initData(this.new_data);
-			
-			AutoIncrement auto_increment = provider.getAutoIncrement(table_name);
-			if (auto_increment and auto_increment.name)
+			/* Get connection and release it after use */
+			Connection connection = this.connection;
+			if (not connection) connection = await this.pool.getConnection();
+			try
 			{
-				this.old_data.set(auto_increment.name, last_id);
-				this.new_data.set(auto_increment.name, last_id);
+				Map db_updated_data = await this.toDatabase(connection, updated_data);
+				var last_id = await connection.insert(
+					table_name,
+					db_updated_data,
+					true,
+					params
+				);
+				
+				AutoIncrement auto_increment = this.getAutoIncrement();
+				if (auto_increment and auto_increment.name)
+				{
+					item.set(auto_increment.name, last_id);
+				}
+			}
+			finally
+			{
+				if (not this.connection)
+					await connection.release();
 			}
 		}
 		
+		item._initData(item.all());
+		
 		/* Call before after */
-		await @.callHookAsync(DatabaseSchema::SAVE_AFTER, {
-			"item": this,
+		await @.hook(DatabaseSchema::SAVE_AFTER, {
+			"table_name": table_name,
+			"relation": this,
+			"item": item,
 		});
 	}
 	
@@ -395,142 +392,218 @@ class Relation extends BaseObject implements MapInterface
 	/**
 	 * Delete model
 	 */
-	async Relation delete(Connection conn, Dict params = null)
+	async void delete(Record<Relation> item, Dict params = null)
 	{
-		if (this.isNew())
-		{
-			return;
-		}
-		
-		/* Get provider */
-		string table_name = static::getTableName();
-		Provider provider = @.provider(classof Provider);
-		
 		/* Get primary filter */
-		Collection filter = provider.getPrimaryFilter(table_name, this.old_data, false);
+		string table_name = this.getTableName();
+		Collection filter = this.getPrimaryFilter(item.old(), false);
 		
 		/* Delete record */
 		if (filter.count() > 0)
 		{
-			await conn.delete(
-				table_name,
-				filter,
-				params
-			);
+			/* Get connection and release it after use */
+			Connection connection = this.connection;
+			if (not connection) connection = await this.pool.getConnection();
+			try
+			{
+				await connection.delete(
+					table_name,
+					filter,
+					params
+				);
+			}
+			finally
+			{
+				if (not this.connection)
+					await connection.release();
+			}
 		}
 		else
 		{
 			throw new RuntimeException("Primary key does not exists in " ~ table_name);
 		}
-		
-		return this;
 	}
 	
 	
 	/**
 	 * Refresh model from database
 	 */
-	async Relation refresh(Connection conn, Dict params = null)
+	async void refresh(
+		Record<Relation> item, Dict params = null
+	)
 	{
-		string table_name = static::getTableName();
-		Provider provider = @.provider(classof Provider);
-		
-		Dict item = null;
-		Collection<QueryFilter> filter = provider.getPrimaryFilter(
-			table_name, this.old_data, false
-		);
-		
-		if (filter.count() > 0)
+		Record<Relation> new_item = await this.findByPk(item, params);
+		if (new_item)
 		{
-			Query q = new Query()
-				.select([table_name ~ ".*"])
-				.from(table_name)
-				.setFilter(filter)
-				.limit(1)
-			;
-			
-			item = await conn.fetchOne(q, params);
+			item._initData(new_item.all());
 		}
-		
-		if (item)
-		{
-			this._initData(item.toDict());
-		}
-		
-		return this;
 	}
 	
 	
 	/**
 	 * Returns query
 	 */
-	static Query query() => new Query().relation(static::getClassName());
+	Query query() => new Query().from(this.getTableName());
 	
 	
 	/**
 	 * Returns select query
 	 */
-	static Query select() => new Query()
-		.relation(static::getClassName())
-		.select([static::getTableName() ~ ".*"])
+	Query select(Vector fields = null)
+	{
+		string table_name = this.getTableName();
+		if (fields == null) fields = [table_name ~ ".*"];
+		Query q = new Query()
+			.select(fields)
+			.from(table_name)
+		;
+		return q;
+	}
+	
+	
+	/**
+	 * Execute query
+	 */
+	async void execute(Query q)
+	{
+		Connection connection = this.connection;
+		if (not connection) connection = await this.pool.getConnection();
+		try
+		{
+			await connection.execute(q);
+		}
+		finally
+		{
+			if (not this.connection)
+				await connection.release();
+		}
+	}
+	
+	
+	/**
+	 * Fetch all
+	 */
+	async QueryResult fetchAll(Query q, Dict params = null)
+	{
+		QueryResult items = null;
+		
+		/* Get connection and release it after use */
+		Connection connection = this.connection;
+		if (not connection) connection = await this.pool.getConnection();
+		try
+		{
+			items = await connection.fetchAll(q, params);
+		}
+		finally
+		{
+			if (not this.connection)
+				await connection.release();
+		}
+		
+		return items;
+	}
+	
+	
+	/**
+	 * Fetch all records
+	 */
+	async QueryResult<Record<Relation>> fetchAllRecords(Query q, Map params = null)
+	{
+		QueryResult result = await this.fetchAll(q);
+		return result.map(
+			Record (Map row) => this.createRecord(row)
+		);
+	}
+	
+	
+	/**
+	 * Fetch
+	 */
+	async Map fetch(Query q, Dict params = null)
+	{
+		q.limit(1);
+		
+		/* Get connection and release it after use */
+		Connection connection = this.connection;
+		if (not connection) connection = await this.pool.getConnection();
+		try
+		{
+			Record item = await connection.fetch(q, params);
+			return item;
+		}
+		finally
+		{
+			if (not this.connection)
+				await connection.release();
+		}
+	}
+	async Map fetchOne(Query q, Dict params = null) =>
+		await this.fetch(q, params)
 	;
 	
 	
 	/**
-	 * Find relations by filter
+	 * Fetch record
 	 */
-	static async Vector<Relation> findItems
-		(Connection conn, Collection<QueryFilter> filter, Dict params = null)
+	async Record<Relation> fetchRecord(Query q, Map params = null)
 	{
-		string table_name = static::getTableName();
+		Map row = await this.fetch(q, params);
+		return row ? this.createRecord(row) : null;
+	}
+	
+	
+	/**
+	 * Find rows by filter
+	 */
+	async QueryResult find(Collection<QueryFilter> filter, Dict params = null)
+	{
+		Query q = this.select().setFilter(filter);
 		
-		Query q = static::query()
-			.select([table_name ~ ".*"])
-			.setFilter(filter)
-		;
-		
-		return await conn.findRelations(q, params);
+		/* Get connection and release it after use */
+		Connection connection = this.connection;
+		if (not connection) connection = await this.pool.getConnection();
+		try
+		{
+			return await connection.fetchAll(q, params);
+		}
+		finally
+		{
+			if (not this.connection)
+				await connection.release();
+		}
 	}
 	
 	
 	/**
 	 * Find relation by filter
 	 */
-	static async Relation findByFilter
-		(Connection conn, Collection<QueryFilter> filter, Dict params = null)
+	async Record<Relation> findRecord(Collection<QueryFilter> filter, Dict params = null)
 	{
-		string table_name = static::getTableName();
-		
-		Query q = static::query()
-			.select([table_name ~ ".*"])
-			.setFilter(filter)
-			.limit(1)
-		;
-		
-		return await conn.findRelation(q, params);
+		Query q = this.select().setFilter(filter).limit(1);
+		return await this.fetchRecord(q, params);
 	}
 	
 	
 	/**
 	 * Find relation by primary key
 	 */
-	static async Relation findByPk(Connection conn, Dict pk, Dict params = null)
+	async Record<Relation> findByPk(Dict pk, Dict params = null)
 	{
 		/* Returns primary filter */
-		Vector filter = static::getPrimaryFilter(pk, false);
+		Vector filter = this.getPrimaryFilter(pk, false);
 		
-		/* Find relation */
-		return await static::findByFilter(conn, filter, params);
+		/* Find record */
+		return await this.findRecord(filter, params);
 	}
 	
 	
 	/**
 	 * Find relation by object
 	 */
-	static async Relation findById(Connection conn, var id, Dict params = null)
+	async Record<Relation> findById(var id, Dict params = null)
 	{
 		/* Get primary keys */
-		Vector pk = static::getPrimaryKeyNames();
+		Vector pk = this.getPrimaryKeys();
 		string pk_name = pk.get(0);
 		
 		/* Build filter */
@@ -538,16 +611,15 @@ class Relation extends BaseObject implements MapInterface
 			new QueryFilter(pk_name, "=", id)
 		];
 		
-		/* Find relation */
-		return await static::findByFilter(conn, filter, params);
+		/* Find record */
+		return await this.findRecord(filter, params);
 	}
 	
 	
 	/**
 	 * Find or create
 	 */
-	static async Relation findOrCreate
-		(Connection conn, Dict filter, Dict update, Dict params = null)
+	async Record<Relation> findOrCreate(Dict filter, Dict params = null)
 	{
 		string class_name = static::getClassName();
 		
@@ -560,16 +632,15 @@ class Relation extends BaseObject implements MapInterface
 		);
 		
 		/* Find item */
-		Relation relation = await static::findByFilter(conn, search, params);
-		if (relation) return relation;
+		Record<Relation> record = await this.findRecord(search, params);
+		if (record) return record;
 		
 		/* Create if not found */
-		relation = Relation::newInstance(class_name);
+		record = this.createRecord();
 		
 		/* Set new data */
-		relation.setData(filter);
-		relation.setData(update);
+		record.setData(filter);
 		
-		return relation;
+		return record;
 	}
 }

@@ -18,10 +18,18 @@
 
 namespace Runtime.WordPress.Admin.GalleryItem;
 
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.Required;
+use Runtime.Serializer.StringType;
+use Runtime.ORM.Query;
 use Runtime.Web.Annotations.ApiMethod;
-use Runtime.Widget.Crud.CrudService;
-use Runtime.Widget.Crud.SaveApi;
-use Runtime.WordPress.Admin.GalleryItem.GalleryItemService;
+use Runtime.Widget.Api.SaveApi;
+use Runtime.WordPress.Admin.AdminMiddleware;
+use Runtime.WordPress.Admin.Components.ImageRule;
+use Runtime.WordPress.Theme.Components.ImageType;
+use Runtime.WordPress.Database.GalleryItem;
 
 
 class GalleryItemSaveApi extends SaveApi
@@ -29,19 +37,60 @@ class GalleryItemSaveApi extends SaveApi
 	/**
 	 * Returns api name
 	 */
-	pure string getApiName() => "admin.wordpress.gallery.item.save";
+	pure string getApiName() => "admin.wordpress.gallery.item";
 	
 	
 	/**
-	 * Returns service
+	 * Returns record name
 	 */
-	CrudService createService() => new GalleryItemService();
+	pure string getRecordName() => classof GalleryItem;
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	Vector<Middleware> getMiddleware() =>
+	[
+		new AdminMiddleware(),
+	];
+	
+	
+	/**
+	 * Returns data rules
+	 */
+	void getDataRules(MapType rules)
+	{
+		rules.addType("foreign_key", new Required());
+		rules.addType("foreign_key", new MapType{
+			"item_id": new IntegerType(),
+		});
+	}
+	
+	
+	/**
+	 * Returns item rules
+	 */
+	void getItemRules(MapType rules)
+	{
+		rules.addType("name", new StringType());
+		rules.addType("image", new ObjectType{ "class_name": classof ImageType });
+		rules.addType("pos", new IntegerType());
+	}
+	
+	
+	/**
+	 * Returns rules
+	 */
+	Vector rules() =>
+	[
+		new ImageRule{ "name": "image", "key": "image_id" },
+	];
 	
 	
 	/**
 	 * Returns item fields
 	 */
-	Collection getItemFields() =>
+	Collection getItemFields(string action) =>
 	[
 		"id",
 		"name",
@@ -52,47 +101,49 @@ class GalleryItemSaveApi extends SaveApi
 	
 	
 	/**
+	 * Returns save fields
+	 */
+	Vector getSaveFields() =>
+	[
+		"name",
+		"pos"
+	];
+	
+	
+	/**
+	 * Build query
+	 */
+	async void buildQuery(Query q)
+	{
+		q.where("gallery_id", "=", this.foreign_key.get("item_id"));
+	}
+	
+	
+	/**
+	 * Before save
+	 */
+	async void onSaveBefore()
+	{
+		this.item.gallery_id = this.foreign_key.get("item_id");
+	}
+	
+	
+	/**
 	 * Action save
 	 */
-	@ApiMethod
+	@ApiMethod{ "name": "save" }
 	async void actionSave()
 	{
-		/* Create service */
-		CrudService service = this.createService();
-		
-		/* Foreign key */
-		await service.loadGallery(this.post_data["foreign_key", "gallery_id"]);
-		
-		/* Load item */
-		await service.loadItem(this.post_data.get("pk"), true);
-		
-		/* Save item */
-		await service.save(this.post_data.get("item"));
-		
-		/* Build result */
-		this.buildResult(service);
+		await parent();
 	}
 	
 	
 	/**
 	 * Action delete
 	 */
-	@ApiMethod
+	@ApiMethod{ "name": "delete" }
 	async void actionDelete()
 	{
-		/* Create service */
-		CrudService service = this.createService();
-		
-		/* Foreign key */
-		await service.loadGallery(this.post_data["foreign_key", "gallery_id"]);
-		
-		/* Load item */
-		await service.loadItem(this.post_data.get("pk"));
-		
-		/* Delete item */
-		await service.delete();
-		
-		/* Build result */
-		this.buildResult(service);
+		await parent();
 	}
 }

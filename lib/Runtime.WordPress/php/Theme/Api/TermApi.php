@@ -17,36 +17,58 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Api;
+
+use Runtime\re;
+use Runtime\DateTime;
+use Runtime\ORM\Connection;
+use Runtime\ORM\Cursor;
+use Runtime\ORM\Query;
+use Runtime\ORM\QueryField;
+use Runtime\ORM\QueryFilter;
+use Runtime\ORM\QueryResult;
+use Runtime\ORM\Relation;
+use Runtime\Web\BaseApi;
+use Runtime\Web\Annotations\ApiMethod;
+use Runtime\Widget\Crud\CrudApi;
+use Runtime\Widget\Crud\CrudRule;
+
+
 class TermApi extends \Runtime\Widget\Crud\CrudApi
 {
 	/**
 	 * Returns api name
 	 */
-	static function getApiName()
-	{
-		return "runtime.wordpress.term";
-	}
+	static function getApiName(){ return "runtime.wordpress.term"; }
+	
+	
 	/**
 	 * Returns table name
 	 */
-	static function getTableName()
-	{
-		return "terms";
-	}
+	static function getTableName(){ return "terms"; }
+	
+	
 	/**
 	 * Returns max limit
 	 */
-	function getMaxLimit()
-	{
-		return -1;
-	}
+	function getMaxLimit(){ return -1; }
+	
+	
 	/**
 	 * Returns item fields
 	 */
-	function getItemFields()
+	function getItemFields($action)
 	{
-		return \Runtime\Vector::from(["term_id","name","slug","taxonomy","parent_id","count"]);
+		return new \Runtime\Vector(
+			"term_id",
+			"name",
+			"slug",
+			"taxonomy",
+			"parent_id",
+			"count",
+		);
 	}
+	
+	
 	/**
 	 * Returns query field
 	 */
@@ -62,6 +84,8 @@ class TermApi extends \Runtime\Widget\Crud\CrudApi
 		}
 		return new \Runtime\ORM\QueryField("terms", $field_name);
 	}
+	
+	
 	/**
 	 * Build search query
 	 */
@@ -69,12 +93,12 @@ class TermApi extends \Runtime\Widget\Crud\CrudApi
 	{
 		$taxonomy_name = $this->post_data->get("taxonomy", "category");
 		$q->where("term_taxonomy.taxonomy", "=", $taxonomy_name);
-		$q->innerJoin("term_taxonomy", \Runtime\Vector::from(["term_taxonomy.term_id = terms.term_id"]));
+		$q->innerJoin("term_taxonomy", new \Runtime\Vector("term_taxonomy.term_id = terms.term_id"));
 		$q->orderBy("terms.name", "asc");
 		/* Set term id */
 		if ($this->post_data->has("term_id"))
 		{
-			$term_id = \Runtime\rtl::to($this->post_data->get("term_id"), ["e"=>"int"]);
+			$term_id = \Runtime\rtl::toInt($this->post_data->get("term_id"));
 			$q->where("terms.ID", "=", $term_id);
 			$q->calcFoundRows(false);
 		}
@@ -85,16 +109,20 @@ class TermApi extends \Runtime\Widget\Crud\CrudApi
 			$q->where("terms.slug", "=", $slug);
 		}
 	}
+	
+	
 	/**
 	 * Convert item
 	 */
 	function convertItem($fields, $item)
 	{
-		$item->set("count", \Runtime\rtl::to($item->get("count"), ["e"=>"int"]));
-		$item->set("parent_id", \Runtime\rtl::to($item->get("parent_id"), ["e"=>"int"]));
-		$item->set("term_id", \Runtime\rtl::to($item->get("term_id"), ["e"=>"int"]));
+		$item->set("count", \Runtime\rtl::toInt($item->get("count")));
+		$item->set("parent_id", \Runtime\rtl::toInt($item->get("parent_id")));
+		$item->set("term_id", \Runtime\rtl::toInt($item->get("term_id")));
 		return parent::convertItem($fields, $item);
 	}
+	
+	
 	/**
 	 * Action search
 	 */
@@ -102,6 +130,8 @@ class TermApi extends \Runtime\Widget\Crud\CrudApi
 	{
 		parent::actionSearch();
 	}
+	
+	
 	/**
 	 * Action search one
 	 */
@@ -109,59 +139,26 @@ class TermApi extends \Runtime\Widget\Crud\CrudApi
 	{
 		parent::actionSearchOne();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Api";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Api.TermApi";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Crud.CrudApi";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Api.TermApi"; }
 	static function getMethodsList()
 	{
-		$a=[
-			"actionSearch",
-			"actionSearchOne",
-		];
-		return \Runtime\Collection::from($a);
+		return new \Runtime\Vector("actionSearch", "actionSearchOne");
 	}
 	static function getMethodInfoByName($field_name)
 	{
-		if ($field_name == "actionSearch")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
-		if ($field_name == "actionSearchOne")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
+		if ($field_name == "actionSearch") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod()
+		);
+		if ($field_name == "actionSearchOne") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod()
+		);
 		return null;
 	}
 }

@@ -1,0 +1,19 @@
+{
+  "description": "Runtime.Web",
+  "license": "Apache-2.0",
+  "type": "commonjs",
+  "contributors": [
+    {
+      "name": "Ildar Bikmamatov",
+      "email": "support@bayrell.org"
+    }
+  ],
+  "files": [
+    "Annotations/*.js",
+	"Hooks/*.js",
+    "*.js"
+  ],
+  "main": "index.js",
+  "name": "baylang-runtime-web-nodejs",
+  "version": "1.0"
+}

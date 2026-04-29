@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,51 +17,21 @@
  *  limitations under the License.
  */
 namespace Runtime\Widget\ContextMenu;
-class ContextMenuMessage extends \Runtime\Web\Messages\Message
+
+use Runtime\Message;
+
+class ContextMenuMessage extends \Runtime\Message
 {
-	public $item;
-	/* ======================= Class Init Functions ======================= */
+	var $item;
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->item = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget.ContextMenu";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.ContextMenu.ContextMenuMessage";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Messages.Message";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Widget.ContextMenu.ContextMenuMessage"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,101 +17,70 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget\ContextMenu;
-class ContextMenu extends \Runtime\Web\Component
+
+
+class ContextMenu extends \Runtime\Component
 {
 	function renderItem($item)
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
-		
-		/* Text */
-		$this->_t($__v0, $this->_escape($item->get("label")));
-		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["class" => $this->_class_name(["widget_context_menu__item", (($item->get("hidden") == true) ? ("hidden") : (""))])], $__v0);
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("context_menu__item", $item->get("hidden") == true ? "hidden" : "", $componentHash))])));
+		$__v0->push($item->get("label"));
 		
 		return $__v;
 	}
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
+		
 		$props = $this->getProps();
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("context_menu", $this->model->is_open ? "context_menu--open" : "context_menu--hide", $componentHash))]))->concat($props));
 		
 		for ($i = 0; $i < $this->model->items->count(); $i++)
 		{
 			$item = $this->model->items->get($i);
-			
-			/* Text */
-			$this->_t($__v0, $this->renderItem($item));
+			$__v0->push($this->renderItem($item));
 		}
 		
-		/* Element 'div' */
-		$this->_e($__v, "div", $this->_merge_attrs(["class" => $this->_class_name(["widget_context_menu", (($this->model->is_open) ? ("widget_context_menu--open") : ("widget_context_menu--hide"))])], $props), $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
 	}
 	/**
- * Returns props
- */
+	 * Returns props
+	 */
 	function getProps()
 	{
-		$styles = \Runtime\Vector::from([]);
+		$styles = new \Runtime\Vector();
 		if ($this->model->width != "")
 		{
-			$styles->push("max-width: " . \Runtime\rtl::toStr($this->model->width));
+			$styles->push("max-width: " . $this->model->width);
 		}
-		$styles->push("left: " . \Runtime\rtl::toStr($this->model->x) . \Runtime\rtl::toStr("px;"));
-		$styles->push("top: " . \Runtime\rtl::toStr($this->model->y) . \Runtime\rtl::toStr("px;"));
-		return \Runtime\Map::from(["style"=>$styles->join(";")]);
-	}
-	static function css($vars)
-	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_context_menu.h-eb03{display: none;position: absolute;z-index: 99;background-color: var(--widget-color-default);border: var(--widget-border-width) var(--widget-color-border) solid;border-bottom-width: 0}.widget_context_menu--open.h-eb03{display: block}.widget_context_menu__item.h-eb03{padding: var(--widget-button-padding-y) var(--widget-button-padding-y);border-bottom: var(--widget-border-width) var(--widget-color-border) solid;cursor: pointer;user-select: none}.widget_context_menu__item.hidden.h-eb03{display: none}");
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.Widget.ContextMenu";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.ContextMenu.ContextMenu";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
+		$styles->push("left: " . $this->model->x . "px;");
+		$styles->push("top: " . $this->model->y . "px;");
+		return new \Runtime\Map([
+			"style" => \Runtime\rs::join(";", $styles),
 		]);
 	}
-	static function getFieldsList()
+	/**
+	 * Click item
+	 */
+	function onClickItem($item)
 	{
-		$a = [];
-		return \Runtime\Collection::from($a);
+		$this->model->onClickItem($item);
 	}
-	static function getFieldInfoByName($field_name)
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return null;
+		parent::_init();
 	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".context_menu.h-eb02{display: none;position: absolute;z-index: 99;background-color: var(--color-background);border: var(--border-width) var(--color-border) solid;border-bottom-width: 0}.context_menu--open.h-eb02{display: block}.context_menu__item.h-eb02{padding: calc(var(--space) * 0.75) var(--space);border-bottom: var(--border-width) var(--color-border) solid;cursor: pointer;user-select: none}.context_menu__item.h-eb02:hover{background-color: var(--color-hover)}.context_menu__item.hidden.h-eb02{display: none}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.ContextMenu.ContextMenu"; }
 }

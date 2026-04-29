@@ -2,40 +2,26 @@
 	"name": "Runtime.Web",
 	"assets":
 	[
-		"ApiResult.bay",
-		"BaseApp.bay",
-		"BaseModel.bay",
-		"BaseLayoutModel.bay",
-		"BaseStorage.bay",
-		"Bus.bay",
-		"BusHttp.bay",
-		"BusInterface.bay",
-		"Component.bay",
-		"DefaultLayout.bay",
-		"Events.bay",
-		"ModelFactory.bay",
-		"RenderContainer.bay",
+		"Assets.bay",
+		"BaseRoute.bay",
 		"RenderHelper.bay",
-		"RenderProvider.bay",
+		"Request.bay",
 		"RouteInfo.bay",
+		"RouteList.bay",
 		"RouteAction.bay",
 		"RoutePage.bay",
 		"RouteModel.bay",
-		"Annotations/Components.bay",
-		"Annotations/SetupLayout.bay",
-		"Annotations/Widget.bay",
+		"RouteProvider.bay",
+		"Translator.bay",
+		"Annotations/Route.bay",
 		"Hooks/AppHook.bay",
 		"Hooks/AssetsHook.bay",
 		"Hooks/CanonicalUrl.bay",
 		"Hooks/Components.bay",
 		"Hooks/DetectLanguage.bay",
+		"Hooks/PageNotFound.bay",
 		"Hooks/SetupLayout.bay",
 		"Hooks/WidgetModelFactory.bay",
-		"Messages/Message.bay",
-		"Messages/ValueChangeMessage.bay",
-		"Messages/ClickMessage.bay",
-		"BasePage.bay",
-		"BasePageModel.bay",
 		"ModuleDescription.bay"
 	],
 	"groups": [
@@ -45,7 +31,8 @@
 	"dest":
 	{
 		"php": "./php",
-		"es6": "./es6"
+		"es6": "./es6",
+		"nodejs": "./nodejs"
 	},
 	"allow":
 	[

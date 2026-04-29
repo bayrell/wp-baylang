@@ -17,89 +17,82 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Admin\Robots;
+
+use Runtime\Serializer\MapType;
+use Runtime\Serializer\StringType;
+use Runtime\Web\ApiResult;
+use Runtime\Web\ApiRequest;
+use Runtime\Web\BaseApi;
+use Runtime\Web\Annotations\ApiMethod;
+use Runtime\WordPress\WP_Helper;
+use Runtime\WordPress\Admin\AdminMiddleware;
+
+
 class RobotsApi extends \Runtime\Web\BaseApi
 {
 	/**
 	 * Returns api name
 	 */
-	static function getApiName()
+	static function getApiName(){ return "admin.wordpress.robots"; }
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	function getMiddleware()
 	{
-		return "admin.wordpress.robots.save";
+		return new \Runtime\Vector(
+			new \Runtime\WordPress\Admin\AdminMiddleware(),
+		);
 	}
+	
+	
 	/**
 	 * Action item
 	 */
 	function actionItem()
 	{
 		$content = \Runtime\WordPress\WP_Helper::get_option("robots.txt");
-		$this->result->success(\Runtime\Map::from(["data"=>\Runtime\Map::from(["pk"=>true,"item"=>\Runtime\Map::from(["content"=>$content])])]));
+		$this->success(new \Runtime\Map([
+			"data" => new \Runtime\Map([
+				"content" => $content,
+			]),
+		]));
 	}
+	
+	
 	/**
 	 * Action save
 	 */
 	function actionSave()
 	{
-		$__v0 = new \Runtime\Monad($this->post_data);
-		$__v0 = $__v0->attr("item");
-		$__v0 = $__v0->attr("content");
-		$__v0 = $__v0->monad(\Runtime\rtl::m_to("string", ""));
-		$content = $__v0->value();
-		\Runtime\WordPress\WP_Helper::update_option("robots.txt", $content);
-		$this->result->success(\Runtime\Map::from(["data"=>\Runtime\Map::from(["pk"=>true,"item"=>\Runtime\Map::from(["content"=>$content])])]));
+		$rules = new \Runtime\Serializer\MapType(new \Runtime\Map([
+			"content" => new \Runtime\Serializer\StringType(),
+		]));
+		$this->data = $this->filter($this->request->data, $rules);
+		\Runtime\WordPress\WP_Helper::update_option("robots.txt", $this->data->get("content"));
+		$this->success();
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Admin.Robots";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Admin.Robots.RobotsApi";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.BaseApi";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Admin.Robots.RobotsApi"; }
 	static function getMethodsList()
 	{
-		$a=[
-			"actionItem",
-			"actionSave",
-		];
-		return \Runtime\Collection::from($a);
+		return new \Runtime\Vector("actionItem", "actionSave");
 	}
 	static function getMethodInfoByName($field_name)
 	{
-		if ($field_name == "actionItem")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
-		if ($field_name == "actionSave")
-			return \Runtime\Dict::from([
-				"async"=>true,
-				"annotations"=>\Runtime\Collection::from([
-					new \Runtime\Web\Annotations\ApiMethod(),
-				]),
-			]);
+		if ($field_name == "actionItem") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod(new \Runtime\Map(["name" => "item"]))
+		);
+		if ($field_name == "actionSave") return new \Runtime\Vector(
+			new \Runtime\Web\Annotations\ApiMethod(new \Runtime\Map(["name" => "save"]))
+		);
 		return null;
 	}
 }

@@ -55,5 +55,4 @@ class QueryFilter extends BaseObject
 		if (op == "!=") return true;
 		return false;
 	}
-	
 }

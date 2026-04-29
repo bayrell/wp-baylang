@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,9 +18,23 @@
 
 namespace Runtime.Web.Annotations;
 
+use Runtime.Method;
 use Runtime.Entity.Entity;
+use Runtime.Web.ApiResult;
+use Runtime.Web.ApiRequest;
 
 
-struct ApiMethod extends Entity
+class ApiMethod extends Entity
 {
+	Method item = null;
+	
+	
+	/**
+	 * Apply item
+	 */
+	async ApiResult apply(ApiRequest request)
+	{
+		if (not this.item) return;
+		return await this.item.apply([request]);
+	}
 }

@@ -1,0 +1,91 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+-->
+
+<class name="Runtime.ClearLayout">
+
+<use name="Runtime.BaseLayout" />
+<use name="Runtime.BaseModel" />
+
+<template name="renderHeader">
+	<title>{{ this.layout.title }}</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</template>
+
+<template name="renderStyle">
+	%set string style = BaseLayout::getStyle(this.getComponents());
+	%if (style)
+	{
+		<style>{{ style }}</style>
+	}
+</template>
+
+<template name="renderFooter">
+</template>
+
+<template name="renderCurrentPage">
+	%if (this.layout.current_component != "")
+	{
+		%set string component = this.layout.current_component;
+		<{component} ...this.layout.component_props />
+	}
+	%else
+	{
+		%var BaseModel model = this.layout.getPageModel();
+		%var string class_name = model ? model.component : "";
+		%if (class_name)
+		{
+			<{class_name} model={{ model }} />
+		}
+	}
+</template>
+
+<template>
+	%render this.renderCurrentPage();
+</template>
+
+<template name="renderApp">
+	<html lang={{ this.layout.lang }}>
+		<head>
+			%render this.renderHeader();
+			%render this.renderStyle();
+		</head>
+		<body class={{ "theme_" ~ this.layout.theme }}
+			class={{ rs::join(" ", this.layout.body_class) }}
+		>
+		<div class="root_container">
+			%render this.render();
+		</div>
+		%render this.renderFooter();
+		</body>
+	</html>
+</template>
+
+<script>
+
+/**
+ * Returns layout components
+ */
+Vector getComponents()
+{
+	return BaseLayout::getRequiredComponents(this.layout.components.slice());
+}
+
+</script>
+
+</class>

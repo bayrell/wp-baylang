@@ -17,19 +17,33 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM;
+
+use Runtime\BaseObject;
+use Runtime\Method;
+use Runtime\ORM\Connection;
+use Runtime\ORM\Query;
+
+
 class BaseMigration extends \Runtime\BaseObject
 {
-	public $name;
-	public $connection;
-	public $required;
-	public $migrations;
-	public $up;
-	public $down;
-	function __construct($params=null)
+	var $name;
+	var $connection;
+	var $required;
+	var $migrations;
+	var $up;
+	var $down;
+	
+	
+	/**
+	 * Create migration
+	 */
+	function __construct($params = null)
 	{
 		parent::__construct();
 		$this->_assign_values($params);
 	}
+	
+	
 	/**
 	 * Set connection
 	 */
@@ -37,50 +51,46 @@ class BaseMigration extends \Runtime\BaseObject
 	{
 		$this->connection = $connection;
 	}
+	
+	
 	/**
 	 * Returns name
 	 */
-	function getName()
-	{
-		return $this->name;
-	}
+	function getName(){ return $this->name; }
+	
+	
 	/**
 	 * Returns required migrations
 	 */
-	function getRequired()
-	{
-		return $this->required->copy();
-	}
+	function getRequired(){ return $this->required->slice(); }
+	
+	
 	/**
 	 * Returns migrations
 	 */
-	function getMigrations()
-	{
-		return $this->migrations->copy();
-	}
+	function getMigrations(){ return $this->migrations->slice(); }
+	
+	
 	/**
 	 * Returns migrations
 	 */
 	function buildMigrations()
 	{
 		$current_name = $this->name;
-		$result = \Runtime\Vector::from([]);
+		$result = new \Runtime\Vector();
 		$prev_required = $this->getRequired();
 		/* Add child migrations */
 		$items = $this->getMigrations();
 		for ($i = 0; $i < $items->count(); $i++)
 		{
 			$migration_name = $items->get($i);
-			$f = new \Runtime\Callback($this, $items->get($i));
-			if (!$f->exists())
-			{
-				continue;
-			}
+			$f = new \Runtime\Method($this, $items->get($i));
+			if (!$f->exists()) continue;
 			/* Get migration */
 			$migration = $f->apply();
-			$migration->name = $this->name . \Runtime\rtl::toStr(".") . \Runtime\rtl::toStr($migration_name);
+			$migration->name = $this->name . "." . $migration_name;
 			$migration->required = $migration->required->concat($prev_required);
-			$prev_required = \Runtime\Vector::from([$migration->name]);
+			$prev_required = new \Runtime\Vector($migration->name);
 			/* Build migrations */
 			$result->appendItems($migration->buildMigrations());
 			/* Add new migration */
@@ -90,19 +100,23 @@ class BaseMigration extends \Runtime\BaseObject
 		$this->required = $prev_required;
 		return $result;
 	}
+	
+	
 	/**
 	 * Comment
 	 */
 	function comment($text)
 	{
-		$this->executeSQL("-- " . \Runtime\rtl::toStr($text));
+		$this->executeSQL("-- " . $text);
 	}
+	
+	
 	/**
 	 * Execute raw SQL
 	 */
-	function executeSQL($sql, $data=null)
+	function executeSQL($sql, $data = null)
 	{
-		if ($sql instanceof \Runtime\Collection)
+		if ($sql instanceof \Runtime\Vector)
 		{
 			$sql = \Runtime\rs::join("\n", $sql);
 		}
@@ -110,53 +124,20 @@ class BaseMigration extends \Runtime\BaseObject
 		$q->raw($sql, $data);
 		$this->connection->execute($q);
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->name = "";
 		$this->connection = null;
-		$this->required = \Runtime\Vector::from([]);
-		$this->migrations = \Runtime\Vector::from([]);
+		$this->required = new \Runtime\Vector();
+		$this->migrations = new \Runtime\Vector();
 		$this->up = null;
 		$this->down = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.BaseMigration";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.BaseMigration"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -18,10 +18,26 @@
 
 namespace Runtime.WordPress.Admin.FormSettings;
 
+use Runtime.Exceptions.ApiError;
+use Runtime.Exceptions.ItemNotFound;
+use Runtime.Serializer;
+use Runtime.Serializer.BaseType;
+use Runtime.Serializer.BooleanType;
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.Required;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.VectorType;
+use Runtime.ORM.Query;
+use Runtime.Web.ApiRequest;
+use Runtime.Web.ApiResult;
 use Runtime.Web.Annotations.ApiMethod;
-use Runtime.Widget.Crud.CrudService;
-use Runtime.Widget.Crud.SaveApi;
-use Runtime.WordPress.Admin.FormSettings.FormCrudService;
+use Runtime.Widget.Api.SaveApi;
+use Runtime.Widget.Api.Rules.ReadOnlyRule;
+use Runtime.WordPress.Admin.AdminMiddleware;
+use Runtime.WordPress.Admin.FormSettings.FormItem;
+use Runtime.WordPress.Database.Form;
 
 
 class FormSaveApi extends SaveApi
@@ -29,19 +45,57 @@ class FormSaveApi extends SaveApi
 	/**
 	 * Returns api name
 	 */
-	pure string getApiName() => "admin.wordpress.forms.settings.save";
+	static string getApiName() => "admin.wordpress.forms.settings";
 	
 	
 	/**
-	 * Returns service
+	 * Returns record name
 	 */
-	CrudService createService() => new FormCrudService();
+	static string getRecordName() => classof Form;
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	Vector<Middleware> getMiddleware() =>
+	[
+		new AdminMiddleware(),
+	];
+	
+	
+	/**
+	 * Returns save rules
+	 */
+	Vector rules() => [];
+	
+	
+	/**
+	 * Returns serialize rules
+	 */
+	void getItemRules(BaseType rules)
+	{
+		rules.addType("id", new IntegerType());
+		rules.addType("name", new Required());
+		rules.addType("name", new StringType());
+		rules.addType("api_name", new Required());
+		rules.addType("api_name", new StringType());
+		rules.addType("email_to", new StringType());
+		rules.addType("settings", new MapType{
+			"fields": new VectorType(new MapType{
+				"name": new StringType(),
+				"type": new StringType(),
+				"title": new StringType(),
+				"placeholder": new StringType(),
+				"required": new StringType(),
+			})
+		});
+	}
 	
 	
 	/**
 	 * Returns item fields
 	 */
-	Collection getItemFields() =>
+	Collection getItemFields(string action) =>
 	[
 		"id",
 		"name",
@@ -52,19 +106,38 @@ class FormSaveApi extends SaveApi
 	
 	
 	/**
-	 * Action save
+	 * Build query
 	 */
-	@ApiMethod
+	async void buildQuery(Query q)
+	{
+	}
+	
+	
+	/**
+	 * Before save
+	 */
+	async void onSaveBefore()
+	{
+		/* Set settings */
+		Map settings = this.item.get("settings");
+		if (settings == null) this.item.set("settings", {});
+	}
+	
+	
+	/**
+	 * Save form
+	 */
+	@ApiMethod{ "name": "save" }
 	async void actionSave()
 	{
 		await parent();
 	}
-    
-    
-    /**
-	 * Action delete
+	
+	
+	/**
+	 * Delete form
 	 */
-	@ApiMethod
+	@ApiMethod{ "name": "delete" }
 	async void actionDelete()
 	{
 		await parent();

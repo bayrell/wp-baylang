@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,49 +17,162 @@
  *  limitations under the License.
  */
 namespace Runtime\Exceptions;
-class RuntimeException extends \Runtime\Exceptions\AbstractException
+
+class ClassException extends \Exception
 {
-	function __construct($message, $prev=null)
+	function __construct($message="", $code=-1, $prev=null)
 	{
-		parent::__construct($message, \Runtime\rtl::ERROR_RUNTIME, $prev);
+		parent::__construct($message, (int)$code, $prev);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	function _init(){}
+}
+
+
+class RuntimeException extends \Runtime\Exceptions\ClassException
+{
+	var $prev;
+	var $error_message;
+	var $error_code;
+	var $error_file;
+	var $error_line;
+	var $error_pos;
+	
+	
+	/**
+	 * Constructor
+	 */
+	function __construct($message = "", $code = -1, $prev = null)
 	{
-		return "Runtime.Exceptions";
+		parent::__construct($message, $code, $prev);
+		$this->_init();
+		$this->error_message = $message;
+		$this->error_code = $code;
+		$this->prev = $prev;
 	}
-	static function getClassName()
+	
+	
+	/**
+	 * Returns previous exception
+	 */
+	function getPreviousException()
 	{
-		return "Runtime.Exceptions.RuntimeException";
+		return $this->prev;
 	}
-	static function getParentClassName()
+	
+	
+	/**
+	 * Build error message
+	 */
+	function buildErrorMessage()
 	{
-		return "Runtime.Exceptions.AbstractException";
+		return $this->error_message;
 	}
-	static function getClassInfo()
+	
+	
+	/**
+	 * Returns error message
+	 */
+	function getErrorMessage()
 	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
+		return $this->error_message;
 	}
-	static function getFieldsList()
+	
+	
+	/**
+	 * Returns error code
+	 */
+	function getErrorCode()
 	{
-		$a = [];
-		return \Runtime\Collection::from($a);
+		return $this->error_code;
 	}
-	static function getFieldInfoByName($field_name)
+	
+	
+	/**
+	 * Returns error file name
+	 */
+	function getFileName()
 	{
-		return null;
+		if ($this->error_file == "")
+		{
+			return $this->getFile();
+		}
+		return $this->error_file;
 	}
-	static function getMethodsList()
+	
+	
+	/**
+	 * Returns error line
+	 */
+	function getErrorLine()
 	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
+		if ($this->error_line == "")
+		{
+			return $this->getLine();
+		}
+		return $this->error_line;
 	}
-	static function getMethodInfoByName($field_name)
+	
+	
+	/**
+	 * Returns error position
+	 */
+	function getErrorPos()
 	{
-		return null;
+		return $this->error_pos;
 	}
+	
+	
+	/**
+	 * Convert exception to string
+	 */
+	function toString()
+	{
+		return $this->buildErrorMessage();
+	}
+	
+	
+	/**
+	 * Returns trace
+	 */
+	function getTraceStr()
+	{
+		return $this->getTraceAsString();
+	}
+	
+	
+	/**
+	 * Returns trace
+	 */
+	function getTraceCollection()
+	{
+		$error_trace = $this->getTrace();
+		$error_trace = array_map(
+			function ($item){
+				$prefix = "internal";
+				if (isset($item["file"]))
+					$prefix = $item["file"] . "(" . $item["line"] . ")";
+				else if (isset($item["class"]))
+					$prefix = $item["class"];
+				return $prefix . ": " . $item["function"];
+			},
+			$error_trace
+		);
+		return \Runtime\Vector::create($error_trace);
+	}
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
+	{
+		parent::_init();
+		$this->prev = null;
+		$this->error_message = "";
+		$this->error_code = 0;
+		$this->error_file = "";
+		$this->error_line = "";
+		$this->error_pos = "";
+	}
+	static function getClassName(){ return "Runtime.Exceptions.RuntimeException"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

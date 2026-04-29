@@ -17,72 +17,69 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Theme\WidgetSettings\Button;
+
+use Runtime\BaseObject;
+use Runtime\Web\BaseModel;
+use BayLang\Constructor\Frontend\Editor\Parameters\ParameterContent;
+use BayLang\Constructor\WidgetPage\ParameterFactory;
+use BayLang\Constructor\WidgetPage\WidgetSettingsInterface;
+
+
 class ButtonFormSettings extends \Runtime\BaseObject implements \BayLang\Constructor\WidgetPage\WidgetSettingsInterface
 {
 	/**
 	 * Returns widget name
 	 */
-	function getWidgetName()
-	{
-		return "Button form";
-	}
+	function getWidgetName(){ return "Button form"; }
+	
+	
 	/**
 	 * Returns alias name
 	 */
-	function getAliasName()
-	{
-		return "WP_ButtonForm";
-	}
+	function getAliasName(){ return "WP_ButtonForm"; }
+	
+	
 	/**
 	 * Returns component name
 	 */
-	function getComponentName()
-	{
-		return "Runtime.WordPress.Theme.Components.Button.ButtonForm";
-	}
+	function getComponentName(){ return "Runtime.WordPress.Theme.Components.Button.ButtonForm"; }
+	
+	
 	/**
 	 * Returns model name
 	 */
-	function getModelName()
-	{
-		return "Runtime.WordPress.Theme.Components.Button.ButtonFormModel";
-	}
+	function getModelName(){ return "Runtime.WordPress.Theme.Components.Button.ButtonFormModel"; }
+	
+	
 	/**
 	 * Returns selector name
 	 */
-	function getSelectorName()
-	{
-		return "button";
-	}
+	function getSelectorName(){ return "button"; }
+	
+	
 	/**
 	 * Returns group name
 	 */
-	function getGroupName()
-	{
-		return "widget";
-	}
+	function getGroupName(){ return "widget"; }
+	
+	
 	/**
 	 * Returns true if model
 	 */
-	function isModel()
-	{
-		return false;
-	}
+	function isModel(){ return false; }
+	
+	
 	/**
 	 * Returns true if is widget settings
 	 */
 	function checkWidget($widget)
 	{
-		if (!$widget->isComponent())
-		{
-			return false;
-		}
-		if ($widget->component_class_name != $this->getComponentName())
-		{
-			return false;
-		}
+		if (!$widget->isComponent()) return false;
+		if ($widget->component_class_name != $this->getComponentName()) return false;
 		return true;
 	}
+	
+	
 	/**
 	 * Can insert widget
 	 */
@@ -90,60 +87,48 @@ class ButtonFormSettings extends \Runtime\BaseObject implements \BayLang\Constru
 	{
 		return false;
 	}
+	
+	
 	/**
 	 * Returns params
 	 */
 	function getParams()
 	{
-		return \Runtime\Vector::from([new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterContent")]);
+		return new \Runtime\Vector(
+			new \BayLang\Constructor\WidgetPage\ParameterFactory("BayLang.Constructor.Frontend.Editor.Parameters.ParameterContent"),
+		);
 	}
+	
+	
 	/**
 	 * Returns default template
 	 */
 	function getDefaultTemplate()
 	{
-		return \Runtime\Map::from(["default"=>function ()
-		{
-			return \Runtime\Map::from(["content"=>\Runtime\rs::join("\n", \Runtime\Vector::from(["<use name='Runtime.Widget.Button' component='true' />","<style>","%(Button)widget_button{","}","</style>","<template>Click</template>"]))]);
-		}]);
-	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
-	{
-		return "Runtime.WordPress.Theme.WidgetSettings.Button";
-	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
+		return new \Runtime\Map([
+			"default" => function ()
+			{
+				return new \Runtime\Map([
+					"content" => \Runtime\rs::join("\n", new \Runtime\Vector(
+						"<use name='Runtime.Widget.Button' component='true' />",
+						"<style>",
+						"%(Button)widget_button{",
+						"}",
+						"</style>",
+						"<template>Click</template>",
+					)),
+				]);
+			},
 		]);
 	}
-	static function getFieldsList()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		$a = [];
-		return \Runtime\Collection::from($a);
+		parent::_init();
 	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Theme.WidgetSettings.Button.ButtonFormSettings"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

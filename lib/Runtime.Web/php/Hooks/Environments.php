@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,31 +17,36 @@
  *  limitations under the License.
  */
 namespace Runtime\Web\Hooks;
+
+use Runtime\Entity\Hook;
+use Runtime\Web\Hooks\AppHook as BaseAppHook;
+
+
 class Environments extends \Runtime\Web\Hooks\AppHook
 {
-	public $frontend;
+	var $frontend;
+	
+	
 	/**
 	 * Hook factory
 	 */
 	static function create($items)
 	{
-		return new \Runtime\Entity\Hook(static::getClassName(), \Runtime\Map::from(["frontend"=>$items]));
+		return new \Runtime\Entity\Hook(static::getClassName(), new \Runtime\Map(["frontend" => $items]));
 	}
+	
+	
 	/**
-	 * Setup
+	 * Init params
 	 */
-	function setup($params)
+	function initParams($params)
 	{
-		parent::setup($params);
-		if ($params == null)
-		{
-			return ;
-		}
-		if ($params->has("frontend"))
-		{
-			$this->frontend = $params->get("frontend");
-		}
+		parent::initParams($params);
+		if ($params == null) return;
+		if ($params->has("frontend")) $this->frontend = $params->get("frontend");
 	}
+	
+	
 	/**
 	 * Register hooks
 	 */
@@ -49,6 +54,8 @@ class Environments extends \Runtime\Web\Hooks\AppHook
 	{
 		$this->register(static::ENVIRONMENTS);
 	}
+	
+	
 	/**
 	 * Environments
 	 */
@@ -56,48 +63,15 @@ class Environments extends \Runtime\Web\Hooks\AppHook
 	{
 		$params->get("arr")->appendItems($this->frontend);
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->frontend = \Runtime\Vector::from([]);
+		$this->frontend = new \Runtime\Vector();
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Web.Hooks";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.Hooks.Environments";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Hooks.AppHook";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.Hooks.Environments"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

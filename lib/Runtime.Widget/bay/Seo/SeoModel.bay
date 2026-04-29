@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,8 +19,12 @@
 namespace Runtime.Widget.Seo;
 
 use Runtime.BaseObject;
-use Runtime.Serializer;
-use Runtime.Web.BaseModel;
+use Runtime.BaseModel;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.VectorType;
+use Runtime.Web.Request;
 use Runtime.Widget.Seo.SeoWidget;
 
 
@@ -29,12 +33,26 @@ class SeoModel extends BaseModel
 	string component = classof SeoWidget;
 	string widget_name = "seo";
 	string canonical_url = "";
-	string description = "";
 	string favicon = "";
 	string article_published_time = "";
 	string article_modified_time = "";
 	Collection<string> robots = ["follow", "index"];
 	Collection<string> tags = null;
+	
+	
+	/**
+	 * Process frontend data
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("article_modified_time", new StringType());
+		rules.addType("article_published_time", new StringType());
+		rules.addType("canonical_url", new StringType());
+		rules.addType("favicon", new StringType());
+		rules.addType("robots", new VectorType(new StringType()));
+		rules.addType("tags", new VectorType(new StringType()));
+	}
 	
 	
 	/**
@@ -49,31 +67,16 @@ class SeoModel extends BaseModel
 	
 	
 	/**
-	 * Process frontend data
-	 */
-	void serialize(Serializer serializer, Map data)
-	{
-		serializer.process(this, "article_modified_time", data);
-		serializer.process(this, "article_published_time", data);
-		serializer.process(this, "canonical_url", data);
-		serializer.process(this, "description", data);
-		serializer.process(this, "favicon", data);
-		serializer.process(this, "robots", data);
-		serializer.process(this, "tags", data);
-		parent(serializer, data);
-	}
-	
-	
-	/**
 	 * Set canonical url
 	 */
 	void setCanonicalUrl(string canonical_url)
 	{
 		/* Add domain */
-		if (this.layout.request_host)
+		Request request = this.layout.get("request");
+		if (request.host)
 		{
-			canonical_url = "//" ~ this.layout.request_host ~ canonical_url;
-			if (this.layout.request_https) canonical_url = "https:" ~ canonical_url;
+			canonical_url = "//" ~ request.host ~ canonical_url;
+			if (request.is_https) canonical_url = "https:" ~ canonical_url;
 			else canonical_url = "http:" ~ canonical_url;
 		}
 		

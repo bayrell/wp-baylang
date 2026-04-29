@@ -56,7 +56,7 @@ class TermApi extends CrudApi
 	/**
 	 * Returns item fields
 	 */
-	Collection getItemFields() => [
+	Collection getItemFields(string action) => [
 		"term_id",
 		"name",
 		"slug",
@@ -100,7 +100,7 @@ class TermApi extends CrudApi
 		/* Set term id */
 		if (this.post_data.has("term_id"))
 		{
-			int term_id = (int)this.post_data.get("term_id");
+			int term_id = rtl::toInt(this.post_data.get("term_id"));
 			q.where("terms.ID", "=", term_id);
 			q.calcFoundRows(false);
 		}
@@ -119,9 +119,9 @@ class TermApi extends CrudApi
 	 */
 	Map convertItem(Collection fields, Relation item)
 	{
-		item.set("count", (int)item.get("count"));
-		item.set("parent_id", (int)item.get("parent_id"));
-		item.set("term_id", (int)item.get("term_id"));
+		item.set("count", rtl::toInt(item.get("count")));
+		item.set("parent_id", rtl::toInt(item.get("parent_id")));
+		item.set("term_id", rtl::toInt(item.get("term_id")));
 		return parent(fields, item);
 	}
 	

@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,15 +19,21 @@
 namespace Runtime.Web;
 
 use Runtime.re;
+use Runtime.Method;
 use Runtime.BaseObject;
-use Runtime.Callback;
 use Runtime.SerializeInterface;
-use Runtime.Serializer;
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.VectorType;
+use Runtime.TypeError;
 use Runtime.Entity.Factory;
 use Runtime.Exceptions.ItemNotFound;
 use Runtime.Exceptions.RuntimeException;
 use Runtime.Web.BasePageModel;
 use Runtime.Web.BaseRoute;
+use Runtime.Web.Middleware;
 use Runtime.Web.RenderContainer;
 use Runtime.Web.RouteList;
 
@@ -41,6 +47,7 @@ class RouteInfo extends BaseObject implements SerializeInterface
 	string label = null;
 	string layout = null;
 	string route_class = null;
+	string method = "GET";
 	Dict data = null;
 	Collection<Callback> middleware = null;
 	Collection<string> params = [];
@@ -60,22 +67,22 @@ class RouteInfo extends BaseObject implements SerializeInterface
 	
 	
 	/**
-	 * Process frontend data
+	 * Serialize object
 	 */
-	void serialize(Serializer serializer, Map data)
+	static void serialize(ObjectType rules)
 	{
-		serializer.process(this, "data", data);
-		serializer.process(this, "domain", data);
-		serializer.process(this, "label", data);
-		serializer.process(this, "layout", data);
-		serializer.process(this, "matches", data);
-		serializer.process(this, "middleware", data);
-		serializer.process(this, "name", data);
-		serializer.process(this, "params", data);
-		serializer.process(this, "pos", data);
-		serializer.process(this, "route_class", data);
-		serializer.process(this, "uri", data);
-		serializer.process(this, "uri_match", data);
+		parent(rules);
+		rules.addType("data", new MapType(new StringType()));
+		rules.addType("domain", new StringType());
+		rules.addType("label", new StringType());
+		rules.addType("layout", new StringType());
+		rules.addType("name", new StringType());
+		rules.addType("matches", new MapType(new StringType()));
+		rules.addType("params", new VectorType(new StringType()));
+		rules.addType("pos", new IntegerType());
+		rules.addType("route_class", new StringType());
+		rules.addType("uri", new StringType());
+		rules.addType("uri_match", new StringType());
 	}
 	
 	
@@ -84,7 +91,22 @@ class RouteInfo extends BaseObject implements SerializeInterface
 	 */
 	RouteInfo copy()
 	{
-		return Serializer::copy(this);
+		return rtl::copy(this);
+	}
+	
+	
+	/**
+	 * Returns layout name
+	 */
+	string getLayoutName()
+	{
+		if (this.layout != "") return this.layout;
+		if (this.route_class != "")
+		{
+			fn f = new Method(this.route_class, "getLayoutName");
+			return f.exists() ? f.apply() : "";
+		}
+		return "";
 	}
 	
 	
@@ -93,7 +115,7 @@ class RouteInfo extends BaseObject implements SerializeInterface
 	 */
 	void compile()
 	{
-		if (this.uri_match == "")
+		if (this.uri_match == "" or this.uri_match == null)
 		{
 			this.uri_match = "^" ~ re::replace("\\/", "\\/", this.uri) ~ "$";
 		}
@@ -133,6 +155,51 @@ class RouteInfo extends BaseObject implements SerializeInterface
 			string param_name = this.params.get(i);
 			string match_value = matches.get(i);
 			this.matches.set(param_name, match_value);
+		}
+	}
+	
+	
+	/**
+	 * Call middleware
+	 */
+	async void callMiddleware(RenderContainer container)
+	{
+		if (this.middleware)
+		{
+			for (int i = 0; i<this.middleware.count(); i++)
+			{
+				Middleware middleware = null;
+				var item = this.middleware.get(i);
+				
+				/* Create middleware */
+				if (rtl::isString(item))
+				{
+					middleware = rtl::newInstance(item);
+				}
+				else if (item instanceof Factory)
+				{
+					middleware = item.factory();
+				}
+				
+				/* Apply middleware */
+				await middleware.route(container);
+			}
+		}
+		
+		/* Call route class middleware */
+		if (this.route_class)
+		{
+			string class_name = this.route_class;
+			Method getMiddleware = new Method(class_name, "getMiddleware");
+			if (getMiddleware.exists())
+			{
+				Collection<Middleware> items = getMiddleware.apply();
+				for (int i=0; i<items.count(); i++)
+				{
+					Middleware middleware = items.get(i);
+					await middleware.route(container);
+				}
+			}
 		}
 	}
 	

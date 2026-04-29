@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,59 +17,41 @@
  *  limitations under the License.
  */
 namespace Runtime\Web;
-class RenderContainer extends \Runtime\BaseObject
+
+use Runtime\BaseObject;
+use Runtime\Callback;
+use Runtime\Component;
+use Runtime\RenderContainer as BaseRenderContainer;
+use Runtime\Serializer;
+use Runtime\VirtualDom;
+use Runtime\Entity\Factory;
+use Runtime\Providers\RenderContent;
+use Runtime\Web\ApiResult;
+use Runtime\Web\BaseLayoutModel;
+use Runtime\Web\BaseMiddleware;
+use Runtime\Web\BaseModel;
+use Runtime\Web\BasePageModel;
+use Runtime\Web\BaseRoute;
+use Runtime\Web\Cookie;
+use Runtime\Web\Layout;
+use Runtime\Web\RenderResponse;
+use Runtime\Web\Request;
+use Runtime\Web\Response;
+use Runtime\Web\RouteInfo;
+use Runtime\Web\RouteProvider;
+use Runtime\Web\Hooks\AppHook;
+
+
+class RenderContainer extends \Runtime\RenderContainer
 {
-	public $base_route;
-	public $request;
-	public $response;
-	public $route;
-	public $layout;
-	public $cookies;
-	/**
-	 * Create layout
-	 */
-	function createLayout($layout_name)
-	{
-		/* Get layout params */
-		$params = \Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::LAYOUT_MODEL_NAME, \Runtime\Map::from(["class_name"=>"Runtime.Web.BaseLayoutModel","layout_name"=>$layout_name,"component_name"=>""]));
-		/* Create layout */
-		$this->layout = \Runtime\rtl::newInstance($params->get("class_name"));
-		$this->layout->setLayoutName($layout_name);
-		$this->layout->route = $this->route;
-		/* Set component name */
-		if ($params->get("component_name") != "")
-		{
-			$this->layout->component = $params->get("component_name");
-		}
-		/* Call create layout */
-		\Runtime\rtl::getContext()->callHookAsync(\Runtime\Web\Hooks\AppHook::CREATE_LAYOUT, \Runtime\Map::from(["container"=>$this]));
-	}
-	/**
-	 * Returns layout name
-	 */
-	function getLayoutName()
-	{
-		$layout_name = "default";
-		if ($this->route == null)
-		{
-			return $layout_name;
-		}
-		/* Set layout name from route */
-		if ($this->route->layout)
-		{
-			$layout_name = $this->route->layout;
-		}
-		else if ($this->route->route_class)
-		{
-			$getLayoutName = new \Runtime\Callback($this->route->route_class, "getLayoutName");
-			if ($getLayoutName->exists())
-			{
-				$layout_name = $getLayoutName->apply();
-			}
-		}
-		/* Set layout name */
-		return $layout_name;
-	}
+	var $request;
+	var $response;
+	var $route;
+	var $layout;
+	var $cookies;
+	var $http_code;
+	
+	
 	/**
 	 * Resolve container
 	 */
@@ -77,98 +59,96 @@ class RenderContainer extends \Runtime\BaseObject
 	{
 		/* Find route */
 		$this->findRoute();
-		/* Call middleware */
-		$this->callRouteMiddleware($this);
 		/* Resolve route */
 		$this->resolveRoute();
+		/* Create response */
+		$this->createResponse();
 	}
+	
+	
 	/**
 	 * Find route
 	 */
 	function findRoute()
 	{
 		/* Call hook find route */
-		\Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::FIND_ROUTE_BEFORE, \Runtime\Map::from(["container"=>$this]));
+		\Runtime\rtl::getContext()->hook(\Runtime\Web\Hooks\AppHook::FIND_ROUTE_BEFORE, new \Runtime\Map([
+			"container" => $this,
+		]));
 		/* Exit if route find */
-		if ($this->route != null)
-		{
-			return ;
-		}
-		if ($this->response != null)
-		{
-			return ;
-		}
+		if ($this->route != null) return;
+		if ($this->response != null) return;
 		/* Find route */
-		$routes = \Runtime\rtl::getContext()->provider("Runtime.Web.RouteList");
-		$this->route = $routes->findRoute($this);
+		$routes = \Runtime\rtl::getContext()->provider("Runtime.Web.RouteProvider");
+		$this->route = $routes->findRoute($this->request);
 		/* Call hook found route */
-		\Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::FIND_ROUTE_AFTER, \Runtime\Map::from(["container"=>$this]));
+		\Runtime\rtl::getContext()->hook(\Runtime\Web\Hooks\AppHook::FIND_ROUTE_AFTER, new \Runtime\Map([
+			"container" => $this,
+		]));
 	}
+	
+	
 	/**
 	 * Resolve route
 	 */
 	function resolveRoute()
 	{
-		if ($this->response)
-		{
-			return ;
-		}
+		if (!$this->route) return;
+		if ($this->response) return;
 		/* Create layout */
-		$layout_name = $this->getLayoutName();
+		$layout_name = $this->route->getLayoutName();
 		$this->createLayout($layout_name);
 		/* Call route before */
-		\Runtime\rtl::getContext()->callHookAsync(\Runtime\Web\Hooks\AppHook::ROUTE_BEFORE, \Runtime\Map::from(["container"=>$this]));
-		/* Call layout route before */
-		$this->layout->onActionBefore($this);
+		\Runtime\rtl::getContext()->hook(\Runtime\Web\Hooks\AppHook::ROUTE_BEFORE, new \Runtime\Map([
+			"container" => $this,
+		]));
+		/* Call middleware */
+		$this->callRouteMiddleware($this);
+		if ($this->response) return;
 		/* Load layout data */
 		$this->layout->loadData($this);
 		/* Render route */
-		if ($this->route != null)
+		if ($this->route != null && $this->response == null)
 		{
 			$this->route->render($this);
 		}
-		/* Call layout route after */
-		$this->layout->onActionAfter($this);
 		/* Call route after */
-		\Runtime\rtl::getContext()->callHookAsync(\Runtime\Web\Hooks\AppHook::ROUTE_AFTER, \Runtime\Map::from(["container"=>$this]));
-		/* Set response */
-		if ($this->response == null)
-		{
-			$this->setResponse(new \Runtime\Web\RenderResponse($this));
-		}
+		\Runtime\rtl::getContext()->hook(\Runtime\Web\Hooks\AppHook::ROUTE_AFTER, new \Runtime\Map([
+			"container" => $this,
+		]));
 	}
+	
+	
 	/**
 	 * Call route middleware
 	 */
 	function callRouteMiddleware()
 	{
-		if ($this->route && $this->route->middleware)
+		if ($this->route)
 		{
-			for ($i = 0; $i < $this->route->middleware->count(); $i++)
-			{
-				$middleware = $this->route->middleware->get($i);
-				\Runtime\rtl::apply($middleware, \Runtime\Vector::from([$this]));
-			}
+			$this->route->callMiddleware($this);
 		}
 		/* Call hook middleware */
-		\Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::ROUTE_MIDDLEWARE, \Runtime\Map::from(["container"=>$this]));
+		\Runtime\rtl::getContext()->hook(\Runtime\Web\Hooks\AppHook::ROUTE_MIDDLEWARE, new \Runtime\Map([
+			"container" => $this,
+		]));
 	}
+	
+	
 	/**
-	 * Render page model
+	 * Create response
 	 */
-	function renderPageModel($model_name)
+	function createResponse()
 	{
+		if ($this->response) return;
+		if (!$this->layout) return;
 		/* Create response */
-		$this->setResponse(new \Runtime\Web\RenderResponse($this));
-		/* Set page model */
-		$this->layout->setPageModel($model_name);
-		/* Action index */
-		$page_model = $this->layout->getPageModel();
-		if ($page_model)
-		{
-			$page_model->actionIndex($this);
-		}
+		$this->response = new \Runtime\Web\Response();
+		$this->response->http_code = $this->http_code;
+		$this->response->content = "<!DOCTYPE html>" . $this->renderApp();
 	}
+	
+	
 	/**
 	 * Set response
 	 */
@@ -176,16 +156,8 @@ class RenderContainer extends \Runtime\BaseObject
 	{
 		$this->response = $response;
 	}
-	/**
-	 * Cancel route
-	 */
-	function cancelRoute()
-	{
-		if ($this->base_route)
-		{
-			$this->base_route->cancelRoute();
-		}
-	}
+	
+	
 	/**
 	 * Add cookie
 	 */
@@ -193,109 +165,20 @@ class RenderContainer extends \Runtime\BaseObject
 	{
 		$this->cookies->set($cookie->name, $cookie);
 	}
-	/**
-	 * Returns frontend environments
-	 */
-	function getFrontendEnvironments()
-	{
-		$environments = \Runtime\Map::from([]);
-		/* Setup environments */
-		$arr = \Runtime\Vector::from(["CLOUD_ENV","DEBUG","LOCALE","TZ","TZ_OFFSET","ROUTE_PREFIX"]);
-		/* Call hook */
-		$params = \Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::ENVIRONMENTS, \Runtime\Map::from(["arr"=>$arr,"environments"=>$environments]));
-		/* Get result */
-		$arr = $params->get("arr");
-		$environments = $params->get("environments");
-		/* Copy environments */
-		for ($i = 0; $i < $arr->count(); $i++)
-		{
-			$name = $arr->get($i);
-			$environments->set($name, \Runtime\rtl::getContext()->env($name));
-		}
-		return $environments;
-	}
-	/**
-	 * Export data
-	 */
-	function exportData()
-	{
-		$data = \Runtime\Map::from(["entry_point"=>\Runtime\rtl::getContext()->entry_point,"modules"=>\Runtime\rtl::getContext()->start_modules,"environments"=>$this->getFrontendEnvironments()]);
-		/* Create serializer */
-		$serializer = new \Runtime\Serializer();
-		$serializer->setFlag(\Runtime\Serializer::ALLOW_OBJECTS);
-		$serializer->setFlag(\Runtime\Serializer::ENCODE);
-		/* Export data */
-		$serializer->process($this, "layout", $data);
-		/* Call hook */
-		\Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::EXPORT_CONTAINER_DATA, \Runtime\Map::from(["container"=>$this,"data"=>$data]));
-		return $data;
-	}
-	/**
-	 * Import data
-	 */
-	function importData($data)
-	{
-		/* Call hook */
-		\Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::IMPORT_CONTAINER_DATA_BEFORE, \Runtime\Map::from(["container"=>$this,"data"=>$data]));
-		/* Create serializer */
-		$serializer = new \Runtime\SerializerNative();
-		$serializer->setFlag(\Runtime\Serializer::ALLOW_OBJECTS);
-		/* Create layout */
-		$layout_name = $data->get("layout")->get("layout_name");
-		$this->createLayout($layout_name);
-		/* Load data */
-		$serializer->setFlag(\Runtime\Serializer::DECODE);
-		$this->layout->serialize($serializer, $data->get("layout"));
-		/* Call hook */
-		\Runtime\rtl::getContext()->callHook(\Runtime\Web\Hooks\AppHook::IMPORT_CONTAINER_DATA_AFTER, \Runtime\Map::from(["container"=>$this,"data"=>$data]));
-	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
-		$this->base_route = null;
 		$this->request = null;
 		$this->response = null;
 		$this->route = null;
 		$this->layout = null;
-		$this->cookies = \Runtime\Map::from([]);
+		$this->cookies = new \Runtime\Map();
+		$this->http_code = 200;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Web";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Web.RenderContainer";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.BaseObject";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.RenderContainer"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -18,7 +18,7 @@
 
 namespace Runtime.ORM;
 
-use Runtime.BaseHook;
+use Runtime.Hooks.BaseHook;
 
 
 class DatabaseSchema extends BaseHook
@@ -29,40 +29,15 @@ class DatabaseSchema extends BaseHook
 	
 	
 	/**
-	 * Returns method name by hook name
-	 */
-	string getMethodName(string hook_name)
-	{
-		if (hook_name == static::REGISTER) return "onRegister";
-		if (hook_name == static::SAVE_AFTER) return "onAfterSave";
-		if (hook_name == static::SAVE_BEFORE) return "onBeforeSave";
-		return "";
-	}
-	
-	
-	/**
 	 * Register hooks
 	 */
 	void register_hooks()
 	{
+		parent();
+		this.provider.setAsync([
+			static::REGISTER,
+			static::SAVE_AFTER,
+			static::SAVE_BEFORE,
+		]);
 	}
-	
-	
-	/**
-	 * Save before item
-	 */
-	Dict onBeforeSave(Dict d)
-	{
-		return d;
-	}
-	
-	
-	/**
-	 * Save after item
-	 */
-	Dict onAfterSave(Dict d)
-	{
-		return d;
-	}
-	
 }

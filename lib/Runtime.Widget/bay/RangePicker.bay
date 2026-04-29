@@ -1,0 +1,114 @@
+<!--
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+-->
+
+<class name="Runtime.Widget.RangePicker">
+
+<use name="Runtime.DateRange" />
+<use name="Runtime.DateTime" />
+<use name="Runtime.Widget.Messages.ValueChangeMessage" />
+<use name="Runtime.Widget.DatePicker" component="true" />
+<use name="Runtime.Widget.Translator" />
+
+<style>
+.range_picker{
+	display: flex;
+	align-items: center;
+	gap: calc(2 * var(--space));
+	.date_picker{
+		flex: 1;
+	}
+}
+</style>
+
+<template>
+	<div class="range_picker" class={{ this.class }}>
+		<DatePicker
+			value={{ this.getStartDate }}
+			name={{ this.name ~ "_start" }}
+			only_date={{ this.only_date }}
+			@event:valueChange="this.updateStartDate(event.value)"
+		/>
+		<span>{{ this.translate("range_picker_to", "to") }}</span>
+		<DatePicker
+			value={{ this.getEndDate }}
+			name={{ this.name ~ "_end" }}
+			only_date={{ this.only_date }}
+			@event:valueChange="this.updateEndDate(event.value)"
+		/>
+	</div>
+</template>
+
+<script>
+
+/**
+ * Props
+ */
+props DateRange value = null;
+props string name = "";
+props string only_date = "false";
+
+
+/**
+ * Returns start and end date
+ */
+computed DateTime getStartDate() => this.value ? this.value.start_date : null;
+computed DateTime getEndDate() => this.value ? this.value.end_date : null;
+
+
+/**
+ * Translations
+ */
+computed Translator translator() => this.layout.get("translator");
+string translate(string key, string default_value) =>
+	this.translator ? this.translator.translate("runtime", key, default_value) : default_value;
+
+
+/**
+ * Update start date
+ */
+void updateStartDate(DateTime value)
+{
+	DateRange range = this.value ?
+		rtl::copy(this.value) : new DateRange();
+	range.start_date = value;
+	this.emit(new ValueChangeMessage{
+		"value": range,
+		"old_value": this.value,
+		"data": this.data,
+	})
+}
+
+
+/**
+ * Update end date
+ */
+void updateEndDate(DateTime value)
+{
+	DateRange range = this.value ?
+		rtl::copy(this.value) : new DateRange();
+	range.end_date = value;
+	this.emit(new ValueChangeMessage{
+		"value": range,
+		"old_value": this.value,
+		"data": this.data,
+	})
+}
+
+</script>
+
+</class>

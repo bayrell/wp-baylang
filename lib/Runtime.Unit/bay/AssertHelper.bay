@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 
 namespace Runtime.Unit;
 
-use Runtime.Entity;
+use Runtime.BaseObject;
 
 
 class AssertHelper
@@ -26,8 +26,9 @@ class AssertHelper
 	/**
 	 * Check equals of types
 	 */
-	static void equalValueType(var value1, var value2, string message)
+	static void equalValueType(var value1, var value2)
 	{
+		string message = "Type mismatch \"" ~ value1 ~ "\" and \"" ~ value2 ~ "\"";
 		string type1 = rtl::getType(value1);
 		string type2 = rtl::getType(value2);
 		rtl::assert(type1 == type2, message);
@@ -35,46 +36,81 @@ class AssertHelper
 	
 	
 	/**
-	 * Check equals of values
+	 * Check equals of types
 	 */
-	static void equalValue(var value1, var value2, string message)
+	static void equalType(var value1, string type1)
 	{
-		static::equalValueType(value1, value2, message);
-		
-		string value_type1 = rtl::getType(value1);
-		string value_type2 = rtl::getType(value2);
-		
-		rtl::assert(value_type1 == value_type2, message);
-		
-		if (rtl::isScalarValue(value1))
-		{
-			rtl::assert(value1 === value2, message);
-			return;
-		}
-		
-		if (value_type1 == "collection")
-		{
-			static::equalCollection(value1, value2, message);
-			return;
-		}
-		
-		if (value_type1 == "dict")
-		{
-			static::equalDict(value1, value2, message);
-			return;
-		}
-		
-		rtl::assert(false, message);
+		string type2 = rtl::getType(value1);
+		string message = "Type mismatch. Needs \"" ~ type1 ~ "\". Exists \"" ~ type2 ~ "\"";
+		rtl::assert(type1 == type2, message);
 	}
 	
 	
 	/**
-	 * Check equals of two collections
+	 * Check class name
 	 */
-	static void equalCollection(Collection c1, Collection c2, string message)
+	static void equalClass(var value, string class_name)
+	{
+		string message = "Class \"" ~ class_name ~ "\" not found";
+		bool is_object = value instanceof BaseObject or
+			value instanceof Map or value instanceof Vector;
+		rtl::assert(is_object, message);
+		rtl::assert(value::getClassName() == class_name, message);
+	}
+	
+	
+	/**
+	 * Check equals of values
+	 */
+	static void equalValue(var value1, var value2, string message = "")
+	{
+		static::equalValueType(value1, value2);
+		
+		if (value1 instanceof Vector)
+		{
+			static::equalVector(value1, value2);
+			return;
+		}
+		
+		if (value1 instanceof Map)
+		{
+			static::equalMap(value1, value2);
+			return;
+		}
+		
+		if (message == "") message = "\"" ~ value1 ~ "\" != \"" ~ value2 ~ "\"";
+		rtl::assert(value1 === value2, message);
+	}
+	
+	
+	/**
+	 * Check not equals of values
+	 */
+	static void notEqualValue(var value1, var value2, string message = "")
+	{
+		if (message == "") message = "\"" ~ value1 ~ "\" == \"" ~ value2 ~ "\"";
+		rtl::assert(value1 !== value2, message);
+	}
+	
+	
+	/**
+	 * Check if value1 is greater than value2
+	 */
+	static void greaterThan(var value1, var value2, string message = "")
+	{
+		if (message == "") message = "\"" ~ value1 ~ "\" is not greater than \"" ~ value2 ~ "\"";
+		rtl::assert(value1 > value2, message);
+	}
+	
+	
+	/**
+	 * Check equals of two vectors
+	 */
+	static void equalVector(Vector c1, Vector c2)
 	{
 		if (c1.count() != c2.count())
 		{
+			string message = "Vectors has different counts";
 			rtl::assert(false, message);
 		}
 		
@@ -83,18 +119,18 @@ class AssertHelper
 			var value1 = c1.get(i);
 			var value2 = c2.get(i);
 			
-			static::equalValue(value1, value2, message);
+			static::equalValue(value1, value2);
 		}
 	}
 	
 	
 	/**
-	 * Check equals of two dicts
+	 * Check equals of two maps
 	 */
-	static void equalDict(Dict d1, Dict d2, string message)
+	static void equalMap(Map d1, Map d2)
 	{
-		Collection d1_keys = d1.keys();
-		Collection d2_keys = d2.keys();
+		Vector d1_keys = rtl::list(d1.keys());
+		Vector d2_keys = rtl::list(d2.keys());
 		
 		for (int i=0; i<d1_keys.count(); i++)
 		{
@@ -102,13 +138,14 @@ class AssertHelper
 			
 			if (not d2.has(key1))
 			{
+				string message = "Map does not has key \"" ~ key1 ~ "\"";
 				rtl::assert(false, message);
 			}
 			
 			var value1 = d1.get(key1);
 			var value2 = d2.get(key1);
 			
-			static::equalValue(value1, value2, message);
+			static::equalValue(value1, value2);
 		}
 		
 		for (int i=0; i<d2_keys.count(); i++)
@@ -117,6 +154,7 @@ class AssertHelper
 			
 			if (not d1.has(key2))
 			{
+				string message = "Map does not has key \"" ~ key2 ~ "\"";
 				rtl::assert(false, message);
 			}
 		}

@@ -19,10 +19,33 @@
 
 <class name="Runtime.WordPress.Admin.MailSettings.MailSettingsPage">
 
+<use name="Runtime.Widget.Button" component="true" />
+<use name="Runtime.Widget.RowButtons" component="true" />
+<use name="Runtime.Widget.Input" component="true" />
+<use name="Runtime.Widget.Select" component="true" />
+<use name="Runtime.Widget.Table.TableWrap" component="true" />
+
 <template>
-	<div class="form_settings_page">
-		%render this.renderWidget(this.model.top_buttons);
-		%render this.renderWidget(this.model.table);
+	<div class="mail_settings_page">
+		<TableWrap model={{ this.model.manager }}>
+			<slot name="top_buttons">
+				<RowButtons>
+					<Button class="button--success"
+						@event:click="this.model.manager.showAddDialog()"
+					>Add</Button>
+				</RowButtons>
+			</slot>
+			<slot name="row_buttons" args="Map item, Map field, int row_buttons">
+				<RowButtons>
+					<Button class="button--small"
+						@event:click="this.model.manager.showEditDialog(item.copy())"
+					>Edit</Button>
+					<Button class="button--small button--danger"
+						@event:click="this.model.manager.showDeleteDialog(item.copy())"
+					>Delete</Button>
+				</RowButtons>
+			</slot>
+		</TableWrap>
 	</div>
 </template>
 

@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,50 +17,59 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
-class Section extends \Runtime\Web\Component
+
+use Runtime\Widget\BoolEnum;
+
+class Section extends \Runtime\Component
 {
-	public $wrap;
-	public $flex;
-	public $align_items;
-	public $justify_content;
-	public $flex_wrap;
-	public $height;
-	public $min_height;
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
 		
-		/* Element 'div' */
-		$__v0 = new \Runtime\Vector();
+		$attrs = $this->getAttrs;
+		
+		/* Element div */
+		$__v0 = $__v->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("section", $this->class, $componentHash)), "style" => $this->getStyle()]))->concat($attrs));
 		
 		if ($this->wrap == "true")
 		{
-			/* Element 'div' */
-			$__v1 = new \Runtime\Vector();
-			
-			/* Text */
-			$this->_t($__v1, $this->renderSlot("default"));
-			
-			/* Element 'div' */
-			$this->_e($__v0, "div", ["style" => $this->getWrapStyle(),"class" => $this->_class_name(["widget_section__wrap"])], $__v1);
+			/* Element div */
+			$__v1 = $__v0->element("div", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("section__wrap", $componentHash)), "style" => $this->getWrapStyle()])));
+			$__v1->push($this->renderSlot("default"));
 		}
 		else
 		{
-			/* Text */
-			$this->_t($__v0, $this->renderSlot("default"));
+			$__v0->push($this->renderSlot("default"));
 		}
 		
-		/* Element 'div' */
-		$this->_e($__v, "div", ["style" => $this->getStyle(),"class" => $this->_class_name(["widget_section", $this->class])], $__v0);
-		
-		return $this->_flatten($__v);
+		return $__v;
+	}
+	var $id;
+	var $wrap;
+	var $flex;
+	var $align_items;
+	var $justify_content;
+	var $flex_direction;
+	var $flex_wrap;
+	var $height;
+	var $min_height;
+	/**
+	 * Returns attrs
+	 */
+	function getAttrs()
+	{
+		$attrs = new \Runtime\Map();
+		if ($this->id != "") $attrs->set("id", $this->id);
+		return $attrs;
 	}
 	/**
- * Returns styles
- */
+	 * Returns styles
+	 */
 	function getStyle()
 	{
-		$res = \Runtime\Vector::from([]);
+		$res = new \Runtime\Vector();
 		if (!$this->wrap)
 		{
 			$res->push($this->getWrapStyle());
@@ -68,91 +77,121 @@ class Section extends \Runtime\Web\Component
 		return \Runtime\rs::join(";", $res);
 	}
 	/**
- * Returns wrap style
- */
+	 * Returns wrap style
+	 */
 	function getWrapStyle()
 	{
-		$res = \Runtime\Vector::from([]);
+		$res = new \Runtime\Vector();
 		if ($this->flex == "true")
 		{
 			$res->push("display: flex;");
-			if ($this->align_items)
-			{
-				$res->push("align-items: " . \Runtime\rtl::toStr($this->align_items));
-			}
-			if ($this->justify_content)
-			{
-				$res->push("justify-content: " . \Runtime\rtl::toStr($this->justify_content));
-			}
-			if ($this->flex_wrap)
-			{
-				$res->push("flex-wrap: " . \Runtime\rtl::toStr($this->flex_wrap));
-			}
+			if ($this->align_items) $res->push("align-items: " . $this->align_items);
+			if ($this->justify_content) $res->push("justify-content: " . $this->justify_content);
+			if ($this->flex_direction) $res->push("flex-direction: " . $this->flex_direction);
+			if ($this->flex_wrap) $res->push("flex-wrap: " . $this->flex_wrap);
 		}
-		if ($this->height)
-		{
-			$res->push("height: " . \Runtime\rtl::toStr($this->height));
-		}
-		if ($this->min_height)
-		{
-			$res->push("min-height: " . \Runtime\rtl::toStr($this->min_height));
-		}
+		if ($this->height) $res->push("height: " . $this->height);
+		if ($this->min_height) $res->push("min-height: " . $this->min_height);
 		return \Runtime\rs::join(";", $res);
 	}
-	static function css($vars)
+	/**
+	 * Returns widget params
+	 */
+	static function widgetParams()
 	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_section__wrap.h-c82b{max-width: 1200px;margin-left: auto;margin-right: auto;padding: 0px 0px;padding-left: 10px;padding-right: 10px}");
-		return $res;
+		return new \Runtime\Vector(
+			new \Runtime\Map([
+				"type" => "param",
+				"name" => "wrap",
+				"label" => "Wrap",
+				"component" => "Runtime.Widget.Select",
+				"default" => "true",
+				"props" => new \Runtime\Map([
+					"options" => new \Runtime\Vector(
+						new \Runtime\Map(["key" => "false", "value" => "No"]),
+						new \Runtime\Map(["key" => "true", "value" => "Yes"]),
+					),
+				]),
+			]),
+			new \Runtime\Map([
+				"type" => "param",
+				"name" => "flex",
+				"label" => "Flex",
+				"component" => "Runtime.Widget.Select",
+				"default" => "false",
+				"props" => new \Runtime\Map([
+					"options" => new \Runtime\Vector(
+						new \Runtime\Map(["key" => "false", "value" => "No"]),
+						new \Runtime\Map(["key" => "true", "value" => "Yes"]),
+					),
+				]),
+			]),
+			new \Runtime\Map([
+				"type" => "param",
+				"name" => "align_items",
+				"label" => "Align items",
+				"component" => "Runtime.Widget.Select",
+				"default" => "true",
+				"props" => new \Runtime\Map([
+					"options" => new \Runtime\Vector(
+						new \Runtime\Map(["key" => "center", "value" => "Center"]),
+						new \Runtime\Map(["key" => "baseline", "value" => "Baseline"]),
+						new \Runtime\Map(["key" => "flex-start", "value" => "Flex start"]),
+						new \Runtime\Map(["key" => "flex-end", "value" => "Flex end"]),
+					),
+				]),
+			]),
+			new \Runtime\Map([
+				"type" => "param",
+				"name" => "justify_content",
+				"label" => "Justify content",
+				"component" => "Runtime.Widget.Select",
+				"default" => "true",
+				"props" => new \Runtime\Map([
+					"options" => new \Runtime\Vector(
+						new \Runtime\Map(["key" => "center", "value" => "Center"]),
+						new \Runtime\Map(["key" => "space_around", "value" => "Space around"]),
+						new \Runtime\Map(["key" => "space_between", "value" => "Space between"]),
+						new \Runtime\Map(["key" => "left", "value" => "Left"]),
+						new \Runtime\Map(["key" => "right", "value" => "Right"]),
+						new \Runtime\Map(["key" => "flex-start", "value" => "Flex start"]),
+						new \Runtime\Map(["key" => "flex-end", "value" => "Flex end"]),
+					),
+				]),
+			]),
+			new \Runtime\Map([
+				"type" => "param",
+				"name" => "flex_direction",
+				"label" => "Flex direction",
+				"component" => "Runtime.Widget.Select",
+				"default" => "true",
+				"props" => new \Runtime\Map([
+					"options" => new \Runtime\Vector(
+						new \Runtime\Map(["key" => "column", "value" => "Column"]),
+						new \Runtime\Map(["key" => "column-reverse", "value" => "Column reverse"]),
+						new \Runtime\Map(["key" => "row", "value" => "Row"]),
+						new \Runtime\Map(["key" => "row-reverse", "value" => "Row reverse"]),
+					),
+				]),
+			]),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
+		$this->id = "";
 		$this->wrap = "true";
 		$this->flex = "false";
 		$this->align_items = "";
 		$this->justify_content = "";
+		$this->flex_direction = "";
 		$this->flex_wrap = "";
 		$this->height = "";
 		$this->min_height = "";
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Section";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Component";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".section__wrap.h-c82a{max-width: var(--content-max-width);margin-left: auto;margin-right: auto;padding: 0px var(--padding-desktop);width: 100%}@media(max-width: 1000px){.section__wrap.h-c82a{padding: 0px var(--padding-tablet)}}@media(max-width: 768px){.section__wrap.h-c82a{padding: 0px var(--padding-mobile)}}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.Section"; }
 }

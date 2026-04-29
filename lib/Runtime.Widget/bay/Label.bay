@@ -1,7 +1,7 @@
 <!--
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -24,20 +24,20 @@
 
 
 <template>
-	<span class="widget_label">
-		%if (rtl::isScalarValue(this.value))
+	<label class="label">
+		%if (rtl::isString(this.value))
 		{
 			{{ not rtl::isEmpty(this.value) ? this.value : "" }}
 		}
-		%else if (rtl::is_instanceof(this.value, classof Collection))
+		%else if (rtl::is_instanceof(this.value, classof Vector))
 		{
 			%for (int i=0; i<this.value.count(); i++)
 			{
 				%set string item = this.value.get(i);
-				<div>{{ not rtl::isEmpty(item) ? item : "" }}</div>
+				<span>{{ not rtl::isEmpty(item) ? item : "" }}</span>
 			}
 		}
-	</span>
+	</label>
 </template>
 
 

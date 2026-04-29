@@ -77,7 +77,7 @@
 			<div class="captcha__image">
 				<img @ref="image" />
 				<button class="reload"
-					@event:click="reloadImage"
+					@event:click="this.reloadImage()"
 				>Reload image</button>
 			</div>
 			<div class="captcha__input">

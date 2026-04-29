@@ -18,10 +18,10 @@
 
 namespace Runtime.ORM.Exceptions;
 
-use Runtime.Exceptions.AbstractException;
+use Runtime.Exceptions.RuntimeException;
 
 
-class OrmException extends AbstractException
+class OrmException extends RuntimeException
 {
 	void constructor(string message = "", int code = -1, Object prev = null)
 	{

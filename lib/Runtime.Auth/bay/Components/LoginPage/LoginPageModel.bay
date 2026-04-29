@@ -1,0 +1,139 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Auth.Components.LoginPage;
+
+use Runtime.BaseModel;
+use Runtime.Serializer.ObjectType;
+use Runtime.Auth.Components.LoginPage.LoginPage;
+use Runtime.Auth.Models.UserSettings;
+use Runtime.Web.RedirectResponse;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.Input;
+use Runtime.Widget.Form.FormMessage;
+use Runtime.Widget.Form.FormSubmitModel;
+
+
+class LoginPageModel extends BaseModel
+{
+	string component = classof LoginPage;
+	UserSettings user_settings = null;
+	FormSubmitModel login_form = null;
+	
+	
+	/**
+	 * Process frontend data
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("user_settings", new ObjectType{
+			"autocreate": true,
+			"class_extends": classof UserSettings,
+		});
+	}
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initParams(Dict params)
+	{
+		parent(params);
+		
+		if (params == null) return;
+		if (params.has("user_settings"))
+		{
+			this.user_settings = params.get("user_settings");
+			if (this.user_settings instanceof Map)
+			{
+				this.user_settings = this.filter("user_settings", this.user_settings);
+			}
+		}
+	}
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Add login form */
+		this.login_form = this.createWidget(
+			classof FormSubmitModel,
+			{
+				"api_name": this.user_settings.getApiName(),
+				"method_name": "login",
+				"fields": [
+					{
+						"name": "login",
+						"label": "Login",
+						"component": classof Input,
+					},
+					{
+						"name": "password",
+						"label": "Password",
+						"component": classof Input,
+						"props": {
+							"type": "password",
+						},
+					},
+				],
+				"submit_button": {
+					"text": "Login",
+					"styles": ["primary", "stretch"],
+				},
+				"events":
+				{
+					"submit": method this.onSubmit,
+				},
+			}
+		);
+	}
+	
+	
+	/**
+	 * Submit
+	 */
+	async void onSubmit(FormMessage message)
+	{
+		if (message.result.isSuccess())
+		{
+			string redirect_url = this.user_settings.getMainPage(this.layout);
+			document.location = redirect_url;
+		}
+	}
+	
+	
+	/**
+	 * Load data
+	 */
+	void loadData(RenderContainer container)
+	{
+		Dict jwt = this.layout.storage.backend.get(this.user_settings.getTokenName());
+		if (jwt == null) return;
+		
+		/* Redirect to main page if user is login */
+		int redirect_code = 302;
+		string redirect_url = this.user_settings.getMainPage(this.layout);
+		if (redirect_url == "") redirect_url = "/";
+		container.setResponse(new RedirectResponse(redirect_url, redirect_code));
+	}
+}

@@ -1,0 +1,41 @@
+{
+	"name": "Runtime.Auth",
+	"assets":
+	[
+		"Components/LoginPage/LoginPage.bay",
+		"Components/LoginPage/LoginPageModel.bay",
+		"Components/LogoutPage/LogoutPage.bay",
+		"Components/LogoutPage/LogoutPageModel.bay",
+		"Models/UserData.bay",
+		"Models/UserSettings.bay",
+		"Providers/AuthProvider.bay",
+		"ModuleDescription.bay"
+	],
+	"require":
+	[
+		"Runtime.Web"
+	],
+	"groups":
+	[
+		"runtime"
+	],
+	"modules":
+	[
+	],
+	"src": "./bay",
+	"dest":
+	{
+		"php": "./php",
+		"es6": "./es6",
+		"nodejs": "./nodejs"
+	},
+	"allow":
+	[
+		"\\.bay$",
+		"\\.php$",
+		"\\.js$"
+	],
+	"exclude":
+	[
+	]
+}

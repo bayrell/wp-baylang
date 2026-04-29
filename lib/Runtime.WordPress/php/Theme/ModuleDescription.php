@@ -17,74 +17,65 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Theme;
+
+use Runtime\Entity\Hook;
+use Runtime\Entity\Provider;
+use Runtime\Web\Annotations\Api;
+use Runtime\Web\Annotations\Route;
+use Runtime\Web\Hooks\Components;
+use Runtime\Web\Hooks\SetupLayout;
+use Runtime\WordPress\ORM\WP_Factory;
+
+
 class ModuleDescription
 {
 	/**
 	 * Returns module name
 	 */
-	static function getModuleName()
-	{
-		return "Runtime.WordPress.Theme";
-	}
+	static function getModuleName(){ return "Runtime.WordPress.Theme"; }
+	
+	
 	/**
 	 * Returns module version
 	 */
-	static function getModuleVersion()
-	{
-		return "0.1.0";
-	}
+	static function getModuleVersion(){ return "0.1.0"; }
+	
+	
 	/**
 	 * Returns required modules
 	 * @return Map<string>
 	 */
 	static function requiredModules()
 	{
-		return \Runtime\Map::from(["Runtime"=>">=0.12","Runtime.Web"=>">=0.12","Runtime.Widget"=>">=0.12","Runtime.WordPress"=>">=0.12","Runtime.ORM"=>">=0.12"]);
+		return new \Runtime\Map([
+			"Runtime" => ">=0.12",
+			"Runtime.Web" => ">=0.12",
+			"Runtime.Widget" => ">=0.12",
+		]);
 	}
+	
+	
 	/**
 	 * Returns enities
 	 */
 	static function entities()
 	{
-		return \Runtime\Vector::from([new \Runtime\Entity\Hook("Runtime.WordPress.Theme.AssetHook"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Theme.Api.FormSubmitApi"),new \Runtime\Web\Annotations\Api("Runtime.WordPress.Theme.Api.GalleryApi"),new \Runtime\Web\Annotations\Route("Runtime.WordPress.Theme.Robots"),\Runtime\Web\Hooks\Components::header(\Runtime\Vector::from(["Runtime.WordPress.Theme.WP_Head"])),\Runtime\Web\Hooks\Components::footer(\Runtime\Vector::from(["Runtime.WordPress.Theme.WP_Footer"]))]);
+		return new \Runtime\Vector(
+			\Runtime\Web\Hooks\SetupLayout::hook(new \Runtime\Map([
+				"email" => "Runtime.WordPress.Theme.Components.EmailModel",
+			])),
+			new \Runtime\Entity\Hook("Runtime.WordPress.Theme.Hooks.LayoutHook"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Theme.Api.FormSubmitApi"),
+			new \Runtime\Web\Annotations\Api("Runtime.WordPress.Theme.Api.PostApi"),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Theme";
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Theme.ModuleDescription";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Theme.ModuleDescription"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -1,0 +1,202 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Providers;
+
+use Runtime.BaseLayout;
+use Runtime.BaseProvider;
+use Runtime.Serializer;
+use Runtime.VirtualDom;
+use Runtime.Hooks.RuntimeHook;
+
+
+class RenderProvider extends BaseProvider
+{
+	bool enable_ssr = true;
+	Map components = {};
+	
+	
+	/**
+	 * Init params
+	 */
+	void initParams(Map params)
+	{
+		parent(params);
+		if (params.has("ssr")) this.enable_ssr = params.get("ssr");
+	}
+	
+	
+	/**
+	 * Create layout
+	 */
+	var createLayout(Dict app_data)
+	{
+		var class_name = app_data.get("class");
+		var layout = app_data.get("layout");
+		if (not(layout instanceof BaseLayout))
+		{
+			layout = rtl::newInstance(class_name);
+			rtl::assign(layout, app_data.get("layout"));
+		}
+		return window["Vue"].reactive(layout);
+	}
+	
+	
+	/**
+	 * Create App
+	 */
+	var createApp(var layout)
+	{
+		var app = null;
+		fn registerLayout = null;
+		#ifcode JAVASCRIPT then
+		registerLayout = (layout) =>
+		{
+			return {
+				install: () => {
+					app.config.globalProperties.$layout = layout;
+				},
+			};
+		};
+		#endif
+		
+		var component = rtl::findClass(layout.component);
+		Dict props = {};
+		
+		var Vue = window["Vue"];
+		if (this.enable_ssr)
+		{
+			app = Vue.createSSRApp(component, props);
+		}
+		else
+		{
+			app = Vue.createApp(component, props);
+		}
+		app.use(registerLayout(layout));
+		@.hook(RuntimeHook::CREATE_VUE, {
+			"app": app,
+			"layout": layout,
+		});
+		return app;
+	}
+	
+	
+	/**
+	 * Mount
+	 */
+	void mount(Dict app_data, var element)
+	{
+		var layout = this.createLayout(app_data);
+		var app = this.createApp(layout);
+		app.mount(element, true);
+		@.hook(RuntimeHook::MOUNT, {
+			"app": app,
+			"layout": layout,
+			"data": app_data,
+		});
+		return {
+			"app": app,
+			"layout": layout,
+		};
+	}
+	
+	
+	/**
+	 * Add replace component
+	 */
+	void addComponent(string component, string name)
+	{
+		this.components.set(component, name);
+	}
+	
+	
+	/**
+	 * Returns find element
+	 */
+	var findElement(VirtualDom vdom)
+	{
+		if (vdom.is_component)
+		{
+			string name = vdom.name;
+			if (this.components.has(name)) name = this.components.get(name);
+			#ifcode JAVASCRIPT then
+			if (name == "TransitionGroup") return Vue.TransitionGroup;
+			#endif
+			return rtl::findClass(name);
+		}
+		return vdom.name;
+	}
+	
+	
+	/**
+	 * Render
+	 */
+	void render(var vdom)
+	{
+		if (not(vdom instanceof VirtualDom)) return vdom;
+		Vector content = [];
+		if (not vdom.attrs.has("@raw"))
+		{
+			for (int i=0; i<vdom.items.count(); i++)
+			{
+				VirtualDom item = vdom.items.get(i);
+				content.push(this.render(item));
+			}
+		}
+		fn h = window["Vue"].h;
+		if (vdom.name == "")
+		{
+			if (content.count() == 1) return content.get(0);
+			return content;
+		}
+		var children = content;
+		if (vdom.is_component)
+		{
+			#ifcode JAVASCRIPT then
+			children = vdom.slots.map(function (f){
+				return (...args) => {
+					return Runtime.rtl.render(f.apply(null, args));
+				};
+			}).toObject();
+			#endif
+		}
+		if (children instanceof Vector)
+		{
+			children = children.flatten().filter(bool (var item) => item != null and item != "");
+		}
+		var attrs = vdom.attrs;
+		if (attrs instanceof Map)
+		{
+			attrs = attrs
+				.mapWithKeys(Vector (var value, string key)
+				{
+					if (key == "@ref") key = "ref";
+					return [value, key];
+				})
+				.filter(bool (var value, string key) => rs::charAt(key, 0) != "@")
+			;
+			attrs = attrs.toObject();
+			if (vdom.attrs.has("@raw"))
+			{
+				attrs["innerHTML"] = vdom.attrs.get("@raw");
+			}
+		}
+		string name = this.findElement(vdom);
+		return h(name, attrs, children);
+	}
+}

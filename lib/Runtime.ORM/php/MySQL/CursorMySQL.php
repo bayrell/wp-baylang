@@ -17,137 +17,40 @@
  *  limitations under the License.
  */
 namespace Runtime\ORM\MySQL;
+
+use Runtime\ORM\Cursor;
+use Runtime\ORM\Query;
+use Runtime\ORM\MySQL\Adapter;
+use Runtime\ORM\MySQL\SQLBuilder;
+
+
 class CursorMySQL extends \Runtime\ORM\Cursor
 {
-	public $st;
-	public $q;
-	public $found_rows;
-	/**
-	 * Returns found rows
-	 */
-	function foundRows()
-	{
-		if ($this->found_rows >= 0)
-		{
-			return $this->found_rows;
-		}
-		if (!$this->q)
-		{
-			return 0;
-		}
-		if (!$this->q->_calc_found_rows)
-		{
-			return 0;
-		}
-		$q = $this->q->copy()->clearFields()->addRawField("count(1) as c")->limit(-1)->start(-1)->clearOrder();
-		$cursor = $this->conn->execute($q);
-		$res = $cursor->fetchVar("c");
-		$cursor->close();
-		$this->found_rows = $res;
-		return $res;
-	}
-	/**
-	 * Returns affected rows
-	 */
-	function affectedRows()
-	{
-		return $this->st->rowCount();
-		return 0;
-	}
-	/**
-	 * Insert id
-	 */
-	function lastInsertId()
-	{
-		return $this->conn->pdo->lastInsertId();
-		return 0;
-	}
+	var $st;
+	var $q;
+	var $found_rows;
+	var $adapter;
+	
+	
 	/**
 	 * Execute sql query
 	 */
 	function executeSQL($builder)
 	{
-		/* Get sql */
-		$sql = $builder->getSQL();
-		$data = $builder->getData();
-		if ($data instanceof \Runtime\Dict)
-		{
-			$data = $data->_map;
-		}
-		
-		/* $data = \Runtime\rtl::PrimitiveToNative($data); */
-		$this->st = $this->conn->pdo->prepare(
-			$sql, array(\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY)
-		);
-		$this->st->execute($data);
-		return $this;
+		$this->adapter->executeSQL($builder);
 	}
-	/**
-	 * Close cursor
-	 */
-	function close()
-	{
-		if ($this->st) $this->st->closeCursor();
-		$this->st = null;
-		return $this;
-	}
-	/**
-	 * Fetch next row
-	 */
-	function fetchMap()
-	{
-		if ($this->st == null) return null;
-		
-		$row = $this->st->fetch(\PDO::FETCH_ASSOC);
-		$row = ($row != null) ? \Runtime\Map::from($row) : null;
-		
-		return $row;
-		return null;
-	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->st = null;
 		$this->q = null;
 		$this->found_rows = -1;
+		$this->adapter = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.ORM.MySQL";
-	}
-	static function getClassName()
-	{
-		return "Runtime.ORM.MySQL.CursorMySQL";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.Cursor";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.ORM.MySQL.CursorMySQL"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

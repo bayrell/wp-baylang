@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,57 +17,29 @@
  *  limitations under the License.
  */
 namespace Runtime\Widget\Form;
-class FormMessage extends \Runtime\Web\Messages\Message
+
+use Runtime\ApiResult;
+use Runtime\Message;
+
+
+class FormMessage extends \Runtime\Message
 {
-	public $result;
-	public $field_name;
-	public $old_value;
-	public $value;
-	/* ======================= Class Init Functions ======================= */
+	var $result;
+	var $key;
+	var $value;
+	var $save_draft;
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
 		$this->result = null;
-		$this->field_name = null;
-		$this->old_value = null;
+		$this->key = "";
 		$this->value = null;
+		$this->save_draft = false;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget.Form";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Form.FormMessage";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Web.Messages.Message";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Widget.Form.FormMessage"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,12 +17,16 @@
  *  limitations under the License.
  */
 namespace Runtime;
+
+
 interface MapInterface
 {
 	/**
 	 * Returns string
 	 */
-	function get($name, $def_value=null);
+	function get($name, $def_value = null);
+	
+	
 	/**
 	 * Set new value
 	 */

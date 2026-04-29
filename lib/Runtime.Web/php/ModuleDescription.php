@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,76 +17,63 @@
  *  limitations under the License.
  */
 namespace Runtime\Web;
+
+use Runtime\Entity\Entity;
+use Runtime\Entity\Hook;
+use Runtime\Entity\Provider;
+use Runtime\Web\Annotations\Route;
+use Runtime\Web\ApiProvider;
+use Runtime\Web\RenderProvider;
+use Runtime\Web\RouteList;
+
+
 class ModuleDescription
 {
 	/**
 	 * Returns module name
 	 * @return string
 	 */
-	static function getModuleName()
-	{
-		return "Runtime.Web";
-	}
+	static function getModuleName(){ return "Runtime.Web"; }
+	
+	
 	/**
 	 * Returns module name
 	 * @return string
 	 */
-	static function getModuleVersion()
-	{
-		return "0.12.0";
-	}
+	static function getModuleVersion(){ return "0.12.0"; }
+	
+	
 	/**
 	 * Returns required modules
 	 * @return Dict<string>
 	 */
 	static function requiredModules()
 	{
-		return \Runtime\Map::from(["Runtime"=>">=0.12"]);
+		return new \Runtime\Map([
+			"Runtime" => ">=0.12",
+		]);
 	}
+	
+	
 	/**
 	 * Returns enities
 	 */
 	static function entities()
 	{
-		return \Runtime\Vector::from([new \Runtime\Entity\Hook("Runtime.Web.Hooks.AssetsHook"),new \Runtime\Entity\Provider("Runtime.Web.RenderProvider"),new \Runtime\Entity\Hook("Runtime.Web.Hooks.LayoutHook"),new \Runtime\Entity\Hook("Runtime.Web.Hooks.ResponseHook"),new \Runtime\Entity\Provider("Runtime.Web.BusLocal"),new \Runtime\Entity\Provider("Runtime.Web.RouteList"),new \Runtime\Web\Annotations\Route("Runtime.Web.ApiRoute")]);
+		return new \Runtime\Vector(
+			new \Runtime\Entity\Hook("Runtime.Web.Hooks.AppHook"),
+			new \Runtime\Entity\Provider("Runtime.Web.RouteProvider"),
+			new \Runtime\Entity\Provider("api", "Runtime.Web.BusLocal"),
+			new \Runtime\Web\Annotations\Route("Runtime.Web.ApiRoute"),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.Web";
 	}
-	static function getClassName()
-	{
-		return "Runtime.Web.ModuleDescription";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Web.ModuleDescription"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

@@ -25,12 +25,12 @@ use Runtime.ORM.Connection;
 use Runtime.ORM.Provider;
 
 
-struct ConnectionFactory extends Entity
+class ConnectionFactory extends Entity
 {
 	/**
 	 * Create connection
 	 */
-	Connection createConnection()
+	async Connection createConnection()
 	{
 		return null;
 	}
@@ -39,12 +39,12 @@ struct ConnectionFactory extends Entity
 	/**
 	 * Register connections
 	 */
-	void registerConnections(Provider provider)
+	async void registerConnections(Provider provider)
 	{
 		/* Create connection */
-		Connection conn = this.createConnection();
+		Connection conn = await this.createConnection();
 		
 		/* Add connection */
-		provider.addConnection(conn);
+		provider.add(conn);
 	}
 }

@@ -18,11 +18,12 @@
 
 namespace Runtime.WordPress.Admin;
 
-use Runtime.Web.BaseLayoutModel;
+use Runtime.BaseLayout;
+use Runtime.Web.RouteList;
 use Runtime.WordPress.Admin.AdminLayout;
 
 
-class AdminLayoutModel extends BaseLayoutModel
+class AdminLayoutModel extends BaseLayout
 {
-    string component = classof AdminLayout;
+	string component = classof AdminLayout;
 }

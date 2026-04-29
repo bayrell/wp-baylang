@@ -2,7 +2,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,76 +17,59 @@
  *  limitations under the License.
  */
 namespace Runtime\Unit;
+
+use Runtime\Entity\Provider;
+use Runtime\Console\Annotations\ConsoleCommand;
+use Runtime\Unit\TestProvider;
+
+
 class ModuleDescription
 {
 	/**
 	 * Returns module name
 	 * @return string
 	 */
-	static function getModuleName()
-	{
-		return "Runtime.Unit";
-	}
+	static function getModuleName(){ return "Runtime.Unit"; }
+	
+	
 	/**
 	 * Returns module name
 	 * @return string
 	 */
-	static function getModuleVersion()
-	{
-		return "0.12.0";
-	}
+	static function getModuleVersion(){ return "0.12.0"; }
+	
+	
 	/**
 	 * Returns required modules
 	 * @return Map<string, string>
 	 */
 	static function requiredModules()
 	{
-		return \Runtime\Map::from(["Runtime"=>"*","Runtime.Console"=>"*"]);
+		return new \Runtime\Map([
+			"Runtime" => "*",
+			"Runtime.Console" => "*",
+		]);
 	}
+	
+	
 	/**
 	 * Returns enities
 	 */
 	static function entities()
 	{
-		return \Runtime\Vector::from([new \Runtime\Entity\Provider("Runtime.Unit.TestProvider", new \Runtime\Unit\TestProvider())]);
+		return new \Runtime\Vector(
+			new \Runtime\Console\Annotations\ConsoleCommand("Runtime.Unit.Commands.TestAll"),
+			new \Runtime\Console\Annotations\ConsoleCommand("Runtime.Unit.Commands.TestRun"),
+			new \Runtime\Entity\Provider("Runtime.Unit.TestProvider"),
+		);
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.Unit";
 	}
-	static function getClassName()
-	{
-		return "Runtime.Unit.ModuleDescription";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.Unit.ModuleDescription"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

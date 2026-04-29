@@ -1,7 +1,7 @@
 /*!
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,9 +18,10 @@
  
 namespace Runtime;
 
-use Runtime.rtl;
 use Runtime.BaseObject;
-use Runtime.Dict;
+use Runtime.Serializer.DateTimeType;
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.ObjectType;
 use Runtime.StringInterface;
 
 
@@ -29,6 +30,18 @@ class Date extends BaseObject implements StringInterface
 	public int y = 0;
 	public int m = 0;
 	public int d = 0;
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("y", new IntegerType());
+		rules.addType("m", new IntegerType());
+		rules.addType("d", new IntegerType());
+	}
 	
 	
 	/**
@@ -84,18 +97,18 @@ class Date extends BaseObject implements StringInterface
 
 
 #ifcode JAVASCRIPT then
-Runtime.Date.prototype.toObject = function(ctx)
+Runtime.Date.prototype.toObject = function()
 {
 	var dt = new Date(this.y, this.m - 1, this.d);
 	return dt;
 }
-Runtime.Date.fromObject = function(ctx, dt)
+Runtime.Date.fromObject = function(dt)
 {
 	var Dict = use("Runtime.Dict");
 	var y = Number(dt.getFullYear());
 	var m = Number(dt.getMonth()) + 1;
 	var d = Number(dt.getDate());
-	var dt = new Runtime.Date( ctx, Dict.from({"y":y,"m":m,"d":d}) );
+	var dt = new Runtime.Date(Dict.from({"y":y,"m":m,"d":d}));
 	return dt;
 }
 #endif

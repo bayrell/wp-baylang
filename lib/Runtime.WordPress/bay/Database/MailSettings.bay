@@ -18,8 +18,9 @@
 
 namespace Runtime.WordPress.Database;
 
-use Runtime.BaseStruct;
+use Runtime.BaseObject;
 use Runtime.ORM.Relation;
+use Runtime.ORM.Record;
 use Runtime.ORM.Annotations.AutoIncrement;
 use Runtime.ORM.Annotations.BigIntType;
 use Runtime.ORM.Annotations.BooleanType;
@@ -28,18 +29,18 @@ use Runtime.ORM.Annotations.StringType;
 use Runtime.ORM.Annotations.TinyIntType;
 
 
-class MailSettings extends Relation
+class MailSettings extends Record
 {
-    /**
-     * Returns table name
-     */
-    pure string getTableName() => "mail_settings";
-    
-    
-    /**
-     * Returns table schema
-     */
-    pure memorize Collection<BaseStruct> schema() =>
+	/**
+	 * Returns table name
+	 */
+	pure string getTableName() => "mail_settings";
+	
+	
+	/**
+	 * Returns table schema
+	 */
+	pure memorize Collection<BaseObject> schema() =>
 	[
 		/* Fields */
 		new BigIntType{"name": "id"},

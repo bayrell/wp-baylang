@@ -21,7 +21,7 @@ namespace Runtime.ORM.Annotations;
 use Runtime.Entity.Entity;
 
 
-struct Database extends Entity
+class Database extends Entity
 {
     void constructor(string name)
 	{

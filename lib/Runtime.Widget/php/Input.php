@@ -2,7 +2,7 @@
 /*
  *  BayLang Technology
  *
- *  (c) Copyright 2016-2024 "Ildar Bikmamatov" <support@bayrell.org>
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,57 +17,46 @@
  *  limitations under the License.
 */
 namespace Runtime\Widget;
+
+use Runtime\Widget\Messages\ValueChangeMessage;
+
 class Input extends \Runtime\Widget\Field
 {
-	public $direct_update;
-	public $readonly;
-	public $name;
-	public $value;
-	public $default;
-	public $placeholder;
-	public $type;
-	public $change_timer;
 	function render()
 	{
-		$__v = new \Runtime\Vector();
+		$componentHash = \Runtime\rs::getComponentHash(static::getClassName());
+		$__v = new \Runtime\VirtualDom($this);
+		$__v->is_render = true;
+		
 		$props = $this->getProps();
 		
-		/* Element 'input' */
-		$this->_e($__v, "input", $this->_merge_attrs(["type" => $this->type,"name" => $this->name,"value" => $this->getValue(),"placeholder" => $this->placeholder,"class" => $this->_class_name(["widget_input"])], $props));
+		/* Element input */
+		$__v->element("input", (new \Runtime\Map(["class" => \Runtime\rs::className(new \Runtime\Vector("input", $this->class, $componentHash)), "type" => $this->type, "name" => $this->name, "value" => $this->getValue(), "placeholder" => $this->placeholder]))->concat($props));
 		
-		return $this->_flatten($__v);
+		return $__v;
 	}
+	var $direct_update;
+	var $readonly;
+	var $name;
+	var $value;
+	var $default;
+	var $placeholder;
+	var $type;
+	var $change_timer;
 	/**
- * Returns value
- */
+	 * Returns value
+	 */
 	function getValue()
 	{
-		if ($this->value)
-		{
-			return $this->value;
-		}
+		if ($this->value) return $this->value;
 		return $this->default;
 	}
 	/**
- * Returns input props
- */
-	function getProps()
-	{
-		if ($this->readonly)
-		{
-			return \Runtime\Map::from(["readonly"=>true]);
-		}
-		return \Runtime\Map::from([]);
-	}
-	/**
- * KeyDown event
- */
+	 * KeyDown event
+	 */
 	function onKeyDown($e)
 	{
-		if (!$this->direct_update)
-		{
-			return ;
-		}
+		if (!$this->direct_update) return;
 		if ($this->change_timer != null)
 		{
 			$window->clearTimeout($this->change_timer);
@@ -79,25 +68,20 @@ class Input extends \Runtime\Widget\Field
 		}, 300);
 	}
 	/**
- * Change event
- */
+	 * Change event
+	 */
 	function onChange($e)
 	{
 		$input = $this->getRef("input");
 		/* Send value change */
-		$this->emit("valueChange", new \Runtime\Web\Messages\ValueChangeMessage(\Runtime\Map::from(["value"=>$input->value,"old_value"=>$this->value,"data"=>$this->data])));
+		$this->emit(new \Runtime\Widget\Messages\ValueChangeMessage(new \Runtime\Map([
+			"value" => $input->value,
+			"old_value" => $this->value,
+			"data" => $this->data,
+		])));
 	}
-	static function components()
-	{
-		return \Runtime\Vector::from(["Runtime.Widget.Field"]);
-	}
-	static function css($vars)
-	{
-		$res = "";
-		$res .= \Runtime\rtl::toStr(".widget_input.h-f2df{width: 100%;font-family: var(--widget-font-family);font-size: var(--widget-font-size);padding: var(--widget-input-padding-y) var(--widget-input-padding-x);background-color: var(--widget-color-default);border-width: var(--widget-border-width);border-color: var(--widget-color-border);border-style: solid;border-radius: 4px;box-shadow: none;outline: transparent;line-height: normal;min-height: 32px}.widget_input.h-f2df:focus{outline: transparent}");
-		return $res;
-	}
-	/* ======================= Class Init Functions ======================= */
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		parent::_init();
@@ -110,42 +94,7 @@ class Input extends \Runtime\Widget\Field
 		$this->type = "text";
 		$this->change_timer = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.Widget";
-	}
-	static function getClassName()
-	{
-		return "Runtime.Widget.Input";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.Widget.Field";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getComponentStyle(){ return ".input.h-f2de{width: 100%;font-family: var(--font-family);font-size: var(--font-input-size);padding: calc(var(--space) * 0.75) calc(var(--space) * 1.5);background-color: var(--color-background);border-width: var(--border-width);border-color: var(--color-border);border-style: solid;border-radius: var(--border-radius);box-shadow: none;color: var(--color-text);outline: transparent;line-height: normal;min-height: 32px;transition: background-color var(--transition) var(--transition-type),\n\t\tborder-color var(--transition) var(--transition-type),\n\t\tcolor var(--transition) var(--transition-type)}.input.h-f2de:focus{outline: transparent}"; }
+	static function getRequiredComponents(){ return new \Runtime\Vector(); }
+	static function getClassName(){ return "Runtime.Widget.Input"; }
 }

@@ -1,0 +1,153 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.Cabinet.Models;
+
+use Runtime.BaseDTO;
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.VectorType;
+use Runtime.Serializer.ObjectType;
+
+
+/**
+ * Menu Model
+ * 
+ * Supports hierarchical menu structure for cabinet navigation
+ */
+class Menu extends BaseDTO
+{
+	/* Menu item title */
+	string title = "";
+	
+	/* Menu item slug/identifier */
+	string id = "";
+	
+	/* Menu item URL/route name */
+	string url = "";
+	
+	/* Menu params */
+	Map url_params = {};
+	
+	/* Menu item icon (CSS class or SVG) */
+	string icon = "";
+	
+	/* Menu item description */
+	string description = "";
+	
+	/* Menu item order/position */
+	int order = 0;
+	
+	/* Menu item status (active/inactive) */
+	bool is_active = true;
+	
+	/* Menu item permissions (roles that can access) */
+	Vector<string> permissions = [];
+	
+	/* Child menu items (for hierarchical structure) */
+	Vector<Menu> children = [];
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("title", new StringType());
+		rules.addType("id", new StringType());
+		rules.addType("url", new StringType());
+		rules.addType("url_params", new MapType(new StringType()));
+		rules.addType("icon", new StringType());
+		rules.addType("description", new StringType());
+		rules.addType("order", new IntegerType());
+		rules.addType("is_active", new IntegerType());
+		rules.addType("permissions", new VectorType(new StringType()));
+		rules.addType("children", new VectorType(new ObjectType{
+			"class_name": classof Menu,
+		}));
+	}
+	
+	
+	/**
+	 * Check if menu item has children
+	 */
+	bool hasChildren()
+	{
+		return this.children.count() > 0;
+	}
+	
+	
+	/**
+	 * Get child menu items
+	 */
+	Vector<Menu> getChildren()
+	{
+		return this.children;
+	}
+	
+	
+	/**
+	 * Add child menu item
+	 */
+	void add(Menu child)
+	{
+		this.children.push(child);
+	}
+	
+	
+	/**
+	 * Find menu by slug
+	 */
+	Menu find(string id) => this.children.find(
+		bool (Menu item) => item.id == id
+	);
+	
+	/**
+	 * Check if menu item is visible and active
+	 */
+	bool isVisible()
+	{
+		return this.is_active;
+	}
+	
+	
+	/**
+	 * Check if user has permission to access menu item
+	 */
+	bool hasPermission(Vector<string> user_permissions)
+	{
+		/* If no permissions required, allow access */
+		if (this.permissions.count() == 0)
+		{
+			return true;
+		}
+		
+		/* Check if user has any of the required permissions */
+		for (string permission in this.permissions)
+		{
+			if (user_permissions.indexOf(permission) >= 0)
+			{
+				return true;
+			}
+		}
+		
+		return false;
+	}
+}

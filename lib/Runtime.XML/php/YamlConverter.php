@@ -17,24 +17,33 @@
  *  limitations under the License.
  */
 namespace Runtime\XML;
+
+use Runtime\BaseObject;
+use Runtime\XML\XML;
+
+
 class YamlConverter
 {
-	public $xml;
-	public $variables;
-	function __construct($xml, $variables=null)
+	var $xml;
+	var $variables;
+	
+	
+	/**
+	 * Constructor
+	 */
+	function __construct($xml, $variables = null)
 	{
 		$this->xml = $xml;
 		$this->variables = $variables;
 	}
+	
+	
 	/**
 	 * Patch variables
 	 */
 	function patchVariables($data)
 	{
-		if ($this->variables == null)
-		{
-			return $data;
-		}
+		if ($this->variables == null) return $data;
 		$variables_keys = $this->variables->keys();
 		for ($i = 0; $i < $variables_keys->count(); $i++)
 		{
@@ -44,6 +53,8 @@ class YamlConverter
 		}
 		return $data;
 	}
+	
+	
 	/**
 	 * Convert xml to dict
 	 */
@@ -107,6 +118,8 @@ class YamlConverter
 		}
 		return $res;
 	}
+	
+	
 	/**
 	 * Convert xml to dict
 	 */
@@ -114,17 +127,16 @@ class YamlConverter
 	{
 		return $this->xmlToDict($this->xml);
 	}
+	
+	
 	/**
 	 * Convert XML to Yaml
 	 */
-	function convert($params=null)
+	function convert($params = null)
 	{
 		$yaml = "";
 		$data = $this->toDict($this->xml);
-		if ($params == null)
-		{
-			$params = \Runtime\Map::from([]);
-		}
+		if ($params == null) $params = new \Runtime\Map();
 		$indent_spaces = $params->get("indent-spaces", 2);
 		$serializer = new \Runtime\SerializerNative();
 		$serializer->removeFlag(\Runtime\Serializer::ALLOW_OBJECTS);
@@ -135,48 +147,15 @@ class YamlConverter
 		);
 		return $yaml;
 	}
-	/* ======================= Class Init Functions ======================= */
+	
+	
+	/* ========= Class init functions ========= */
 	function _init()
 	{
 		$this->xml = null;
 		$this->variables = null;
 	}
-	static function getNamespace()
-	{
-		return "Runtime.XML";
-	}
-	static function getClassName()
-	{
-		return "Runtime.XML.YamlConverter";
-	}
-	static function getParentClassName()
-	{
-		return "";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.XML.YamlConverter"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

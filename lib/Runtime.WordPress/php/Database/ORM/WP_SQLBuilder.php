@@ -17,15 +17,17 @@
  *  limitations under the License.
  */
 namespace Runtime\WordPress\Database\ORM;
+
+use Runtime\ORM\MySQL\SQLBuilder;
+
 class WP_SQLBuilder extends \Runtime\ORM\MySQL\SQLBuilder
 {
 	/**
 	 * Format key
 	 */
-	function formatKey($key)
-	{
-		return ":" . \Runtime\rtl::toStr($key) . \Runtime\rtl::toStr(":");
-	}
+	function formatKey($key){ return ":" . $key . ":"; }
+	
+	
 	/**
 	 * Escape value
 	 */
@@ -50,8 +52,10 @@ class WP_SQLBuilder extends \Runtime\ORM\MySQL\SQLBuilder
 			$value = $wpdb->esc_like( $value ) . "%";
 			$op = "like";
 		}
-		return \Runtime\Vector::from([$value,$op]);
+		return new \Runtime\Vector($value, $op);
 	}
+	
+	
 	/**
 	 * Quote
 	 */
@@ -61,43 +65,14 @@ class WP_SQLBuilder extends \Runtime\ORM\MySQL\SQLBuilder
 		/*$value = "'" . json_encode($value) . "'";*/
 		return $value;
 	}
-	/* ======================= Class Init Functions ======================= */
-	static function getNamespace()
+	
+	
+	/* ========= Class init functions ========= */
+	function _init()
 	{
-		return "Runtime.WordPress.Database.ORM";
+		parent::_init();
 	}
-	static function getClassName()
-	{
-		return "Runtime.WordPress.Database.ORM.WP_SQLBuilder";
-	}
-	static function getParentClassName()
-	{
-		return "Runtime.ORM.MySQL.SQLBuilder";
-	}
-	static function getClassInfo()
-	{
-		return \Runtime\Dict::from([
-			"annotations"=>\Runtime\Collection::from([
-			]),
-		]);
-	}
-	static function getFieldsList()
-	{
-		$a = [];
-		return \Runtime\Collection::from($a);
-	}
-	static function getFieldInfoByName($field_name)
-	{
-		return null;
-	}
-	static function getMethodsList()
-	{
-		$a=[
-		];
-		return \Runtime\Collection::from($a);
-	}
-	static function getMethodInfoByName($field_name)
-	{
-		return null;
-	}
+	static function getClassName(){ return "Runtime.WordPress.Database.ORM.WP_SQLBuilder"; }
+	static function getMethodsList(){ return null; }
+	static function getMethodInfoByName($field_name){ return null; }
 }

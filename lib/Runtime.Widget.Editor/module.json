@@ -1,0 +1,26 @@
+{
+	"name": "Runtime.Widget.Editor",
+	"assets":
+	[
+		"Editor.bay"
+	],
+	"require": [
+		"Runtime.Widget"
+	],
+	"groups": [
+		"widget"
+	],
+	"modules":
+	[
+	],
+	"src": "./bay",
+	"dest":
+	{
+		"php": "./php",
+		"es6": "./es6"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

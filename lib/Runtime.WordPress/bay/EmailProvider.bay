@@ -18,15 +18,19 @@
 
 namespace Runtime.WordPress;
 
+use Runtime.BaseModel;
 use Runtime.BaseProvider;
 use Runtime.DateTime;
 use Runtime.ORM.Connection;
 use Runtime.ORM.Query;
 use Runtime.ORM.QueryResult;
+use Runtime.ORM.Record;
+use Runtime.ORM.Relation;
 use Runtime.Web.RenderContainer;
 use Runtime.Web.RenderResponse;
 use Runtime.WordPress.Database.MailDelivery;
 use Runtime.WordPress.Database.MailSettings;
+use Runtime.WordPress.Theme.Components.EmailModel;
 
 
 class EmailProvider extends BaseProvider
@@ -41,13 +45,13 @@ class EmailProvider extends BaseProvider
 	{
 		if (this.settings != null) return;
 		this.settings = {};
-		Connection connection = Connection::get();
-		Query q = MailSettings::select().where("enable", "=", 1);
-		QueryResult items = await connection.fetchAll(q);
+		Relation<MailSettings> relation = new Relation(classof MailSettings);
+		Query q = relation.select().where("enable", "=", 1);
+		QueryResult items = await relation.fetchAll(q);
 		for (int i=0; i<items.count(); i++)
 		{
-			MailSettings item = items.get(i);
-			this.settings.set(item.get("plan"), item.toMap());
+			Map item = items.get(i);
+			this.settings.set(item.get("plan"), item);
 		}
 	}
 	
@@ -62,35 +66,39 @@ class EmailProvider extends BaseProvider
 		string title = params.get("title", "");
 		string content = params.get("content", "");
 		string component = params.get("component", "");
-		Dict props = params.get("props", {});
+		Map props = params.get("props", {});
+		BaseModel model = params.get("model", null);
 		
 		/* Render component */		
+		RenderContainer render_container = new RenderContainer();
+		render_container.createLayout("email");
+		render_container.layout.title = title;
 		if (component != "")
 		{
-			RenderContainer render_container = new RenderContainer();
-			render_container.createLayout("email");
-			render_container.layout.setPageTitle(title);
-			render_container.layout.setPageComponent(component, props);
-			RenderResponse response = new RenderResponse(render_container)
-			content = response.getContent();
+			render_container.layout.setCurrentPage(component, props);
 		}
-		
-		/* Get connection */
-		Connection connection = Connection::get();
+		else if (model != null)
+		{
+			render_container.layout.current_page_model = model::getClassName();
+			render_container.layout.pages.set(
+				render_container.layout.current_page_model, model
+			);
+		}
+		content = render_container.renderApp();
 		
 		/* Create email */
-		MailDelivery email = new MailDelivery();
-		email.set("worker", "email");
-		email.set("plan", plan);
-		email.set("uuid", rs::uid());
-		email.set("dest", dest);
-		email.set("title", title);
-		email.set("message", content);
-		email.set("gmtime_plan", null);
-		email.set("gmtime_send", null);
+		MailDelivery item = new MailDelivery();
+		item.worker = "email";
+		item.plan = plan;
+		item.uuid = rs::uid();
+		item.dest = dest;
+		item.title = title;
+		item.message = content;
+		item.gmtime_plan = null;
+		item.gmtime_send = null;
 		
 		/* Save email */
-		await email.save(connection);
+		await item.save();
 	}
 	
 	
@@ -100,12 +108,10 @@ class EmailProvider extends BaseProvider
 	async void sendMessage(MailDelivery email)
 	{
 		if (email == null) return;
-		if (email.get("status") != 0) return;
-		
-		Connection connection = Connection::get();
+		if (email.status != 0) return;
 		
 		/* Check settings */
-		string plan = email.get("plan");
+		string plan = email.plan;
 		if (not this.settings) return;
 		if (not this.settings.has(plan))
 		{
@@ -113,9 +119,9 @@ class EmailProvider extends BaseProvider
 		}
 		if (not this.settings.has(plan))
 		{
-			email.set("status", -1);
-			email.set("send_email_error", "Settings not found");
-			await email.save(connection);
+			email.status = -1;
+			email.send_email_error = "Settings not found";
+			await email.save();
 			return;
 		}
 		
@@ -123,21 +129,21 @@ class EmailProvider extends BaseProvider
 		Dict settings = this.settings.get(plan);
 		
 		/* Check email */
-		if (email.get("dest") == "")
+		if (email.dest == "")
 		{
-			email.set("status", -1);
-			email.set("send_email_error", "Destination is empty");
-			await email.save(connection);
+			email.status = -1;
+			email.send_email_error = "Destination is empty";
+			await email.save();
 			return;
 		}
 		
 		#ifcode PHP then
 		
 		/* Set email sending status */
-		$email->set("status", 2);
-		$email->set("send_email_code", 0);
-		$email->set("send_email_error", "");
-		$email->save($connection);
+		$email->status = 2;
+		$email->send_email_code = 0;
+		$email->send_email_error = "";
+		$email->save();
 		
 		/* Create message */
 		$message = new \PHPMailer\PHPMailer\PHPMailer(true);
@@ -174,11 +180,11 @@ class EmailProvider extends BaseProvider
 		/* Create message */
 		$message->setFrom($settings->get("login"));
 		$message->isHTML(true);
-		$message->Subject = $email->get("title");
-		$message->Body = $email->get("message");
+		$message->Subject = $email->title;
+		$message->Body = $email->message;
 		
 		/* Add email */
-		$arr = \Runtime\rs::split(",", $email->get("dest"));
+		$arr = \Runtime\rs::split(",", $email->dest);
 		$arr->each(function($item) use ($message){
 			$message->addAddress(trim($item));
 		});
@@ -187,18 +193,17 @@ class EmailProvider extends BaseProvider
 		try
 		{
 			$message->send();
-			$email->set("gmtime_send", \Runtime\DateTime::now());
-			$email->set("status", 1);
-			$email->set("send_email_error", "Ok");
-			$email->save($connection);
+			$email->gmtime_send = \Runtime\DateTime::now();
+			$email->status = 1;
+			$email->send_email_error = "Ok";
+			$email->save();
 		}
 		catch (\Exception $e)
 		{
-			$email->set("status", 2);
-			$email->set("status", -1);
-			$email->set("send_email_code", -1);
-			$email->set("send_email_error", $message->ErrorInfo);
-			$email->save($connection);
+			$email->status = -1;
+			$email->send_email_code = -1;
+			$email->send_email_error = $message->ErrorInfo;
+			$email->save();
 		}
 		
 		#endif
@@ -210,12 +215,12 @@ class EmailProvider extends BaseProvider
 	 */
 	async void sendNewMessages()
 	{
-		Connection connection = Connection::get();
-		Query q = MailDelivery::select()
+		Relation<MailDelivery> relation = new Relation(classof MailDelivery);
+		Query q = relation.select()
 			.where("status", "=", 0)
 		;
 		
-		QueryResult items = await connection.findRelations(q);
+		QueryResult items = await relation.fetchAllRecords(q);
 		for (int i=0; i<items.count(); i++)
 		{
 			await this.sendMessage(items.get(i));

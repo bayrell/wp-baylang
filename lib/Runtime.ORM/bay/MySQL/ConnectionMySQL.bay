@@ -20,6 +20,7 @@ namespace Runtime.ORM.MySQL;
 
 use Runtime.io;
 use Runtime.re;
+use Runtime.ORM.Annotations.BaseType;
 use Runtime.ORM.Factory.CursorFactory;
 use Runtime.ORM.Connection;
 use Runtime.ORM.Cursor;
@@ -27,6 +28,7 @@ use Runtime.ORM.Query;
 use Runtime.ORM.QueryField;
 use Runtime.ORM.QueryFilter;
 use Runtime.ORM.Exceptions.OrmException;
+use Runtime.ORM.MySQL.Adapter;
 use Runtime.ORM.MySQL.CursorMySQL;
 use Runtime.ORM.MySQL.SQLBuilder;
 
@@ -55,42 +57,9 @@ class ConnectionMySQL extends Connection
 	
 	
 	/**
-	 * Connect
+	 * Create adapter
 	 */
-	async ConnectionMySQL connect()
-	{
-		this.connect_error = "";
-		
-		#ifcode PHP then
-		
-		try
-		{
-			$str = 'mysql:host='.$this->host;
-			if ($this->port != null) $str .= ':'.$this->port;
-			if ($this->database != null) $str .= ';dbname='.$this->database;
-			$this->pdo = new \PDO(
-				$str, $this->login, $this->password, 
-				array(
-					\PDO::ATTR_PERSISTENT => false
-				)
-			);
-			$this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-			$this->pdo->exec("set names utf8");
-		}
-		catch (\PDOException $e)
-		{
-			$this->connect_error = $e->getMessage();
-			throw new \Runtime\ORM\Exceptions\OrmException('Failed connected to database!');
-		}
-		catch (\Excepion $e)
-		{
-			$this->connect_error = $e->getMessage();
-		}
-		
-		#endif
-		
-		return this;
-	}
+	static void createAdapter() => new Adapter();
 	
 	
 	/**
@@ -98,7 +67,24 @@ class ConnectionMySQL extends Connection
 	 */
 	bool isConnected()
 	{
-		return this.pdo != null;
+		return this.adapter.isConnected();
+	}
+	
+	
+	/**
+	 * Convert item from database
+	 */
+	var fromDatabase(BaseType annotation, Map item, string field_name)
+	{
+		#ifcode NODEJS then
+		const DateTimeType = use("Runtime.ORM.Annotations.DateTimeType");
+		if (annotation instanceof DateTimeType)
+		{
+			let value = item.get(field_name);
+			item.set(field_name, value.toISOString());
+		}
+		#endif
+		return item;
 	}
 	
 	
@@ -154,7 +140,7 @@ class ConnectionMySQL extends Connection
 		/* Print debug SQL */
 		if (is_debug)
 		{
-			io::print(sql_debug);
+			rtl::print(sql_debug);
 		}
 		
 		/* Query log */
@@ -198,7 +184,7 @@ class ConnectionMySQL extends Connection
 		/* Execute sql */
 		if (cursor instanceof CursorMySQL)
 		{
-			cursor = await cursor.executeSQL(builder);
+			await cursor.executeSQL(builder);
 		}
 		
 		return cursor;
@@ -228,7 +214,7 @@ class ConnectionMySQL extends Connection
 		/* Execute sql */
 		if (cursor instanceof CursorMySQL)
 		{
-			Cursor cursor = await cursor.executeSQL(builder);
+			await cursor.executeSQL(builder);
 		}
 		
 		return cursor;

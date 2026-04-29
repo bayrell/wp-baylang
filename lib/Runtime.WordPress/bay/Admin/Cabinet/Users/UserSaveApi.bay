@@ -1,0 +1,205 @@
+/*!
+ *  BayLang Technology
+ *
+ *  (c) Copyright 2016-2025 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace Runtime.WordPress.Admin.Cabinet.Users;
+
+use Runtime.Annotations.ApiError;
+use Runtime.Exceptions.RuntimeException;
+use Runtime.Serializer.TypeError;
+use Runtime.ORM.Query;
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.Required;
+use Runtime.Web.Annotations.ApiMethod;
+use Runtime.Widget.Api.SaveApi;
+use Runtime.Widget.Api.Rules.UniqueRule;
+use Runtime.WordPress.Admin.AdminMiddleware;
+use Runtime.Cabinet.Database.User;
+
+
+class UserSaveApi extends SaveApi
+{
+	/**
+	 * Returns api name
+	 */
+	pure string getApiName() => "admin.cabinet.users";
+	
+	
+	/**
+	 * Returns record name
+	 */
+	pure string getRecordName() => classof User;
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	Vector<Middleware> getMiddleware() =>
+	[
+		new AdminMiddleware(),
+	];
+	
+	
+	/**
+	 * Returns save rules
+	 */
+	Vector<BaseRule> rules() =>
+	[
+		new UniqueRule{"field_name": "login"},
+		new UniqueRule{"field_name": "email"},
+	];
+	
+	
+	/**
+	 * Returns data rules
+	 */
+	void getDataRules(MapType rules)
+	{
+	}
+	
+	
+	/**
+	 * Returns item rules
+	 */
+	void getItemRules(MapType rules)
+	{
+		rules.addType("id", new IntegerType());
+		rules.addType("login", new Required());
+		rules.addType("login", new StringType());
+		rules.addType("email", new Required());
+		rules.addType("email", new StringType());
+		rules.addType("name", new StringType());
+		rules.addType("password", new StringType());
+		rules.addType("repeat_password", new StringType());
+		rules.addType("is_deleted", new IntegerType());
+	}
+	
+	
+	/**
+	 * Returns item fields
+	 */
+	Vector<string> getItemFields(string action) =>
+	[
+		"id",
+		"login",
+		"email",
+		"name",
+		"is_deleted",
+		"gmtime_add",
+		"gmtime_edit",
+	];
+	
+	
+	/**
+	 * Returns save fields
+	 */
+	Vector<string> getSaveFields() =>
+	[
+		"login",
+		"email",
+		"name",
+		"is_deleted",
+	];
+	
+	
+	/**
+	 * Check data after setup
+	 */
+	void checkData(Vector errors)
+	{
+		string password = this.update_data.get("password");
+		string repeat_password = this.update_data.get("repeat_password");
+		if (password && password != repeat_password)
+		{
+			errors.push(new TypeError("Password mistmatch", "repeat_password"));
+		}
+	}
+	
+	
+	/**
+	 * Build query
+	 */
+	async void buildQuery(Query q)
+	{
+		await parent(q);
+	}
+	
+	
+	/**
+	 * Save before
+	 */
+	async void onSaveBefore()
+	{
+		await parent();
+	}
+	
+	
+	/**
+	 * Save after
+	 */
+	async void onSaveAfter()
+	{
+		await parent();
+		
+		string password = this.update_data.get("password");
+		string repeat_password = this.update_data.get("repeat_password");
+		if (password != "" && password == repeat_password)
+		{
+			this.item.setPassword(password);
+			await this.item.save();
+		}
+	}
+	
+	
+	/**
+	 * Delete before
+	 */
+	async void onDeleteBefore()
+	{
+		await parent();
+	}
+	
+	
+	/**
+	 * Delete after
+	 */
+	async void onDeleteAfter()
+	{
+	}
+	
+	
+	/**
+	 * Save action
+	 */
+	@ApiMethod{ "name": "save" }
+	async void actionSave()
+	{
+		await parent();
+	}
+	
+	
+	/**
+	 * Delete action
+	 */
+	@ApiMethod{ "name": "delete" }
+	async void actionDelete()
+	{
+		await parent();
+	}
+}
