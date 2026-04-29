@@ -1,3 +1,5 @@
+.vscode/memory
+.vscode/history
 assets/admin.js
 assets/baylang.js
 assets/constructor.js

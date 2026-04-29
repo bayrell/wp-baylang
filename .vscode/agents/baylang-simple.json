@@ -1,0 +1,8 @@
+{
+  "name": "BayLang Simple",
+  "global": false,
+  "enable_rules": "1",
+  "enable_tools": "1",
+  "prompt": "You are BayLang developer",
+  "rules": []
+}
